@@ -20,6 +20,12 @@ pg_restore --list "${filepath}.partial" >/dev/null
 mv "${filepath}.partial" "${filepath}"
 
 if [ -n "${S3_ENDPOINT:-}" ] && [ -n "${S3_ACCESS_KEY_ID:-}" ] && [ -n "${S3_SECRET_ACCESS_KEY:-}" ] && [ -n "${S3_BUCKET:-}" ]; then
+  # The standard image is Google Drive only. Legacy B2 deployments must supply
+  # their own image with the MinIO client installed.
+  if ! command -v mc >/dev/null 2>&1; then
+    echo "B2 is configured but this Google Drive backup image does not include the MinIO client." >&2
+    exit 1
+  fi
   mc alias set b2 "${S3_ENDPOINT}" "${S3_ACCESS_KEY_ID}" "${S3_SECRET_ACCESS_KEY}" --api S3v4 >/dev/null
   mc cp "${filepath}" "b2/${S3_BUCKET}/${S3_PREFIX}/${filename}"
   mc stat "b2/${S3_BUCKET}/${S3_PREFIX}/${filename}" >/dev/null
