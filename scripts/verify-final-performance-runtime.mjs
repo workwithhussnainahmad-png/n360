@@ -1,0 +1,52 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
+const count=Number(process.argv[2]||2);
+assert.ok(count===2||count===3);
+const names=['lms-backend-app-1','nisaab360-app2',...(count===3?['nisaab360-app3']:[])];
+const docker=args=>execFileSync('docker',args,{encoding:'utf8'}).trim();
+const app=names.map(name=>{
+ const c=JSON.parse(docker(['inspect',name]))[0];
+ const env=Object.fromEntries(c.Config.Env.map(entry=>{const at=entry.indexOf('=');return [entry.slice(0,at),entry.slice(at+1)];}));
+ assert.equal(c.State.Health.Status,'healthy');
+ assert.equal(env.NODE_ENV,'production');
+ assert.equal(env.HOT_PATH_NATIVE_WARM,'1');
+ assert.equal(env.HOT_PATH_LIGHT_REQUEST,'1');
+ assert.ok(Number(env.DB_POOL_MAX)<=15);
+ assert.notEqual(env.PERFORMANCE_OBSERVER,'1');
+ assert.notEqual(env.PERF_DIAGNOSTICS,'1');
+ assert.ok(!/--require|--cpu-prof|--inspect|--enable-source-maps/.test(env.NODE_OPTIONS||''));
+ assert.equal(c.State.OOMKilled,false);
+ return {name,image:c.Image,healthy:c.State.Health.Status,cmd:c.Config.Cmd,
+  flags:Object.fromEntries(['NODE_ENV','NODE_OPTIONS','HOT_PATH_LANE','HOT_PATH_NATIVE_WARM','HOT_PATH_LIGHT_REQUEST','DB_POOL_MAX','KEEP_ALIVE_TIMEOUT'].map(k=>[k,env[k]])),restartCount:c.RestartCount};
+});
+assert.equal(new Set(app.map(a=>a.image)).size,1,'All serving images must match');
+const database=JSON.parse(docker(['exec','lms-backend-postgres-1','psql','-U','app','-d','app','-t','-A','-c',"SELECT json_build_object('sharedPreload',current_setting('shared_preload_libraries'),'slowLogMs',current_setting('log_min_duration_statement'),'maxConnections',current_setting('max_connections')); "]));
+assert.equal(database.sharedPreload,'');
+assert.equal(database.slowLogMs,'-1');
+const caddy=JSON.parse(docker(['exec','lms-backend-caddy-1','wget','-qO-','http://127.0.0.1:2019/config/']));
+const caddyText=JSON.stringify(caddy);
+assert.ok(!caddyText.toLowerCase().includes('x-perf-proxy-ms'));
+assert.ok(!caddyText.includes('/performance-observer/'));
+const tokens=JSON.parse(fs.readFileSync('k6/tokens.json','utf8').replace(/^\uFEFF/,'')).tokens;
+const accounts=['STUDENT','STAFF'].map(role=>tokens.find(row=>row.roleHint===role));
+const wire=[];
+for(let round=0;round<2;round++) for(const account of accounts) for(const endpoint of ['dashboard','timetable','profile']) {
+ const path=`/api/${account.roleHint.toLowerCase()}/${endpoint}`;
+ const response=await fetch('http://127.0.0.1:3000'+path,{headers:{Authorization:`Bearer ${account.accessToken}`,Accept:'application/json','Accept-Encoding':'identity'}});
+ const body=await response.text();
+ assert.equal(response.status,200,path);
+ assert.ok(JSON.parse(body));
+ wire.push({round,role:account.roleHint,endpoint,status:response.status,bytes:Buffer.byteLength(body),sha256:createHash('sha256').update(body).digest('hex')});
+}
+const noAuth=await fetch('http://127.0.0.1:3000/api/student/dashboard',{headers:{'x-user-session':JSON.stringify({role:'STUDENT',userId:accounts[0].userId,institutionId:accounts[0].institutionId}),'x-user-session-sig':'forged'}});
+assert.equal(noAuth.status,401,'Forged session headers cannot authenticate');
+await noAuth.arrayBuffer();
+const wrongRole=await fetch('http://127.0.0.1:3000/api/student/dashboard',{headers:{Authorization:`Bearer ${accounts[1].accessToken}`}});
+assert.equal(wrongRole.status,403,'Role guard remains enforced');
+await wrongRole.arrayBuffer();
+const report={capturedAt:new Date().toISOString(),appCount:count,app,database,wire,denials:{forgedHeaders:noAuth.status,wrongRole:wrongRole.status},limitations:'Bounded idle wire checks validate deployment contracts, not 2000-VU capacity. Existing student generation/cache response headers are retained; profiling/observers and proxy timing logs are disabled.'};
+fs.writeFileSync('docs/performance-experiments/final-runtime-preflight.json',JSON.stringify(report,null,2));
+fs.writeFileSync('docs/performance-experiments/final-caddy-effective.json',JSON.stringify(caddy,null,2));
+console.log(JSON.stringify({appCount:count,image:app[0].image,wireRequests:wire.length,denials:report.denials,database}));

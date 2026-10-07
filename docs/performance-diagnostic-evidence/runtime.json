@@ -1,0 +1,3048 @@
+{
+  "capturedAt": "2026-10-01T17:30:06.164Z",
+  "docker": {
+    "NCPU": 4,
+    "MemTotal": 8328421376,
+    "OperatingSystem": "Docker Desktop",
+    "KernelVersion": "6.18.33.2-microsoft-standard-WSL2",
+    "Architecture": "x86_64",
+    "Driver": "overlayfs",
+    "DockerRootDir": "/var/lib/docker",
+    "ServerVersion": "29.8.0"
+  },
+  "containers": [
+    {
+      "name": "lms-backend-app-1",
+      "image": "sha256:e09d120974a77ec79cb9276b2c21ce00acf3294f8ed80a808daa6cec29b158b9",
+      "command": [
+        "node",
+        "scripts/standalone-server.cjs"
+      ],
+      "entrypoint": [
+        "/bin/sh",
+        "./docker-entrypoint.sh"
+      ],
+      "startedAt": "2026-10-01T16:02:28.300631451Z",
+      "restartCount": 0,
+      "oomKilled": false,
+      "health": "healthy",
+      "cpuQuota": 0,
+      "nanoCpus": 0,
+      "cpuset": "",
+      "memoryLimit": 0,
+      "pidsLimit": null,
+      "environment": [
+        "HOT_PATH_LANE=1",
+        "DB_POOL_MAX=15",
+        "NODE_ENV=production",
+        "NODE_OPTIONS=--max-old-space-size=1024",
+        "KEEP_ALIVE_TIMEOUT=65000",
+        "DEPLOYMENT_ENV=production"
+      ],
+      "processes": "PID                 PPID                NLWP                COMMAND\n21815               21790               1                   /sbin/docker-init -- /bin/sh ./docker-entrypoint.sh node scripts/standalone-server.cjs\n21838               21815               11                  next-server (hot-path lane)"
+    },
+    {
+      "name": "nisaab360-app2",
+      "image": "sha256:e09d120974a77ec79cb9276b2c21ce00acf3294f8ed80a808daa6cec29b158b9",
+      "command": [
+        "node",
+        "scripts/standalone-server.cjs"
+      ],
+      "entrypoint": [
+        "/bin/sh",
+        "./docker-entrypoint.sh"
+      ],
+      "startedAt": "2026-10-01T16:02:27.543380474Z",
+      "restartCount": 0,
+      "oomKilled": false,
+      "health": "healthy",
+      "cpuQuota": 0,
+      "nanoCpus": 0,
+      "cpuset": "",
+      "memoryLimit": 0,
+      "pidsLimit": null,
+      "environment": [
+        "DB_POOL_MAX=15",
+        "HOT_PATH_LANE=1",
+        "KEEP_ALIVE_TIMEOUT=65000",
+        "NODE_ENV=production",
+        "DEPLOYMENT_ENV=production",
+        "NODE_OPTIONS=--max-old-space-size=1024"
+      ],
+      "processes": "PID                 PPID                NLWP                COMMAND\n21749               21725               1                   /sbin/docker-init -- /bin/sh ./docker-entrypoint.sh node scripts/standalone-server.cjs\n21775               21749               11                  next-server (hot-path lane)"
+    },
+    {
+      "name": "lms-backend-caddy-1",
+      "image": "sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b",
+      "command": [
+        "caddy",
+        "run",
+        "--config",
+        "/etc/caddy/Caddyfile",
+        "--adapter",
+        "caddyfile"
+      ],
+      "entrypoint": null,
+      "startedAt": "2026-10-01T15:44:34.031352696Z",
+      "restartCount": 0,
+      "oomKilled": false,
+      "health": "healthy",
+      "cpuQuota": 0,
+      "nanoCpus": 0,
+      "cpuset": "",
+      "memoryLimit": 0,
+      "pidsLimit": null,
+      "environment": [],
+      "processes": "PID                 PPID                NLWP                COMMAND\n8614                8589                1                   /sbin/docker-init -- caddy run --config /etc/caddy/Caddyfile --adapter caddyfile\n8646                8614                18                  caddy run --config /etc/caddy/Caddyfile --adapter caddyfile"
+    },
+    {
+      "name": "lms-backend-pgbouncer-1",
+      "image": "sha256:4c1ca296ef525f108f5d3552cc337c0c09587cf8dae7f0067fd93349e47dc1cd",
+      "command": [
+        "/usr/bin/pgbouncer",
+        "/etc/pgbouncer/pgbouncer.ini"
+      ],
+      "entrypoint": [
+        "/entrypoint.sh"
+      ],
+      "startedAt": "2026-10-01T15:33:41.2580206Z",
+      "restartCount": 0,
+      "oomKilled": false,
+      "health": "healthy",
+      "cpuQuota": 0,
+      "nanoCpus": 0,
+      "cpuset": "",
+      "memoryLimit": 0,
+      "pidsLimit": null,
+      "environment": [],
+      "processes": "PID                 PPID                NLWP                COMMAND\n520                 444                 1                   /sbin/docker-init -- /entrypoint.sh /usr/bin/pgbouncer /etc/pgbouncer/pgbouncer.ini\n626                 520                 1                   /usr/bin/pgbouncer /etc/pgbouncer/pgbouncer.ini"
+    },
+    {
+      "name": "lms-backend-postgres-1",
+      "image": "sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea",
+      "command": [
+        "postgres",
+        "-c",
+        "shared_buffers=1536MB",
+        "-c",
+        "effective_cache_size=4GB",
+        "-c",
+        "work_mem=16MB",
+        "-c",
+        "maintenance_work_mem=256MB",
+        "-c",
+        "max_connections=100",
+        "-c",
+        "checkpoint_completion_target=0.9",
+        "-c",
+        "wal_buffers=32MB",
+        "-c",
+        "max_wal_size=2GB",
+        "-c",
+        "min_wal_size=512MB",
+        "-c",
+        "default_statistics_target=100",
+        "-c",
+        "random_page_cost=1.1",
+        "-c",
+        "effective_io_concurrency=200",
+        "-c",
+        "jit=off",
+        "-c",
+        "autovacuum_vacuum_scale_factor=0.05",
+        "-c",
+        "autovacuum_analyze_scale_factor=0.02",
+        "-c",
+        "autovacuum_naptime=30s",
+        "-c",
+        "autovacuum_vacuum_cost_limit=1000",
+        "-c",
+        "idle_in_transaction_session_timeout=60s",
+        "-c",
+        "track_io_timing=on"
+      ],
+      "entrypoint": [
+        "docker-entrypoint.sh"
+      ],
+      "startedAt": "2026-10-01T15:33:41.2497359Z",
+      "restartCount": 0,
+      "oomKilled": false,
+      "health": "healthy",
+      "cpuQuota": 0,
+      "nanoCpus": 0,
+      "cpuset": "",
+      "memoryLimit": 0,
+      "pidsLimit": null,
+      "environment": [],
+      "processes": "PID                 PPID                NLWP                COMMAND\n521                 449                 1                   /sbin/docker-init -- docker-entrypoint.sh postgres -c shared_buffers=1536MB -c effective_cache_size=4GB -c work_mem=16MB -c maintenance_work_mem=256MB -c max_connections=100 -c checkpoint_completion_target=0.9 -c wal_buffers=32MB -c max_wal_size=2GB -c min_wal_size=512MB -c default_statistics_target=100 -c random_page_cost=1.1 -c effective_io_concurrency=200 -c jit=off -c autovacuum_vacuum_scale_factor=0.05 -c autovacuum_analyze_scale_factor=0.02 -c autovacuum_naptime=30s -c autovacuum_vacuum_cost_limit=1000 -c idle_in_transaction_session_timeout=60s -c track_io_timing=on\n634                 521                 1                   postgres -c shared_buffers=1536MB -c effective_cache_size=4GB -c work_mem=16MB -c maintenance_work_mem=256MB -c max_connections=100 -c checkpoint_completion_target=0.9 -c wal_buffers=32MB -c max_wal_size=2GB -c min_wal_size=512MB -c default_statistics_target=100 -c random_page_cost=1.1 -c effective_io_concurrency=200 -c jit=off -c autovacuum_vacuum_scale_factor=0.05 -c autovacuum_analyze_scale_factor=0.02 -c autovacuum_naptime=30s -c autovacuum_vacuum_cost_limit=1000 -c idle_in_transaction_session_timeout=60s -c track_io_timing=on\n662                 634                 1                   postgres: checkpointer\n663                 634                 1                   postgres: background writer\n665                 634                 1                   postgres: walwriter\n666                 634                 1                   postgres: autovacuum launcher\n667                 634                 1                   postgres: logical replication launcher\n69244               634                 1                   postgres: app app 172.18.0.3(53334) idle\n72627               634                 1                   postgres: app app 172.18.0.3(41858) idle"
+    },
+    {
+      "name": "lms-backend-valkey-1",
+      "image": "sha256:081c2f5cb575efc901aa80ff9cdbd1ec6a301682fd35e1ebb4b0990a4a4a8507",
+      "command": [
+        "valkey-server",
+        "--maxmemory",
+        "260mb",
+        "--maxmemory-policy",
+        "allkeys-lru",
+        "--save",
+        ""
+      ],
+      "entrypoint": [
+        "tini",
+        "--",
+        "docker-entrypoint.sh"
+      ],
+      "startedAt": "2026-10-01T15:33:41.2673284Z",
+      "restartCount": 0,
+      "oomKilled": false,
+      "health": "healthy",
+      "cpuQuota": 0,
+      "nanoCpus": 0,
+      "cpuset": "",
+      "memoryLimit": 0,
+      "pidsLimit": null,
+      "environment": [],
+      "processes": "PID                 PPID                NLWP                COMMAND\n522                 448                 1                   /sbin/docker-init -- tini -- docker-entrypoint.sh valkey-server --maxmemory 260mb --maxmemory-policy allkeys-lru --save\n600                 522                 1                   tini -- docker-entrypoint.sh valkey-server --maxmemory 260mb --maxmemory-policy allkeys-lru --save\n611                 600                 5                   valkey-server *:6379"
+    }
+  ],
+  "versions": {
+    "caddy": "v2.11.4 h1:XKxkMTgNSizEvKG6QHue6cAsFOteU2qA61w2tKkCWi0=",
+    "pgbouncer": "PgBouncer 1.25.2\nlibevent 2.1.12-stable\nadns: evdns2\ntls: OpenSSL 3.5.6 7 Apr 2026"
+  },
+  "postgres": {
+    "version": [
+      {
+        "version": "PostgreSQL 16.15 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit"
+      }
+    ],
+    "settings": [
+      {
+        "name": "effective_cache_size",
+        "setting": "524288",
+        "unit": "8kB",
+        "source": "command line"
+      },
+      {
+        "name": "idle_in_transaction_session_timeout",
+        "setting": "60000",
+        "unit": "ms",
+        "source": "command line"
+      },
+      {
+        "name": "log_lock_waits",
+        "setting": "off",
+        "unit": null,
+        "source": "default"
+      },
+      {
+        "name": "log_min_duration_statement",
+        "setting": "-1",
+        "unit": "ms",
+        "source": "default"
+      },
+      {
+        "name": "max_connections",
+        "setting": "100",
+        "unit": null,
+        "source": "command line"
+      },
+      {
+        "name": "max_wal_size",
+        "setting": "2048",
+        "unit": "MB",
+        "source": "command line"
+      },
+      {
+        "name": "shared_buffers",
+        "setting": "196608",
+        "unit": "8kB",
+        "source": "command line"
+      },
+      {
+        "name": "shared_preload_libraries",
+        "setting": "",
+        "unit": null,
+        "source": "default"
+      },
+      {
+        "name": "statement_timeout",
+        "setting": "5000",
+        "unit": "ms",
+        "source": "client"
+      },
+      {
+        "name": "track_io_timing",
+        "setting": "on",
+        "unit": null,
+        "source": "command line"
+      },
+      {
+        "name": "work_mem",
+        "setting": "16384",
+        "unit": "kB",
+        "source": "command line"
+      }
+    ],
+    "extensions": [
+      {
+        "extname": "plpgsql",
+        "extversion": "1.0"
+      },
+      {
+        "extname": "pg_trgm",
+        "extversion": "1.6"
+      }
+    ],
+    "columns": [
+      {
+        "table_name": "announcement_reads",
+        "column_name": "id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": "nextval('announcement_reads_id_seq'::regclass)"
+      },
+      {
+        "table_name": "announcement_reads",
+        "column_name": "announcement_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "announcement_reads",
+        "column_name": "user_role",
+        "data_type": "USER-DEFINED",
+        "udt_name": "user_role",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "announcement_reads",
+        "column_name": "user_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "announcement_reads",
+        "column_name": "read_at",
+        "data_type": "timestamp without time zone",
+        "udt_name": "timestamp",
+        "is_nullable": "NO",
+        "column_default": "now()"
+      },
+      {
+        "table_name": "announcements",
+        "column_name": "id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": "nextval('announcements_id_seq'::regclass)"
+      },
+      {
+        "table_name": "announcements",
+        "column_name": "institution_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "announcements",
+        "column_name": "sender_role",
+        "data_type": "USER-DEFINED",
+        "udt_name": "user_role",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "announcements",
+        "column_name": "sender_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "announcements",
+        "column_name": "target_type",
+        "data_type": "USER-DEFINED",
+        "udt_name": "announcement_target",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "announcements",
+        "column_name": "target_campus_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "announcements",
+        "column_name": "target_class_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "announcements",
+        "column_name": "target_section_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "announcements",
+        "column_name": "target_user_role",
+        "data_type": "USER-DEFINED",
+        "udt_name": "user_role",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "announcements",
+        "column_name": "target_user_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "announcements",
+        "column_name": "title",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "announcements",
+        "column_name": "content",
+        "data_type": "text",
+        "udt_name": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "announcements",
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "udt_name": "timestamp",
+        "is_nullable": "NO",
+        "column_default": "now()"
+      },
+      {
+        "table_name": "announcements",
+        "column_name": "automation_key",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "assignments",
+        "column_name": "id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": "nextval('assignments_id_seq'::regclass)"
+      },
+      {
+        "table_name": "assignments",
+        "column_name": "institution_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "assignments",
+        "column_name": "staff_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "assignments",
+        "column_name": "class_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "assignments",
+        "column_name": "section_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "assignments",
+        "column_name": "subject_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "assignments",
+        "column_name": "title",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "assignments",
+        "column_name": "description",
+        "data_type": "text",
+        "udt_name": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "assignments",
+        "column_name": "due_at",
+        "data_type": "timestamp without time zone",
+        "udt_name": "timestamp",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "assignments",
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "udt_name": "timestamp",
+        "is_nullable": "NO",
+        "column_default": "now()"
+      },
+      {
+        "table_name": "assignments",
+        "column_name": "reference_file_url",
+        "data_type": "text",
+        "udt_name": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "assignments",
+        "column_name": "reference_file_name",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "campuses",
+        "column_name": "id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": "nextval('campuses_id_seq'::regclass)"
+      },
+      {
+        "table_name": "campuses",
+        "column_name": "institution_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "campuses",
+        "column_name": "name",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "campuses",
+        "column_name": "address",
+        "data_type": "text",
+        "udt_name": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "campuses",
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "udt_name": "timestamp",
+        "is_nullable": "NO",
+        "column_default": "now()"
+      },
+      {
+        "table_name": "campuses",
+        "column_name": "deleted_at",
+        "data_type": "timestamp without time zone",
+        "udt_name": "timestamp",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "classes",
+        "column_name": "id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": "nextval('classes_id_seq'::regclass)"
+      },
+      {
+        "table_name": "classes",
+        "column_name": "institution_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "classes",
+        "column_name": "name",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "classes",
+        "column_name": "level",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": "0"
+      },
+      {
+        "table_name": "classes",
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "udt_name": "timestamp",
+        "is_nullable": "NO",
+        "column_default": "now()"
+      },
+      {
+        "table_name": "classes",
+        "column_name": "deleted_at",
+        "data_type": "timestamp without time zone",
+        "udt_name": "timestamp",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "classes",
+        "column_name": "is_final_class",
+        "data_type": "boolean",
+        "udt_name": "bool",
+        "is_nullable": "NO",
+        "column_default": "false"
+      },
+      {
+        "table_name": "classes",
+        "column_name": "is_graduated_archive",
+        "data_type": "boolean",
+        "udt_name": "bool",
+        "is_nullable": "NO",
+        "column_default": "false"
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": "nextval('institutions_id_seq'::regclass)"
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "name",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "type",
+        "data_type": "USER-DEFINED",
+        "udt_name": "institution_type",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "username",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "logo_key",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "country",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "city",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "address",
+        "data_type": "text",
+        "udt_name": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "contact_email",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "contact_phone",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "registration_number",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "proof_document_key",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "status",
+        "data_type": "USER-DEFINED",
+        "udt_name": "institution_status",
+        "is_nullable": "NO",
+        "column_default": "'PENDING'::institution_status"
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "rejection_reason",
+        "data_type": "text",
+        "udt_name": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "admin_password_hash",
+        "data_type": "text",
+        "udt_name": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "udt_name": "timestamp",
+        "is_nullable": "NO",
+        "column_default": "now()"
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "deleted_at",
+        "data_type": "timestamp without time zone",
+        "udt_name": "timestamp",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "signature_key",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "accept_fee_vouchers",
+        "data_type": "boolean",
+        "udt_name": "bool",
+        "is_nullable": "NO",
+        "column_default": "false"
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "allow_graduated_student_access",
+        "data_type": "boolean",
+        "udt_name": "bool",
+        "is_nullable": "NO",
+        "column_default": "true"
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "pricing_plan",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "fee_voucher_open_day",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "fee_voucher_late_day",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "fee_voucher_late_fee",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": "0"
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "public_slug",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "public_site_enabled",
+        "data_type": "boolean",
+        "udt_name": "bool",
+        "is_nullable": "NO",
+        "column_default": "false"
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "admissions_enabled",
+        "data_type": "boolean",
+        "udt_name": "bool",
+        "is_nullable": "NO",
+        "column_default": "false"
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "fee_payment_methods",
+        "data_type": "jsonb",
+        "udt_name": "jsonb",
+        "is_nullable": "NO",
+        "column_default": "'[]'::jsonb"
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "course_streaming_provider",
+        "data_type": "USER-DEFINED",
+        "udt_name": "streaming_provider",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "institutions",
+        "column_name": "course_streaming_credentials",
+        "data_type": "text",
+        "udt_name": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "marks",
+        "column_name": "id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": "nextval('marks_id_seq'::regclass)"
+      },
+      {
+        "table_name": "marks",
+        "column_name": "institution_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "marks",
+        "column_name": "test_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "marks",
+        "column_name": "student_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "marks",
+        "column_name": "marks_obtained",
+        "data_type": "real",
+        "udt_name": "float4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "marks",
+        "column_name": "total_marks",
+        "data_type": "real",
+        "udt_name": "float4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "marks",
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "udt_name": "timestamp",
+        "is_nullable": "NO",
+        "column_default": "now()"
+      },
+      {
+        "table_name": "sections",
+        "column_name": "id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": "nextval('sections_id_seq'::regclass)"
+      },
+      {
+        "table_name": "sections",
+        "column_name": "institution_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "sections",
+        "column_name": "class_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "sections",
+        "column_name": "name",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "sections",
+        "column_name": "class_teacher_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "sections",
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "udt_name": "timestamp",
+        "is_nullable": "NO",
+        "column_default": "now()"
+      },
+      {
+        "table_name": "sections",
+        "column_name": "deleted_at",
+        "data_type": "timestamp without time zone",
+        "udt_name": "timestamp",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "staff",
+        "column_name": "id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": "nextval('staff_id_seq'::regclass)"
+      },
+      {
+        "table_name": "staff",
+        "column_name": "institution_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "staff",
+        "column_name": "campus_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "staff",
+        "column_name": "name",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "staff",
+        "column_name": "email",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "staff",
+        "column_name": "phone",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "staff",
+        "column_name": "profile_picture_url",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "staff",
+        "column_name": "password_hash",
+        "data_type": "text",
+        "udt_name": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "staff",
+        "column_name": "is_active",
+        "data_type": "boolean",
+        "udt_name": "bool",
+        "is_nullable": "NO",
+        "column_default": "true"
+      },
+      {
+        "table_name": "staff",
+        "column_name": "must_change_password",
+        "data_type": "boolean",
+        "udt_name": "bool",
+        "is_nullable": "NO",
+        "column_default": "true"
+      },
+      {
+        "table_name": "staff",
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "udt_name": "timestamp",
+        "is_nullable": "NO",
+        "column_default": "now()"
+      },
+      {
+        "table_name": "staff",
+        "column_name": "deleted_at",
+        "data_type": "timestamp without time zone",
+        "udt_name": "timestamp",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "staff",
+        "column_name": "expo_push_token",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "staff",
+        "column_name": "announcement_push_notifications_enabled",
+        "data_type": "boolean",
+        "udt_name": "bool",
+        "is_nullable": "NO",
+        "column_default": "true"
+      },
+      {
+        "table_name": "staff",
+        "column_name": "custom_role_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "staff",
+        "column_name": "course_streaming_provider",
+        "data_type": "USER-DEFINED",
+        "udt_name": "streaming_provider",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "staff",
+        "column_name": "course_streaming_credentials",
+        "data_type": "text",
+        "udt_name": "text",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "staff_assignments",
+        "column_name": "id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": "nextval('staff_assignments_id_seq'::regclass)"
+      },
+      {
+        "table_name": "staff_assignments",
+        "column_name": "institution_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "staff_assignments",
+        "column_name": "staff_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "staff_assignments",
+        "column_name": "section_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "staff_assignments",
+        "column_name": "subject_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "staff_assignments",
+        "column_name": "is_break",
+        "data_type": "boolean",
+        "udt_name": "bool",
+        "is_nullable": "NO",
+        "column_default": "false"
+      },
+      {
+        "table_name": "staff_assignments",
+        "column_name": "day_of_week",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "staff_assignments",
+        "column_name": "start_time",
+        "data_type": "time without time zone",
+        "udt_name": "time",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "staff_assignments",
+        "column_name": "end_time",
+        "data_type": "time without time zone",
+        "udt_name": "time",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "staff_assignments",
+        "column_name": "group_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "students",
+        "column_name": "id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": "nextval('students_id_seq'::regclass)"
+      },
+      {
+        "table_name": "students",
+        "column_name": "institution_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "students",
+        "column_name": "campus_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "students",
+        "column_name": "name",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "students",
+        "column_name": "father_name",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "students",
+        "column_name": "phone",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "students",
+        "column_name": "gender",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "NO",
+        "column_default": "'MALE'::character varying"
+      },
+      {
+        "table_name": "students",
+        "column_name": "profile_picture_url",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "students",
+        "column_name": "login_roll_number",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "students",
+        "column_name": "password_hash",
+        "data_type": "text",
+        "udt_name": "text",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "students",
+        "column_name": "class_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "students",
+        "column_name": "section_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "students",
+        "column_name": "year_of_joining",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "students",
+        "column_name": "class_roll_number",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "students",
+        "column_name": "age",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "students",
+        "column_name": "is_active",
+        "data_type": "boolean",
+        "udt_name": "bool",
+        "is_nullable": "NO",
+        "column_default": "true"
+      },
+      {
+        "table_name": "students",
+        "column_name": "must_change_password",
+        "data_type": "boolean",
+        "udt_name": "bool",
+        "is_nullable": "NO",
+        "column_default": "true"
+      },
+      {
+        "table_name": "students",
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "udt_name": "timestamp",
+        "is_nullable": "NO",
+        "column_default": "now()"
+      },
+      {
+        "table_name": "students",
+        "column_name": "deleted_at",
+        "data_type": "timestamp without time zone",
+        "udt_name": "timestamp",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "students",
+        "column_name": "expo_push_token",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "students",
+        "column_name": "emergency_contact",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "students",
+        "column_name": "parental_whatsapp",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "students",
+        "column_name": "test_push_notifications_enabled",
+        "data_type": "boolean",
+        "udt_name": "bool",
+        "is_nullable": "NO",
+        "column_default": "true"
+      },
+      {
+        "table_name": "students",
+        "column_name": "announcement_push_notifications_enabled",
+        "data_type": "boolean",
+        "udt_name": "bool",
+        "is_nullable": "NO",
+        "column_default": "true"
+      },
+      {
+        "table_name": "students",
+        "column_name": "admission_sequence",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "students",
+        "column_name": "academic_status",
+        "data_type": "USER-DEFINED",
+        "udt_name": "student_academic_status",
+        "is_nullable": "NO",
+        "column_default": "'ACTIVE'::student_academic_status"
+      },
+      {
+        "table_name": "students",
+        "column_name": "guardian_email",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "subjects",
+        "column_name": "id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": "nextval('subjects_id_seq'::regclass)"
+      },
+      {
+        "table_name": "subjects",
+        "column_name": "institution_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "subjects",
+        "column_name": "name",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "subjects",
+        "column_name": "code",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "subjects",
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "udt_name": "timestamp",
+        "is_nullable": "NO",
+        "column_default": "now()"
+      },
+      {
+        "table_name": "subjects",
+        "column_name": "deleted_at",
+        "data_type": "timestamp without time zone",
+        "udt_name": "timestamp",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "submissions",
+        "column_name": "id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": "nextval('submissions_id_seq'::regclass)"
+      },
+      {
+        "table_name": "submissions",
+        "column_name": "institution_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "submissions",
+        "column_name": "assignment_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "submissions",
+        "column_name": "student_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "submissions",
+        "column_name": "file_key",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "submissions",
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "udt_name": "timestamp",
+        "is_nullable": "NO",
+        "column_default": "now()"
+      },
+      {
+        "table_name": "tests",
+        "column_name": "id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": "nextval('tests_id_seq'::regclass)"
+      },
+      {
+        "table_name": "tests",
+        "column_name": "institution_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "tests",
+        "column_name": "class_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "tests",
+        "column_name": "section_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "tests",
+        "column_name": "subject_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "tests",
+        "column_name": "staff_id",
+        "data_type": "integer",
+        "udt_name": "int4",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "tests",
+        "column_name": "created_by_role",
+        "data_type": "USER-DEFINED",
+        "udt_name": "test_creator_role",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "tests",
+        "column_name": "type",
+        "data_type": "USER-DEFINED",
+        "udt_name": "test_type",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "tests",
+        "column_name": "title",
+        "data_type": "character varying",
+        "udt_name": "varchar",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "tests",
+        "column_name": "max_marks",
+        "data_type": "real",
+        "udt_name": "float4",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "tests",
+        "column_name": "date",
+        "data_type": "date",
+        "udt_name": "date",
+        "is_nullable": "NO",
+        "column_default": null
+      },
+      {
+        "table_name": "tests",
+        "column_name": "end_date",
+        "data_type": "date",
+        "udt_name": "date",
+        "is_nullable": "YES",
+        "column_default": null
+      },
+      {
+        "table_name": "tests",
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "udt_name": "timestamp",
+        "is_nullable": "NO",
+        "column_default": "now()"
+      },
+      {
+        "table_name": "tests",
+        "column_name": "results_published_at",
+        "data_type": "timestamp without time zone",
+        "udt_name": "timestamp",
+        "is_nullable": "YES",
+        "column_default": null
+      }
+    ],
+    "indexes": [
+      {
+        "tablename": "announcement_reads",
+        "indexname": "announcement_reads_pkey",
+        "indexdef": "CREATE UNIQUE INDEX announcement_reads_pkey ON public.announcement_reads USING btree (id)"
+      },
+      {
+        "tablename": "announcement_reads",
+        "indexname": "announcement_reads_user_idx",
+        "indexdef": "CREATE INDEX announcement_reads_user_idx ON public.announcement_reads USING btree (user_role, user_id, announcement_id)"
+      },
+      {
+        "tablename": "announcement_reads",
+        "indexname": "user_announcement_unique",
+        "indexdef": "CREATE UNIQUE INDEX user_announcement_unique ON public.announcement_reads USING btree (announcement_id, user_role, user_id)"
+      },
+      {
+        "tablename": "announcements",
+        "indexname": "announcements_automation_key_unique",
+        "indexdef": "CREATE UNIQUE INDEX announcements_automation_key_unique ON public.announcements USING btree (automation_key)"
+      },
+      {
+        "tablename": "announcements",
+        "indexname": "announcements_institution_created_idx",
+        "indexdef": "CREATE INDEX announcements_institution_created_idx ON public.announcements USING btree (institution_id, created_at)"
+      },
+      {
+        "tablename": "announcements",
+        "indexname": "announcements_pkey",
+        "indexdef": "CREATE UNIQUE INDEX announcements_pkey ON public.announcements USING btree (id)"
+      },
+      {
+        "tablename": "assignments",
+        "indexname": "assignments_institution_class_due_idx",
+        "indexdef": "CREATE INDEX assignments_institution_class_due_idx ON public.assignments USING btree (institution_id, class_id, due_at)"
+      },
+      {
+        "tablename": "assignments",
+        "indexname": "assignments_institution_section_idx",
+        "indexdef": "CREATE INDEX assignments_institution_section_idx ON public.assignments USING btree (institution_id, section_id)"
+      },
+      {
+        "tablename": "assignments",
+        "indexname": "assignments_institution_staff_created_idx",
+        "indexdef": "CREATE INDEX assignments_institution_staff_created_idx ON public.assignments USING btree (institution_id, staff_id, created_at)"
+      },
+      {
+        "tablename": "assignments",
+        "indexname": "assignments_pkey",
+        "indexdef": "CREATE UNIQUE INDEX assignments_pkey ON public.assignments USING btree (id)"
+      },
+      {
+        "tablename": "campuses",
+        "indexname": "campuses_institution_id_idx",
+        "indexdef": "CREATE INDEX campuses_institution_id_idx ON public.campuses USING btree (institution_id)"
+      },
+      {
+        "tablename": "campuses",
+        "indexname": "campuses_pkey",
+        "indexdef": "CREATE UNIQUE INDEX campuses_pkey ON public.campuses USING btree (id)"
+      },
+      {
+        "tablename": "classes",
+        "indexname": "classes_institution_id_idx",
+        "indexdef": "CREATE INDEX classes_institution_id_idx ON public.classes USING btree (institution_id)"
+      },
+      {
+        "tablename": "classes",
+        "indexname": "classes_pkey",
+        "indexdef": "CREATE UNIQUE INDEX classes_pkey ON public.classes USING btree (id)"
+      },
+      {
+        "tablename": "institutions",
+        "indexname": "institutions_lower_contact_email_idx",
+        "indexdef": "CREATE INDEX institutions_lower_contact_email_idx ON public.institutions USING btree (lower((contact_email)::text))"
+      },
+      {
+        "tablename": "institutions",
+        "indexname": "institutions_pkey",
+        "indexdef": "CREATE UNIQUE INDEX institutions_pkey ON public.institutions USING btree (id)"
+      },
+      {
+        "tablename": "institutions",
+        "indexname": "institutions_public_slug_lower_unique",
+        "indexdef": "CREATE UNIQUE INDEX institutions_public_slug_lower_unique ON public.institutions USING btree (lower((public_slug)::text)) WHERE (public_slug IS NOT NULL)"
+      },
+      {
+        "tablename": "institutions",
+        "indexname": "institutions_status_created_idx",
+        "indexdef": "CREATE INDEX institutions_status_created_idx ON public.institutions USING btree (status, created_at)"
+      },
+      {
+        "tablename": "institutions",
+        "indexname": "institutions_username_unique",
+        "indexdef": "CREATE UNIQUE INDEX institutions_username_unique ON public.institutions USING btree (username)"
+      },
+      {
+        "tablename": "marks",
+        "indexname": "marks_institution_student_created_idx",
+        "indexdef": "CREATE INDEX marks_institution_student_created_idx ON public.marks USING btree (institution_id, student_id, created_at)"
+      },
+      {
+        "tablename": "marks",
+        "indexname": "marks_institution_test_id_idx",
+        "indexdef": "CREATE INDEX marks_institution_test_id_idx ON public.marks USING btree (institution_id, test_id)"
+      },
+      {
+        "tablename": "marks",
+        "indexname": "marks_pkey",
+        "indexdef": "CREATE UNIQUE INDEX marks_pkey ON public.marks USING btree (id)"
+      },
+      {
+        "tablename": "marks",
+        "indexname": "student_test_unique",
+        "indexdef": "CREATE UNIQUE INDEX student_test_unique ON public.marks USING btree (test_id, student_id)"
+      },
+      {
+        "tablename": "sections",
+        "indexname": "sections_institution_class_id_idx",
+        "indexdef": "CREATE INDEX sections_institution_class_id_idx ON public.sections USING btree (institution_id, class_id)"
+      },
+      {
+        "tablename": "sections",
+        "indexname": "sections_institution_id_idx",
+        "indexdef": "CREATE INDEX sections_institution_id_idx ON public.sections USING btree (institution_id)"
+      },
+      {
+        "tablename": "sections",
+        "indexname": "sections_pkey",
+        "indexdef": "CREATE UNIQUE INDEX sections_pkey ON public.sections USING btree (id)"
+      },
+      {
+        "tablename": "staff",
+        "indexname": "staff_email_unique",
+        "indexdef": "CREATE UNIQUE INDEX staff_email_unique ON public.staff USING btree (email)"
+      },
+      {
+        "tablename": "staff",
+        "indexname": "staff_institution_id_idx",
+        "indexdef": "CREATE INDEX staff_institution_id_idx ON public.staff USING btree (institution_id)"
+      },
+      {
+        "tablename": "staff",
+        "indexname": "staff_lower_email_idx",
+        "indexdef": "CREATE INDEX staff_lower_email_idx ON public.staff USING btree (lower((email)::text))"
+      },
+      {
+        "tablename": "staff",
+        "indexname": "staff_pkey",
+        "indexdef": "CREATE UNIQUE INDEX staff_pkey ON public.staff USING btree (id)"
+      },
+      {
+        "tablename": "staff_assignments",
+        "indexname": "section_time_slot_unique",
+        "indexdef": "CREATE UNIQUE INDEX section_time_slot_unique ON public.staff_assignments USING btree (institution_id, section_id, COALESCE(group_id, 0), day_of_week, start_time)"
+      },
+      {
+        "tablename": "staff_assignments",
+        "indexname": "staff_assignments_institution_section_day_idx",
+        "indexdef": "CREATE INDEX staff_assignments_institution_section_day_idx ON public.staff_assignments USING btree (institution_id, section_id, day_of_week)"
+      },
+      {
+        "tablename": "staff_assignments",
+        "indexname": "staff_assignments_institution_section_idx",
+        "indexdef": "CREATE INDEX staff_assignments_institution_section_idx ON public.staff_assignments USING btree (institution_id, section_id)"
+      },
+      {
+        "tablename": "staff_assignments",
+        "indexname": "staff_assignments_institution_staff_idx",
+        "indexdef": "CREATE INDEX staff_assignments_institution_staff_idx ON public.staff_assignments USING btree (institution_id, staff_id)"
+      },
+      {
+        "tablename": "staff_assignments",
+        "indexname": "staff_assignments_pkey",
+        "indexdef": "CREATE UNIQUE INDEX staff_assignments_pkey ON public.staff_assignments USING btree (id)"
+      },
+      {
+        "tablename": "staff_assignments",
+        "indexname": "staff_time_slot_unique",
+        "indexdef": "CREATE UNIQUE INDEX staff_time_slot_unique ON public.staff_assignments USING btree (institution_id, staff_id, day_of_week, start_time)"
+      },
+      {
+        "tablename": "students",
+        "indexname": "inst_class_roll_unique",
+        "indexdef": "CREATE UNIQUE INDEX inst_class_roll_unique ON public.students USING btree (institution_id, class_id, class_roll_number)"
+      },
+      {
+        "tablename": "students",
+        "indexname": "students_class_roll_trgm_idx",
+        "indexdef": "CREATE INDEX students_class_roll_trgm_idx ON public.students USING gin (lower((class_roll_number)::text) gin_trgm_ops) WHERE ((deleted_at IS NULL) AND (class_roll_number IS NOT NULL))"
+      },
+      {
+        "tablename": "students",
+        "indexname": "students_id_institution_unique",
+        "indexdef": "CREATE UNIQUE INDEX students_id_institution_unique ON public.students USING btree (id, institution_id)"
+      },
+      {
+        "tablename": "students",
+        "indexname": "students_institution_guardian_email_idx",
+        "indexdef": "CREATE INDEX students_institution_guardian_email_idx ON public.students USING btree (institution_id, guardian_email)"
+      },
+      {
+        "tablename": "students",
+        "indexname": "students_institution_id_idx",
+        "indexdef": "CREATE INDEX students_institution_id_idx ON public.students USING btree (institution_id)"
+      },
+      {
+        "tablename": "students",
+        "indexname": "students_institution_section_id_idx",
+        "indexdef": "CREATE INDEX students_institution_section_id_idx ON public.students USING btree (institution_id, section_id)"
+      },
+      {
+        "tablename": "students",
+        "indexname": "students_institution_year_admission_sequence_unique",
+        "indexdef": "CREATE UNIQUE INDEX students_institution_year_admission_sequence_unique ON public.students USING btree (institution_id, year_of_joining, admission_sequence)"
+      },
+      {
+        "tablename": "students",
+        "indexname": "students_login_roll_number_unique",
+        "indexdef": "CREATE UNIQUE INDEX students_login_roll_number_unique ON public.students USING btree (login_roll_number)"
+      },
+      {
+        "tablename": "students",
+        "indexname": "students_login_roll_trgm_idx",
+        "indexdef": "CREATE INDEX students_login_roll_trgm_idx ON public.students USING gin (lower((login_roll_number)::text) gin_trgm_ops) WHERE (deleted_at IS NULL)"
+      },
+      {
+        "tablename": "students",
+        "indexname": "students_lower_login_roll_idx",
+        "indexdef": "CREATE INDEX students_lower_login_roll_idx ON public.students USING btree (lower((login_roll_number)::text))"
+      },
+      {
+        "tablename": "students",
+        "indexname": "students_lower_login_roll_number_idx",
+        "indexdef": "CREATE INDEX students_lower_login_roll_number_idx ON public.students USING btree (lower((login_roll_number)::text))"
+      },
+      {
+        "tablename": "students",
+        "indexname": "students_name_trgm_idx",
+        "indexdef": "CREATE INDEX students_name_trgm_idx ON public.students USING gin (lower((name)::text) gin_trgm_ops) WHERE (deleted_at IS NULL)"
+      },
+      {
+        "tablename": "students",
+        "indexname": "students_pkey",
+        "indexdef": "CREATE UNIQUE INDEX students_pkey ON public.students USING btree (id)"
+      },
+      {
+        "tablename": "subjects",
+        "indexname": "subjects_institution_id_idx",
+        "indexdef": "CREATE INDEX subjects_institution_id_idx ON public.subjects USING btree (institution_id)"
+      },
+      {
+        "tablename": "subjects",
+        "indexname": "subjects_pkey",
+        "indexdef": "CREATE UNIQUE INDEX subjects_pkey ON public.subjects USING btree (id)"
+      },
+      {
+        "tablename": "submissions",
+        "indexname": "student_assignment_unique",
+        "indexdef": "CREATE UNIQUE INDEX student_assignment_unique ON public.submissions USING btree (assignment_id, student_id)"
+      },
+      {
+        "tablename": "submissions",
+        "indexname": "submissions_assignment_student_inst_idx",
+        "indexdef": "CREATE INDEX submissions_assignment_student_inst_idx ON public.submissions USING btree (assignment_id, student_id, institution_id)"
+      },
+      {
+        "tablename": "submissions",
+        "indexname": "submissions_institution_student_idx",
+        "indexdef": "CREATE INDEX submissions_institution_student_idx ON public.submissions USING btree (institution_id, student_id)"
+      },
+      {
+        "tablename": "submissions",
+        "indexname": "submissions_pkey",
+        "indexdef": "CREATE UNIQUE INDEX submissions_pkey ON public.submissions USING btree (id)"
+      },
+      {
+        "tablename": "tests",
+        "indexname": "tests_institution_class_id_idx",
+        "indexdef": "CREATE INDEX tests_institution_class_id_idx ON public.tests USING btree (institution_id, class_id)"
+      },
+      {
+        "tablename": "tests",
+        "indexname": "tests_institution_class_role_idx",
+        "indexdef": "CREATE INDEX tests_institution_class_role_idx ON public.tests USING btree (institution_id, class_id, created_by_role)"
+      },
+      {
+        "tablename": "tests",
+        "indexname": "tests_institution_class_subject_date_idx",
+        "indexdef": "CREATE INDEX tests_institution_class_subject_date_idx ON public.tests USING btree (institution_id, class_id, subject_id, date)"
+      },
+      {
+        "tablename": "tests",
+        "indexname": "tests_institution_date_idx",
+        "indexdef": "CREATE INDEX tests_institution_date_idx ON public.tests USING btree (institution_id, date)"
+      },
+      {
+        "tablename": "tests",
+        "indexname": "tests_institution_id_idx",
+        "indexdef": "CREATE INDEX tests_institution_id_idx ON public.tests USING btree (institution_id)"
+      },
+      {
+        "tablename": "tests",
+        "indexname": "tests_institution_section_id_idx",
+        "indexdef": "CREATE INDEX tests_institution_section_id_idx ON public.tests USING btree (institution_id, section_id)"
+      },
+      {
+        "tablename": "tests",
+        "indexname": "tests_pkey",
+        "indexdef": "CREATE UNIQUE INDEX tests_pkey ON public.tests USING btree (id)"
+      }
+    ],
+    "constraints": [
+      {
+        "table_name": "announcement_reads",
+        "conname": "announcement_reads_announcement_id_announcements_id_fk",
+        "definition": "FOREIGN KEY (announcement_id) REFERENCES announcements(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "announcement_reads",
+        "conname": "announcement_reads_pkey",
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "table_name": "announcement_reads",
+        "conname": "user_announcement_unique",
+        "definition": "UNIQUE (announcement_id, user_role, user_id)"
+      },
+      {
+        "table_name": "announcements",
+        "conname": "announcements_institution_id_institutions_id_fk",
+        "definition": "FOREIGN KEY (institution_id) REFERENCES institutions(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "announcements",
+        "conname": "announcements_pkey",
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "table_name": "announcements",
+        "conname": "announcements_target_campus_id_campuses_id_fk",
+        "definition": "FOREIGN KEY (target_campus_id) REFERENCES campuses(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "announcements",
+        "conname": "announcements_target_class_id_classes_id_fk",
+        "definition": "FOREIGN KEY (target_class_id) REFERENCES classes(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "announcements",
+        "conname": "announcements_target_section_id_sections_id_fk",
+        "definition": "FOREIGN KEY (target_section_id) REFERENCES sections(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "assignments",
+        "conname": "assignments_class_id_classes_id_fk",
+        "definition": "FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "assignments",
+        "conname": "assignments_institution_id_institutions_id_fk",
+        "definition": "FOREIGN KEY (institution_id) REFERENCES institutions(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "assignments",
+        "conname": "assignments_pkey",
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "table_name": "assignments",
+        "conname": "assignments_section_id_sections_id_fk",
+        "definition": "FOREIGN KEY (section_id) REFERENCES sections(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "assignments",
+        "conname": "assignments_staff_id_staff_id_fk",
+        "definition": "FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "assignments",
+        "conname": "assignments_subject_id_subjects_id_fk",
+        "definition": "FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE SET NULL"
+      },
+      {
+        "table_name": "campuses",
+        "conname": "campuses_institution_id_institutions_id_fk",
+        "definition": "FOREIGN KEY (institution_id) REFERENCES institutions(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "campuses",
+        "conname": "campuses_pkey",
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "table_name": "classes",
+        "conname": "classes_institution_id_institutions_id_fk",
+        "definition": "FOREIGN KEY (institution_id) REFERENCES institutions(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "classes",
+        "conname": "classes_pkey",
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "table_name": "institutions",
+        "conname": "institutions_admissions_requires_public_site_check",
+        "definition": "CHECK (((NOT admissions_enabled) OR public_site_enabled))"
+      },
+      {
+        "table_name": "institutions",
+        "conname": "institutions_fee_voucher_day_order_check",
+        "definition": "CHECK (((fee_voucher_open_day IS NULL) OR (fee_voucher_late_day IS NULL) OR (fee_voucher_late_day > fee_voucher_open_day)))"
+      },
+      {
+        "table_name": "institutions",
+        "conname": "institutions_fee_voucher_late_day_check",
+        "definition": "CHECK (((fee_voucher_late_day IS NULL) OR ((fee_voucher_late_day >= 1) AND (fee_voucher_late_day <= 28))))"
+      },
+      {
+        "table_name": "institutions",
+        "conname": "institutions_fee_voucher_late_fee_check",
+        "definition": "CHECK ((fee_voucher_late_fee >= 0))"
+      },
+      {
+        "table_name": "institutions",
+        "conname": "institutions_fee_voucher_open_day_check",
+        "definition": "CHECK (((fee_voucher_open_day IS NULL) OR ((fee_voucher_open_day >= 1) AND (fee_voucher_open_day <= 28))))"
+      },
+      {
+        "table_name": "institutions",
+        "conname": "institutions_pkey",
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "table_name": "institutions",
+        "conname": "institutions_public_site_requires_slug_check",
+        "definition": "CHECK (((NOT public_site_enabled) OR (public_slug IS NOT NULL)))"
+      },
+      {
+        "table_name": "institutions",
+        "conname": "institutions_public_slug_format_check",
+        "definition": "CHECK (((public_slug IS NULL) OR (((char_length((public_slug)::text) >= 2) AND (char_length((public_slug)::text) <= 30)) AND ((public_slug)::text = lower((public_slug)::text)) AND ((public_slug)::text ~ '^[a-z0-9][a-z0-9-]*[a-z0-9]$'::text) AND ((public_slug)::text !~~ '%--%'::text))))"
+      },
+      {
+        "table_name": "institutions",
+        "conname": "institutions_public_slug_reserved_check",
+        "definition": "CHECK (((public_slug IS NULL) OR ((public_slug)::text <> ALL ((ARRAY['admin'::character varying, 'api'::character varying, 'app'::character varying, 'apply'::character varying, 'assets'::character varying, 'auth'::character varying, 'blog'::character varying, 'cdn'::character varying, 'docs'::character varying, 'employee'::character varying, 'help'::character varying, 'institution'::character varying, 'mail'::character varying, 'portal'::character varying, 'sa'::character varying, 'static'::character varying, 'status'::character varying, 'staff'::character varying, 'student'::character varying, 'superadmin'::character varying, 'support'::character varying, 'www'::character varying])::text[]))))"
+      },
+      {
+        "table_name": "institutions",
+        "conname": "institutions_username_unique",
+        "definition": "UNIQUE (username)"
+      },
+      {
+        "table_name": "marks",
+        "conname": "marks_institution_id_institutions_id_fk",
+        "definition": "FOREIGN KEY (institution_id) REFERENCES institutions(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "marks",
+        "conname": "marks_pkey",
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "table_name": "marks",
+        "conname": "marks_student_id_students_id_fk",
+        "definition": "FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "marks",
+        "conname": "marks_test_id_tests_id_fk",
+        "definition": "FOREIGN KEY (test_id) REFERENCES tests(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "marks",
+        "conname": "student_test_unique",
+        "definition": "UNIQUE (test_id, student_id)"
+      },
+      {
+        "table_name": "sections",
+        "conname": "sections_class_id_classes_id_fk",
+        "definition": "FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "sections",
+        "conname": "sections_class_teacher_id_staff_id_fk",
+        "definition": "FOREIGN KEY (class_teacher_id) REFERENCES staff(id) ON DELETE SET NULL"
+      },
+      {
+        "table_name": "sections",
+        "conname": "sections_institution_id_institutions_id_fk",
+        "definition": "FOREIGN KEY (institution_id) REFERENCES institutions(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "sections",
+        "conname": "sections_pkey",
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "table_name": "staff",
+        "conname": "staff_campus_id_campuses_id_fk",
+        "definition": "FOREIGN KEY (campus_id) REFERENCES campuses(id) ON DELETE SET NULL"
+      },
+      {
+        "table_name": "staff",
+        "conname": "staff_custom_role_id_fkey",
+        "definition": "FOREIGN KEY (custom_role_id) REFERENCES institution_custom_roles(id) ON DELETE SET NULL"
+      },
+      {
+        "table_name": "staff",
+        "conname": "staff_email_unique",
+        "definition": "UNIQUE (email)"
+      },
+      {
+        "table_name": "staff",
+        "conname": "staff_institution_id_institutions_id_fk",
+        "definition": "FOREIGN KEY (institution_id) REFERENCES institutions(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "staff",
+        "conname": "staff_pkey",
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "table_name": "staff_assignments",
+        "conname": "staff_assignments_group_id_section_groups_id_fk",
+        "definition": "FOREIGN KEY (group_id) REFERENCES section_groups(id)"
+      },
+      {
+        "table_name": "staff_assignments",
+        "conname": "staff_assignments_institution_id_institutions_id_fk",
+        "definition": "FOREIGN KEY (institution_id) REFERENCES institutions(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "staff_assignments",
+        "conname": "staff_assignments_pkey",
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "table_name": "staff_assignments",
+        "conname": "staff_assignments_section_id_sections_id_fk",
+        "definition": "FOREIGN KEY (section_id) REFERENCES sections(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "staff_assignments",
+        "conname": "staff_assignments_staff_id_staff_id_fk",
+        "definition": "FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "staff_assignments",
+        "conname": "staff_assignments_subject_id_subjects_id_fk",
+        "definition": "FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "staff_assignments",
+        "conname": "staff_time_slot_unique",
+        "definition": "UNIQUE (institution_id, staff_id, day_of_week, start_time)"
+      },
+      {
+        "table_name": "students",
+        "conname": "inst_class_roll_unique",
+        "definition": "UNIQUE (institution_id, class_id, class_roll_number)"
+      },
+      {
+        "table_name": "students",
+        "conname": "students_campus_id_campuses_id_fk",
+        "definition": "FOREIGN KEY (campus_id) REFERENCES campuses(id) ON DELETE SET NULL"
+      },
+      {
+        "table_name": "students",
+        "conname": "students_class_id_classes_id_fk",
+        "definition": "FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "students",
+        "conname": "students_id_institution_unique",
+        "definition": "UNIQUE (id, institution_id)"
+      },
+      {
+        "table_name": "students",
+        "conname": "students_institution_id_institutions_id_fk",
+        "definition": "FOREIGN KEY (institution_id) REFERENCES institutions(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "students",
+        "conname": "students_login_roll_number_unique",
+        "definition": "UNIQUE (login_roll_number)"
+      },
+      {
+        "table_name": "students",
+        "conname": "students_pkey",
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "table_name": "students",
+        "conname": "students_section_id_sections_id_fk",
+        "definition": "FOREIGN KEY (section_id) REFERENCES sections(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "subjects",
+        "conname": "subjects_institution_id_institutions_id_fk",
+        "definition": "FOREIGN KEY (institution_id) REFERENCES institutions(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "subjects",
+        "conname": "subjects_pkey",
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "table_name": "submissions",
+        "conname": "student_assignment_unique",
+        "definition": "UNIQUE (assignment_id, student_id)"
+      },
+      {
+        "table_name": "submissions",
+        "conname": "submissions_assignment_id_assignments_id_fk",
+        "definition": "FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "submissions",
+        "conname": "submissions_institution_id_institutions_id_fk",
+        "definition": "FOREIGN KEY (institution_id) REFERENCES institutions(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "submissions",
+        "conname": "submissions_pkey",
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "table_name": "submissions",
+        "conname": "submissions_student_id_students_id_fk",
+        "definition": "FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "tests",
+        "conname": "tests_class_id_classes_id_fk",
+        "definition": "FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "tests",
+        "conname": "tests_institution_id_institutions_id_fk",
+        "definition": "FOREIGN KEY (institution_id) REFERENCES institutions(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "tests",
+        "conname": "tests_pkey",
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "table_name": "tests",
+        "conname": "tests_section_id_sections_id_fk",
+        "definition": "FOREIGN KEY (section_id) REFERENCES sections(id) ON DELETE CASCADE"
+      },
+      {
+        "table_name": "tests",
+        "conname": "tests_staff_id_staff_id_fk",
+        "definition": "FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE SET NULL"
+      },
+      {
+        "table_name": "tests",
+        "conname": "tests_subject_id_subjects_id_fk",
+        "definition": "FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE"
+      }
+    ],
+    "tables": [
+      {
+        "relname": "announcement_reads",
+        "n_live_tup": "0",
+        "n_dead_tup": "0",
+        "seq_scan": "0",
+        "idx_scan": "0",
+        "last_analyze": null,
+        "last_autoanalyze": null,
+        "total_bytes": "24576",
+        "heap_bytes": "0",
+        "index_bytes": "24576"
+      },
+      {
+        "relname": "announcements",
+        "n_live_tup": "0",
+        "n_dead_tup": "0",
+        "seq_scan": "0",
+        "idx_scan": "22734",
+        "last_analyze": null,
+        "last_autoanalyze": null,
+        "total_bytes": "32768",
+        "heap_bytes": "0",
+        "index_bytes": "24576"
+      },
+      {
+        "relname": "assignments",
+        "n_live_tup": "0",
+        "n_dead_tup": "0",
+        "seq_scan": "0",
+        "idx_scan": "94292",
+        "last_analyze": null,
+        "last_autoanalyze": null,
+        "total_bytes": "40960",
+        "heap_bytes": "0",
+        "index_bytes": "32768"
+      },
+      {
+        "relname": "campuses",
+        "n_live_tup": "0",
+        "n_dead_tup": "0",
+        "seq_scan": "0",
+        "idx_scan": "37278",
+        "last_analyze": null,
+        "last_autoanalyze": null,
+        "total_bytes": "49152",
+        "heap_bytes": "8192",
+        "index_bytes": "32768"
+      },
+      {
+        "relname": "classes",
+        "n_live_tup": "0",
+        "n_dead_tup": "0",
+        "seq_scan": "0",
+        "idx_scan": "23460",
+        "last_analyze": null,
+        "last_autoanalyze": null,
+        "total_bytes": "40960",
+        "heap_bytes": "8192",
+        "index_bytes": "32768"
+      },
+      {
+        "relname": "institutions",
+        "n_live_tup": "0",
+        "n_dead_tup": "0",
+        "seq_scan": "0",
+        "idx_scan": "6224",
+        "last_analyze": null,
+        "last_autoanalyze": null,
+        "total_bytes": "98304",
+        "heap_bytes": "8192",
+        "index_bytes": "81920"
+      },
+      {
+        "relname": "marks",
+        "n_live_tup": "0",
+        "n_dead_tup": "0",
+        "seq_scan": "0",
+        "idx_scan": "56552",
+        "last_analyze": null,
+        "last_autoanalyze": null,
+        "total_bytes": "32768",
+        "heap_bytes": "0",
+        "index_bytes": "32768"
+      },
+      {
+        "relname": "sections",
+        "n_live_tup": "0",
+        "n_dead_tup": "0",
+        "seq_scan": "23454",
+        "idx_scan": "158758",
+        "last_analyze": null,
+        "last_autoanalyze": null,
+        "total_bytes": "57344",
+        "heap_bytes": "8192",
+        "index_bytes": "49152"
+      },
+      {
+        "relname": "staff",
+        "n_live_tup": "0",
+        "n_dead_tup": "0",
+        "seq_scan": "13",
+        "idx_scan": "59233",
+        "last_analyze": null,
+        "last_autoanalyze": null,
+        "total_bytes": "868352",
+        "heap_bytes": "450560",
+        "index_bytes": "376832"
+      },
+      {
+        "relname": "staff_assignments",
+        "n_live_tup": "0",
+        "n_dead_tup": "0",
+        "seq_scan": "12",
+        "idx_scan": "39483",
+        "last_analyze": null,
+        "last_autoanalyze": null,
+        "total_bytes": "376832",
+        "heap_bytes": "90112",
+        "index_bytes": "262144"
+      },
+      {
+        "relname": "students",
+        "n_live_tup": "0",
+        "n_dead_tup": "0",
+        "seq_scan": "1",
+        "idx_scan": "133585",
+        "last_analyze": null,
+        "last_autoanalyze": null,
+        "total_bytes": "3276800",
+        "heap_bytes": "737280",
+        "index_bytes": "2498560"
+      },
+      {
+        "relname": "subjects",
+        "n_live_tup": "0",
+        "n_dead_tup": "0",
+        "seq_scan": "12",
+        "idx_scan": "2056",
+        "last_analyze": null,
+        "last_autoanalyze": null,
+        "total_bytes": "40960",
+        "heap_bytes": "8192",
+        "index_bytes": "32768"
+      },
+      {
+        "relname": "submissions",
+        "n_live_tup": "0",
+        "n_dead_tup": "0",
+        "seq_scan": "0",
+        "idx_scan": "0",
+        "last_analyze": null,
+        "last_autoanalyze": null,
+        "total_bytes": "32768",
+        "heap_bytes": "0",
+        "index_bytes": "32768"
+      },
+      {
+        "relname": "tests",
+        "n_live_tup": "0",
+        "n_dead_tup": "0",
+        "seq_scan": "0",
+        "idx_scan": "3",
+        "last_analyze": null,
+        "last_autoanalyze": null,
+        "total_bytes": "57344",
+        "heap_bytes": "0",
+        "index_bytes": "57344"
+      }
+    ],
+    "rowCounts": [
+      {
+        "table": "institutions",
+        "rows": 1
+      },
+      {
+        "table": "students",
+        "rows": 1500
+      },
+      {
+        "table": "staff",
+        "rows": 1000
+      },
+      {
+        "table": "staff_assignments",
+        "rows": 1000
+      },
+      {
+        "table": "subjects",
+        "rows": 10
+      },
+      {
+        "table": "classes",
+        "rows": 10
+      },
+      {
+        "table": "sections",
+        "rows": 100
+      },
+      {
+        "table": "assignments",
+        "rows": 0
+      },
+      {
+        "table": "submissions",
+        "rows": 0
+      },
+      {
+        "table": "marks",
+        "rows": 0
+      },
+      {
+        "table": "tests",
+        "rows": 0
+      },
+      {
+        "table": "announcements",
+        "rows": 0
+      },
+      {
+        "table": "announcement_reads",
+        "rows": 0
+      },
+      {
+        "table": "campuses",
+        "rows": 1
+      }
+    ],
+    "database": [
+      {
+        "bytes": "19151895"
+      }
+    ],
+    "activity": [
+      {
+        "state": null,
+        "wait_event_type": "Activity",
+        "wait_event": "WalWriterMain",
+        "count": 1
+      },
+      {
+        "state": null,
+        "wait_event_type": "Activity",
+        "wait_event": "LogicalLauncherMain",
+        "count": 1
+      },
+      {
+        "state": null,
+        "wait_event_type": "Activity",
+        "wait_event": "BgWriterMain",
+        "count": 1
+      },
+      {
+        "state": null,
+        "wait_event_type": "Activity",
+        "wait_event": "CheckpointerMain",
+        "count": 1
+      },
+      {
+        "state": "active",
+        "wait_event_type": null,
+        "wait_event": null,
+        "count": 1
+      },
+      {
+        "state": null,
+        "wait_event_type": "Activity",
+        "wait_event": "AutoVacuumMain",
+        "count": 1
+      },
+      {
+        "state": "idle",
+        "wait_event_type": "Client",
+        "wait_event": "ClientRead",
+        "count": 2
+      }
+    ],
+    "ungrantedLocks": []
+  },
+  "wire": [
+    {
+      "path": "/api/student/dashboard",
+      "acceptEncoding": "identity",
+      "status": 200,
+      "wireBodyBytes": 240,
+      "headers": {
+        "content-type": "application/json",
+        "content-length": "240",
+        "content-encoding": null,
+        "cache-control": null,
+        "vary": "Origin",
+        "x-perf-proxy-ms": "102.676802"
+      }
+    },
+    {
+      "path": "/api/student/dashboard",
+      "acceptEncoding": "gzip",
+      "status": 200,
+      "wireBodyBytes": 240,
+      "headers": {
+        "content-type": "application/json",
+        "content-length": "240",
+        "content-encoding": null,
+        "cache-control": null,
+        "vary": "Origin",
+        "x-perf-proxy-ms": "2.864955"
+      }
+    },
+    {
+      "path": "/api/student/timetable",
+      "acceptEncoding": "identity",
+      "status": 200,
+      "wireBodyBytes": 1184,
+      "headers": {
+        "content-type": "application/json",
+        "content-length": "1184",
+        "content-encoding": null,
+        "cache-control": null,
+        "vary": "Origin",
+        "x-perf-proxy-ms": "37.828606"
+      }
+    },
+    {
+      "path": "/api/student/timetable",
+      "acceptEncoding": "gzip",
+      "status": 200,
+      "wireBodyBytes": 297,
+      "headers": {
+        "content-type": "application/json",
+        "content-length": "297",
+        "content-encoding": "gzip",
+        "cache-control": null,
+        "vary": "Origin, Accept-Encoding",
+        "x-perf-proxy-ms": "3.9858330000000004"
+      }
+    },
+    {
+      "path": "/api/student/profile",
+      "acceptEncoding": "identity",
+      "status": 200,
+      "wireBodyBytes": 341,
+      "headers": {
+        "content-type": "application/json",
+        "content-length": "341",
+        "content-encoding": null,
+        "cache-control": null,
+        "vary": "Origin",
+        "x-perf-proxy-ms": "15.192212"
+      }
+    },
+    {
+      "path": "/api/student/profile",
+      "acceptEncoding": "gzip",
+      "status": 200,
+      "wireBodyBytes": 341,
+      "headers": {
+        "content-type": "application/json",
+        "content-length": "341",
+        "content-encoding": null,
+        "cache-control": null,
+        "vary": "Origin",
+        "x-perf-proxy-ms": "6.3363059999999995"
+      }
+    },
+    {
+      "path": "/api/staff/dashboard",
+      "acceptEncoding": "identity",
+      "status": 200,
+      "wireBodyBytes": 123,
+      "headers": {
+        "content-type": "application/json",
+        "content-length": "123",
+        "content-encoding": null,
+        "cache-control": null,
+        "vary": "Origin",
+        "x-perf-proxy-ms": "31.420389"
+      }
+    },
+    {
+      "path": "/api/staff/dashboard",
+      "acceptEncoding": "gzip",
+      "status": 200,
+      "wireBodyBytes": 123,
+      "headers": {
+        "content-type": "application/json",
+        "content-length": "123",
+        "content-encoding": null,
+        "cache-control": null,
+        "vary": "Origin",
+        "x-perf-proxy-ms": "2.195048"
+      }
+    },
+    {
+      "path": "/api/staff/timetable",
+      "acceptEncoding": "identity",
+      "status": 200,
+      "wireBodyBytes": 143,
+      "headers": {
+        "content-type": "application/json",
+        "content-length": "143",
+        "content-encoding": null,
+        "cache-control": null,
+        "vary": "Origin",
+        "x-perf-proxy-ms": "8.714583"
+      }
+    },
+    {
+      "path": "/api/staff/timetable",
+      "acceptEncoding": "gzip",
+      "status": 200,
+      "wireBodyBytes": 143,
+      "headers": {
+        "content-type": "application/json",
+        "content-length": "143",
+        "content-encoding": null,
+        "cache-control": null,
+        "vary": "Origin",
+        "x-perf-proxy-ms": "3.403041"
+      }
+    },
+    {
+      "path": "/api/staff/profile",
+      "acceptEncoding": "identity",
+      "status": 200,
+      "wireBodyBytes": 170,
+      "headers": {
+        "content-type": "application/json",
+        "content-length": "170",
+        "content-encoding": null,
+        "cache-control": null,
+        "vary": "Origin",
+        "x-perf-proxy-ms": "4.112053"
+      }
+    },
+    {
+      "path": "/api/staff/profile",
+      "acceptEncoding": "gzip",
+      "status": 200,
+      "wireBodyBytes": 170,
+      "headers": {
+        "content-type": "application/json",
+        "content-length": "170",
+        "content-encoding": null,
+        "cache-control": null,
+        "vary": "Origin",
+        "x-perf-proxy-ms": "3.246716"
+      }
+    }
+  ],
+  "logs": [
+    {
+      "name": "lms-backend-app-1",
+      "retainedLineCount": 4,
+      "firstTimestamp": "2026-10-01T16:02:28.645457466Z",
+      "lastTimestamp": "2026-10-01T16:02:30.696031831Z",
+      "counts": {
+        "poolTimeout": 0,
+        "queryTimeout": 0,
+        "redisError": 0,
+        "transportError": 0,
+        "appError": 0,
+        "oom": 0
+      },
+      "warning": "Retained current-container lifetime only; cannot associate with supplied tests without their UTC windows. Counts are matching log lines, not distinct requests."
+    },
+    {
+      "name": "nisaab360-app2",
+      "retainedLineCount": 4,
+      "firstTimestamp": "2026-10-01T16:02:28.022339032Z",
+      "lastTimestamp": "2026-10-01T16:02:30.178652789Z",
+      "counts": {
+        "poolTimeout": 0,
+        "queryTimeout": 0,
+        "redisError": 0,
+        "transportError": 0,
+        "appError": 0,
+        "oom": 0
+      },
+      "warning": "Retained current-container lifetime only; cannot associate with supplied tests without their UTC windows. Counts are matching log lines, not distinct requests."
+    },
+    {
+      "name": "lms-backend-caddy-1",
+      "retainedLineCount": 227,
+      "firstTimestamp": "2026-10-01T15:44:34.598194136Z",
+      "lastTimestamp": "2026-10-01T17:29:56.854205321Z",
+      "counts": {
+        "poolTimeout": 0,
+        "queryTimeout": 0,
+        "redisError": 0,
+        "transportError": 1,
+        "appError": 0,
+        "oom": 0
+      },
+      "warning": "Retained current-container lifetime only; cannot associate with supplied tests without their UTC windows. Counts are matching log lines, not distinct requests."
+    },
+    {
+      "name": "lms-backend-pgbouncer-1",
+      "retainedLineCount": 3721,
+      "firstTimestamp": "2026-09-30T21:55:07.724035021Z",
+      "lastTimestamp": "2026-10-01T02:44:27.919655655Z",
+      "counts": {
+        "poolTimeout": 0,
+        "queryTimeout": 12,
+        "redisError": 0,
+        "transportError": 0,
+        "appError": 0,
+        "oom": 0
+      },
+      "warning": "Retained current-container lifetime only; cannot associate with supplied tests without their UTC windows. Counts are matching log lines, not distinct requests."
+    },
+    {
+      "name": "lms-backend-postgres-1",
+      "retainedLineCount": 38,
+      "firstTimestamp": "2026-09-30T21:54:56.639936909Z",
+      "lastTimestamp": "2026-10-01T17:27:46.218690099Z",
+      "counts": {
+        "poolTimeout": 0,
+        "queryTimeout": 0,
+        "redisError": 0,
+        "transportError": 0,
+        "appError": 0,
+        "oom": 0
+      },
+      "warning": "Retained current-container lifetime only; cannot associate with supplied tests without their UTC windows. Counts are matching log lines, not distinct requests."
+    },
+    {
+      "name": "lms-backend-valkey-1",
+      "retainedLineCount": 20,
+      "firstTimestamp": "2026-09-30T21:54:57.115674700Z",
+      "lastTimestamp": "2026-10-01T15:33:42.388180900Z",
+      "counts": {
+        "poolTimeout": 0,
+        "queryTimeout": 0,
+        "redisError": 0,
+        "transportError": 0,
+        "appError": 0,
+        "oom": 0
+      },
+      "warning": "Retained current-container lifetime only; cannot associate with supplied tests without their UTC windows. Counts are matching log lines, not distinct requests."
+    }
+  ],
+  "currentStats": [
+    {
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "0.01%",
+      "Container": "8a66b5433684260f5e6f6bf8eca55b8b347f8c78a30df34ecbf28cc765cb8b5f",
+      "ID": "8a66b5433684",
+      "MemPerc": "1.27%",
+      "MemUsage": "100.7MiB / 7.756GiB",
+      "Name": "lms-backend-app-1",
+      "NetIO": "709MB / 996MB",
+      "PIDs": "12"
+    },
+    {
+      "BlockIO": "0B / 0B",
+      "CPUPerc": "13.13%",
+      "Container": "1bd90a2df0c2258ac8870bdf768a576756266d3f827e6799aeb885688b44eeb1",
+      "ID": "1bd90a2df0c2",
+      "MemPerc": "1.26%",
+      "MemUsage": "100.2MiB / 7.756GiB",
+      "Name": "nisaab360-app2",
+      "NetIO": "707MB / 994MB",
+      "PIDs": "12"
+    },
+    {
+      "BlockIO": "0B / 4.1kB",
+      "CPUPerc": "0.01%",
+      "Container": "cd6c9c7bda324af7eaafc276637e414ca6e165570c8a8d3c55b6dc12e32b507b",
+      "ID": "cd6c9c7bda32",
+      "MemPerc": "0.36%",
+      "MemUsage": "28.26MiB / 7.756GiB",
+      "Name": "lms-backend-caddy-1",
+      "NetIO": "2.52GB / 2.73GB",
+      "PIDs": "19"
+    },
+    {
+      "BlockIO": "8.81MB / 0B",
+      "CPUPerc": "0.08%",
+      "Container": "08bd600f79873088b8b21345d96dbdf9a261019522ab18d64d65f1b8d246df79",
+      "ID": "08bd600f7987",
+      "MemPerc": "0.07%",
+      "MemUsage": "5.191MiB / 7.756GiB",
+      "Name": "lms-backend-pgbouncer-1",
+      "NetIO": "340MB / 336MB",
+      "PIDs": "2"
+    },
+    {
+      "BlockIO": "36.6MB / 315kB",
+      "CPUPerc": "0.04%",
+      "Container": "5f553b243914f46c926d3423151b32b87088e1f942880d7e732213f1fd59d241",
+      "ID": "5f553b243914",
+      "MemPerc": "1.24%",
+      "MemUsage": "98.25MiB / 7.756GiB",
+      "Name": "lms-backend-postgres-1",
+      "NetIO": "247MB / 95.2MB",
+      "PIDs": "9"
+    },
+    {
+      "BlockIO": "33.1MB / 0B",
+      "CPUPerc": "0.47%",
+      "Container": "34b90ec82c35b7e3298a25a17d81bc18457432929c7f5838ccd480ff2c566a18",
+      "ID": "34b90ec82c35",
+      "MemPerc": "0.14%",
+      "MemUsage": "11.09MiB / 7.756GiB",
+      "Name": "lms-backend-valkey-1",
+      "NetIO": "255MB / 185MB",
+      "PIDs": "7"
+    }
+  ],
+  "valkey": "# Server\r\nredis_version:7.2.4\r\nserver_name:valkey\r\nvalkey_version:8.1.10\r\nvalkey_release_stage:ga\r\nredis_git_sha1:00000000\r\nredis_git_dirty:1\r\nredis_build_id:fd3b186b1408478b\r\nserver_mode:standalone\r\nos:Linux 6.18.33.2-microsoft-standard-WSL2 x86_64\r\narch_bits:64\r\nmonotonic_clock:POSIX clock_gettime\r\nmultiplexing_api:epoll\r\ngcc_version:15.2.0\r\nprocess_id:8\r\nprocess_supervised:no\r\nrun_id:e6f4dfe3fa1a752c2ebb17c284dbb20b4d963da8\r\ntcp_port:6379\r\nserver_time_usec:1790875812688734\r\nuptime_in_seconds:6990\r\nuptime_in_days:0\r\nhz:10\r\nconfigured_hz:10\r\nclients_hz:10\r\nlru_clock:12490916\r\nexecutable:/data/valkey-server\r\nconfig_file:\r\nio_threads_active:0\r\navailability_zone:\r\nlistener0:name=tcp,bind=*,bind=-::*,port=6379\r\n\r\n# Clients\r\nconnected_clients:9\r\ncluster_connections:0\r\nmaxclients:10000\r\nclient_recent_max_input_buffer:0\r\nclient_recent_max_output_buffer:0\r\nblocked_clients:0\r\ntracking_clients:4\r\npubsub_clients:4\r\nwatching_clients:0\r\nclients_in_timeout_table:0\r\ntotal_watched_keys:0\r\ntotal_blocking_keys:0\r\ntotal_blocking_keys_on_nokey:0\r\npaused_reason:none\r\npaused_actions:none\r\npaused_timeout_milliseconds:0\r\n\r\n# Memory\r\nused_memory:1465992\r\nused_memory_human:1.40M\r\nused_memory_rss:10743808\r\nused_memory_rss_human:10.25M\r\nused_memory_peak:47245176\r\nused_memory_peak_human:45.06M\r\nused_memory_peak_perc:3.10%\r\nused_memory_overhead:897488\r\nused_memory_startup:877432\r\nused_memory_dataset:568504\r\nused_memory_dataset_perc:96.59%\r\nallocator_allocated:1525304\r\nallocator_active:2433024\r\nallocator_resident:5693440\r\nallocator_muzzy:0\r\ntotal_system_memory:8328421376\r\ntotal_system_memory_human:7.76G\r\nused_memory_lua:43008\r\nused_memory_vm_eval:43008\r\nused_memory_lua_human:42.00K\r\nused_memory_scripts_eval:1544\r\nnumber_of_cached_scripts:5\r\nnumber_of_functions:0\r\nnumber_of_libraries:0\r\nused_memory_vm_functions:35840\r\nused_memory_vm_total:78848\r\nused_memory_vm_total_human:77.00K\r\nused_memory_functions:240\r\nused_memory_scripts:1784\r\nused_memory_scripts_human:1.74K\r\nmaxmemory:272629760\r\nmaxmemory_human:260.00M\r\nmaxmemory_policy:allkeys-lru\r\nallocator_frag_ratio:1.60\r\nallocator_frag_bytes:907720\r\nallocator_rss_ratio:2.34\r\nallocator_rss_bytes:3260416\r\nrss_overhead_ratio:1.89\r\nrss_overhead_bytes:5050368\r\nmem_fragmentation_ratio:7.43\r\nmem_fragmentation_bytes:9297112\r\nmem_not_counted_for_evict:0\r\nmem_replication_backlog:0\r\nmem_total_replication_buffers:0\r\nmem_clients_slaves:0\r\nmem_clients_normal:14592\r\nmem_cluster_links:0\r\nmem_aof_buffer:0\r\nmem_allocator:jemalloc-5.3.0\r\nmem_overhead_db_hashtable_rehashing:0\r\nactive_defrag_running:0\r\nlazyfree_pending_objects:0\r\nlazyfreed_objects:0\r\n\r\n# Persistence\r\nloading:0\r\nasync_loading:0\r\ncurrent_cow_peak:0\r\ncurrent_cow_size:0\r\ncurrent_cow_size_age:0\r\ncurrent_fork_perc:0.00\r\ncurrent_save_keys_processed:0\r\ncurrent_save_keys_total:0\r\nrdb_changes_since_last_save:380550\r\nrdb_bgsave_in_progress:0\r\nrdb_last_save_time:1790868822\r\nrdb_last_bgsave_status:ok\r\nrdb_last_bgsave_time_sec:-1\r\nrdb_current_bgsave_time_sec:-1\r\nrdb_saves:0\r\nrdb_last_cow_size:0\r\nrdb_last_load_keys_expired:0\r\nrdb_last_load_keys_loaded:0\r\naof_enabled:0\r\naof_rewrite_in_progress:0\r\naof_rewrite_scheduled:0\r\naof_last_rewrite_time_sec:-1\r\naof_current_rewrite_time_sec:-1\r\naof_last_bgrewrite_status:ok\r\naof_rewrites:0\r\naof_rewrites_consecutive_failures:0\r\naof_last_write_status:ok\r\naof_last_cow_size:0\r\nmodule_fork_in_progress:0\r\nmodule_fork_last_cow_size:0\r\n\r\n# Stats\r\ntotal_connections_received:737\r\ntotal_commands_processed:2316249\r\ninstantaneous_ops_per_sec:0\r\ntotal_net_input_bytes:212562270\r\ntotal_net_output_bytes:139481925\r\ntotal_net_repl_input_bytes:0\r\ntotal_net_repl_output_bytes:0\r\ninstantaneous_input_kbps:0.01\r\ninstantaneous_output_kbps:0.00\r\ninstantaneous_input_repl_kbps:0.00\r\ninstantaneous_output_repl_kbps:0.00\r\nrejected_connections:0\r\nsync_full:0\r\nsync_partial_ok:0\r\nsync_partial_err:0\r\nexpired_keys:91719\r\nexpired_stale_perc:0.00\r\nexpired_time_cap_reached_count:0\r\nexpire_cycle_cpu_milliseconds:1597\r\nevicted_keys:0\r\nevicted_clients:0\r\nevicted_scripts:0\r\ntotal_eviction_exceeded_time:0\r\ncurrent_eviction_exceeded_time:0\r\nkeyspace_hits:903308\r\nkeyspace_misses:396130\r\npubsub_channels:1\r\npubsub_patterns:0\r\npubsubshard_channels:0\r\nlatest_fork_usec:0\r\ntotal_forks:0\r\nmigrate_cached_sockets:0\r\nslave_expires_tracked_keys:0\r\nactive_defrag_hits:0\r\nactive_defrag_misses:0\r\nactive_defrag_key_hits:0\r\nactive_defrag_key_misses:0\r\ntotal_active_defrag_time:0\r\ncurrent_active_defrag_time:0\r\ntracking_total_keys:0\r\ntracking_total_items:0\r\ntracking_total_prefixes:8\r\nunexpected_error_replies:0\r\ntotal_error_replies:0\r\ndump_payload_sanitizations:0\r\ntotal_reads_processed:271481\r\ntotal_writes_processed:656560\r\nio_threaded_reads_processed:0\r\nio_threaded_writes_processed:0\r\nio_threaded_freed_objects:0\r\nio_threaded_accept_processed:0\r\nio_threaded_poll_processed:0\r\nio_threaded_total_prefetch_batches:0\r\nio_threaded_total_prefetch_entries:0\r\nclient_query_buffer_limit_disconnections:0\r\nclient_output_buffer_limit_disconnections:0\r\nreply_buffer_shrinks:338\r\nreply_buffer_expands:318\r\neventloop_cycles:381010\r\neventloop_duration_sum:191589914\r\neventloop_duration_cmd_sum:43343612\r\ninstantaneous_eventloop_cycles_per_sec:19\r\ninstantaneous_eventloop_duration_usec:147\r\nacl_access_denied_auth:0\r\nacl_access_denied_cmd:0\r\nacl_access_denied_key:0\r\nacl_access_denied_channel:0\r\n\r\n# Replication\r\nrole:master\r\nconnected_slaves:0\r\nreplicas_waiting_psync:0\r\nmaster_failover_state:no-failover\r\nmaster_replid:682060b14d53847fc406be53054c17c9fd904a15\r\nmaster_replid2:0000000000000000000000000000000000000000\r\nmaster_repl_offset:0\r\nsecond_repl_offset:-1\r\nrepl_backlog_active:0\r\nrepl_backlog_size:10485760\r\nrepl_backlog_first_byte_offset:0\r\nrepl_backlog_histlen:0\r\n\r\n# CPU\r\nused_cpu_sys:84.432391\r\nused_cpu_user:80.175322\r\nused_cpu_sys_children:0.005168\r\nused_cpu_user_children:0.002113\r\nused_cpu_sys_main_thread:84.394349\r\nused_cpu_user_main_thread:80.151964\r\n\r\n# Modules\r\n\r\n# Errorstats\r\n\r\n# Cluster\r\ncluster_enabled:0\r\n\r\n# Keyspace",
+  "tokens": {
+    "counts": {
+      "STUDENT": 1500,
+      "STAFF": 1000,
+      "INSTITUTION": 1
+    },
+    "studentAcademicClaimsPresent": true,
+    "hash": "f69d22a0681bea8236966072a27fef6a5d06a40df5f59d8ad640fa7eb591d1d6"
+  },
+  "node": {
+    "node": "v24.21.0",
+    "versions": {
+      "next": "16.3.2",
+      "react": "19.2.4",
+      "drizzle-orm": "0.45.2",
+      "pg": "8.22.0",
+      "pg-pool": "3.14.0"
+    },
+    "urls": {
+      "DATABASE_URL": {
+        "hostname": "pgbouncer",
+        "port": "6432"
+      },
+      "DIRECT_URL": {
+        "hostname": "postgres",
+        "port": "5432"
+      },
+      "REDIS_URL": {
+        "hostname": "valkey",
+        "port": "6379"
+      }
+    },
+    "defaults": {
+      "requestTimeout": 300000,
+      "headersTimeout": 60000,
+      "timeout": 0,
+      "keepAliveTimeout": 5000,
+      "keepAliveTimeoutBuffer": 1000,
+      "maxRequestsPerSocket": 0
+    },
+    "buildId": "X3NyTuiKs74AHXAGc-ft3"
+  },
+  "notableLogLines": [
+    {
+      "name": "lms-backend-caddy-1",
+      "line": "2026-10-01T15:58:34.493443077Z {\"level\":\"info\",\"ts\":1790870314.4931235,\"logger\":\"http.handlers.reverse_proxy.health_checker.active\",\"msg\":\"HTTP request failed\",\"host\":\"app:3000\",\"error\":\"Get \\\"http://app:3000/api/ready\\\": dial tcp 172.18.0.6:3000: connect: connection refused\"}"
+    },
+    {
+      "name": "lms-backend-pgbouncer-1",
+      "line": "2026-09-30T22:41:32.675804408Z 2026-09-30 22:41:32.675 UTC [7] LOG S-0x7fdff7c963d0: app/app@172.18.0.2:5432 closing because: query timeout (age=412s)"
+    },
+    {
+      "name": "lms-backend-pgbouncer-1",
+      "line": "2026-09-30T22:41:32.676107943Z 2026-09-30 22:41:32.675 UTC [7] LOG C-0x7fdff7cedaf0: app/app@172.18.0.1:35632 closing because: query timeout (age=13s)"
+    },
+    {
+      "name": "lms-backend-pgbouncer-1",
+      "line": "2026-09-30T22:41:32.676129545Z 2026-09-30 22:41:32.675 UTC [7] WARNING C-0x7fdff7cedaf0: app/app@172.18.0.1:35632 pooler error: query timeout"
+    },
+    {
+      "name": "lms-backend-pgbouncer-1",
+      "line": "2026-09-30T23:18:02.747639001Z 2026-09-30 23:18:02.747 UTC [7] LOG S-0x7fdff7c97b10: app/app@172.18.0.2:5432 closing because: query timeout (age=163s)"
+    },
+    {
+      "name": "lms-backend-pgbouncer-1",
+      "line": "2026-09-30T23:18:02.747687206Z 2026-09-30 23:18:02.747 UTC [7] LOG C-0x7fdff7ced238: app/app@172.18.0.1:54212 closing because: query timeout (age=872s)"
+    },
+    {
+      "name": "lms-backend-pgbouncer-1",
+      "line": "2026-09-30T23:18:02.747696607Z 2026-09-30 23:18:02.747 UTC [7] WARNING C-0x7fdff7ced238: app/app@172.18.0.1:54212 pooler error: query timeout"
+    },
+    {
+      "name": "lms-backend-pgbouncer-1",
+      "line": "2026-09-30T23:55:02.841319569Z 2026-09-30 23:55:02.840 UTC [7] LOG S-0x7fdff7c97b10: app/app@172.18.0.2:5432 closing because: query timeout (age=77s)"
+    },
+    {
+      "name": "lms-backend-pgbouncer-1",
+      "line": "2026-09-30T23:55:02.842340670Z 2026-09-30 23:55:02.841 UTC [7] LOG C-0x7fdff7ced520: app/app@172.18.0.1:39744 closing because: query timeout (age=382s)"
+    },
+    {
+      "name": "lms-backend-pgbouncer-1",
+      "line": "2026-09-30T23:55:02.842385174Z 2026-09-30 23:55:02.841 UTC [7] WARNING C-0x7fdff7ced520: app/app@172.18.0.1:39744 pooler error: query timeout"
+    },
+    {
+      "name": "lms-backend-pgbouncer-1",
+      "line": "2026-09-30T23:55:32.838790021Z 2026-09-30 23:55:32.838 UTC [7] LOG S-0x7fdff7c97828: app/app@172.18.0.2:5432 closing because: query timeout (age=308s)"
+    },
+    {
+      "name": "lms-backend-pgbouncer-1",
+      "line": "2026-09-30T23:55:32.838799024Z 2026-09-30 23:55:32.838 UTC [7] LOG C-0x7fdff7cee0c0: app/app@172.18.0.1:52248 closing because: query timeout (age=351s)"
+    },
+    {
+      "name": "lms-backend-pgbouncer-1",
+      "line": "2026-09-30T23:55:32.839050696Z 2026-09-30 23:55:32.838 UTC [7] WARNING C-0x7fdff7cee0c0: app/app@172.18.0.1:52248 pooler error: query timeout"
+    }
+  ],
+  "idleSelect1FromAppContainer": {
+    "direct": [
+      13.924613000000022,
+      2.8422319999999672,
+      4.634604000000024,
+      1.1388729999999896,
+      1.4793239999999628,
+      1.330001999999979,
+      0.8628310000000283,
+      0.6793030000000044
+    ],
+    "pgbouncer": [
+      1.8274769999999876,
+      1.2337870000000066,
+      0.9265409999999861,
+      0.6712019999999939,
+      0.7711170000000038,
+      0.9255410000000097,
+      0.669902000000036,
+      0.6065920000000347
+    ]
+  },
+  "installedSourceVersions": {
+    "ioredis": "5.11.1",
+    "typescript": "5.9.3",
+    "jose": "6.2.3"
+  }
+}

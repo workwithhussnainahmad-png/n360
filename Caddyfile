@@ -1,0 +1,152 @@
+{
+    # Loopback only. `admin :2019` bound every interface, so any container on
+    # appnet — including either Next replica and the worker — could POST a new
+    # configuration to Caddy's admin API and take over TLS termination and routing
+    # for every domain. That turns a single compromised app container into full
+    # control of the edge. The only consumer is this container's own healthcheck
+    # (wget http://127.0.0.1:2019/config/), which is unaffected.
+    admin localhost:2019
+
+    # Client-IP resolution, single source of truth.
+    #
+    # Caddy used to *append* the peer to whatever X-Forwarded-For the client sent,
+    # so the left-most entry — the one the app read — was fully attacker-controlled:
+    # every rate limit and the login lockout could be bypassed by rotating a fake
+    # XFF, and audit logs recorded whatever the client claimed.
+    #
+    # Now Caddy computes {client_ip} itself and *replaces* XFF with it (see the
+    # header_up lines below), so the app receives exactly one, trustworthy entry.
+    # {client_ip} only honours a forwarding header when the immediate peer is in
+    # trusted_proxies; a direct client is always identified by its socket address,
+    # whatever headers it sends.
+    #
+    # Requires Caddy >= 2.7 (`client_ip_headers`). The pinned caddy:2-alpine tag
+    # resolves well past that — `docker compose pull caddy` before deploying.
+    servers {
+        # Loopback/private ranges (a same-host proxy or the docker network) plus
+        # Cloudflare's published edge ranges, since TLS-ALPN-01 is answered ahead
+        # of this instance. Listing ranges that are not actually in front is
+        # harmless: no legitimate client connects from them.
+        trusted_proxies static \
+            127.0.0.0/8 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 \
+            ::1/128 fc00::/7 fe80::/10 \
+            173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 \
+            141.101.64.0/18 108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 \
+            197.234.240.0/22 198.41.128.0/17 162.158.0.0/15 104.16.0.0/13 \
+            104.24.0.0/14 172.64.0.0/13 131.0.72.0/22 \
+            2400:cb00::/32 2606:4700::/32 2803:f800::/32 2405:b500::/32 \
+            2405:8100::/32 2a06:98c0::/29 2c0f:f248::/32
+
+        # CF-Connecting-IP first: when Cloudflare proxies, it overwrites that
+        # header, so it is the only field that identifies the real client. Falls
+        # back to X-Forwarded-For for any other trusted proxy.
+        client_ip_headers CF-Connecting-IP X-Forwarded-For
+    }
+}
+
+:3000, http://localhost:3000, http://127.0.0.1:3000, nisaab360.app, www.nisaab360.app, blog.nisaab360.app, student.nisaab360.app, staff.nisaab360.app, institution.nisaab360.app, employee.nisaab360.app, sa.nisaab360.app, superadmin.nisaab360.app {
+    # Use HTTP-01 for public certificates. TLS-ALPN-01 is being answered by
+    # another endpoint before it reaches this Caddy instance.
+    tls {
+        issuer acme {
+            disable_tlsalpn_challenge
+        }
+    }
+
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        X-Permitted-Cross-Domain-Policies none
+        # Every portal and the API are HTTPS-only; this stops a first-request
+        # downgrade from exposing session cookies. Browsers ignore it on the
+        # plain-HTTP names above, as the spec requires.
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        -Server
+    }
+
+    # Compression moved here from Next (`compress: false` in next.config.ts).
+    # Node compressed on the same event loop that serves requests; Caddy does it
+    # in Go, off that loop, and can serve zstd — smaller and cheaper than gzip
+    # for the JSON the mobile app pulls. Order matters: zstd is preferred when
+    # the client advertises it, gzip is the fallback for everything else.
+    encode zstd gzip
+
+    reverse_proxy {
+        to app:3000 app2:3000
+        lb_policy least_conn
+        lb_try_duration 1s
+        lb_try_interval 50ms
+        lb_retry_match {
+            method GET
+        }
+        transport http {
+            keepalive 60s
+            keepalive_idle_conns 1024
+            keepalive_idle_conns_per_host 512
+        }
+
+        # Replace, never append: one entry the app can trust.
+        header_up X-Forwarded-For {client_ip}
+        header_up X-Real-IP {client_ip}
+
+        health_uri /api/ready
+        health_interval 10s
+        health_timeout 5s
+        health_fails 2
+        health_passes 1
+
+        fail_duration 30s
+        max_fails 1
+        # Keep application errors separate from connection failures.
+    }
+}
+
+# Redirect local HTTP to Caddy's locally-issued HTTPS certificate. This lets
+# browsers with HTTPS-first mode enabled use localhost without protocol errors.
+http://localhost, http://*.localhost {
+    redir https://{host}{uri} permanent
+}
+
+# `*.localhost` supports the same portal subdomains locally (student.localhost,
+# staff.localhost, etc.) without requesting a public certificate.
+https://localhost, https://*.localhost {
+    tls internal
+
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        X-Permitted-Cross-Domain-Policies none
+        -Server
+    }
+
+    encode zstd gzip
+
+    reverse_proxy {
+        to app:3000 app2:3000
+        lb_policy least_conn
+        lb_try_duration 1s
+        lb_try_interval 50ms
+        lb_retry_match {
+            method GET
+        }
+        transport http {
+            keepalive 60s
+            keepalive_idle_conns 1024
+            keepalive_idle_conns_per_host 512
+        }
+        header_up X-Forwarded-For {client_ip}
+        header_up X-Real-IP {client_ip}
+        health_uri /api/ready
+        health_interval 10s
+        health_timeout 5s
+        health_fails 2
+        health_passes 1
+        fail_duration 30s
+        max_fails 1
+        # Keep application errors separate from connection failures.
+    }
+}

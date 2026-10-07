@@ -1,0 +1,145 @@
+# Three slowest among 13 single idle SELECT plan samples; NOT the three slowest under load.
+
+## student/dashboard; initial JSON plan execution 0.706 ms
+SQL: select "name", "class_id", "section_id", "campus_id", "created_at", "academic_status", "expo_push_token", case when "academic_status" = 'GRADUATED' then '[]'::json else coalesce((select json_agg(row_to_json(child)) from ((select "assignments"."id", "assignments"."title", to_char("assignments"."due_at", 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as "dueAt" from "assignments" left join "submissions" on ("submissions"."assignment_id" = "assignments"."id" and "submissions"."student_id" = $1 and "submissions"."institution_id" = $2) where ("assignments"."institution_id" = $3 and "assignments"."class_id" = "students"."class_id" and ("assignments"."section_id" = "students"."section_id" or "assignments"."section_id" is null) and "submissions"."id" is null) order by "assignments"."due_at" limit $4)) child), '[]'::json) end, case when "academic_status" = 'GRADUATED' then null else (select row_to_json(child) from ((select "marks"."marks_obtained" as "marksObtained", "marks"."total_marks" as "totalMarks" from "marks" inner join "tests" on "marks"."test_id" = "tests"."id" where ("marks"."student_id" = $5 and "marks"."institution_id" = $6 and "tests"."results_published_at" is not null) order by "tests"."date" desc, "marks"."id" desc limit $7)) child) end from "students" where ("students"."id" = $8 and "students"."institution_id" = $9) limit $10
+Parameters: [101,2,2,5,101,2,1,101,2,1]
+Limit  (cost=5.07..12.07 rows=1 width=621) (actual time=0.183..0.187 rows=1 loops=1)
+  Buffers: shared hit=10
+  InitPlan 2 (returns $3)
+    ->  Subquery Scan on child_1  (cost=4.78..4.80 rows=1 width=32) (actual time=0.114..0.116 rows=0 loops=1)
+          Buffers: shared hit=5
+          ->  Limit  (cost=4.78..4.78 rows=1 width=16) (actual time=0.114..0.115 rows=0 loops=1)
+                Buffers: shared hit=5
+                ->  Sort  (cost=4.78..4.78 rows=1 width=16) (actual time=0.113..0.114 rows=0 loops=1)
+                      Sort Key: tests.date DESC, marks.id DESC
+                      Sort Method: quicksort  Memory: 25kB
+                      Buffers: shared hit=5
+                      ->  Nested Loop  (cost=0.30..4.77 rows=1 width=16) (actual time=0.026..0.026 rows=0 loops=1)
+                            Buffers: shared hit=2
+                            ->  Index Scan using marks_institution_student_created_idx on marks  (cost=0.15..2.37 rows=1 width=16) (actual time=0.025..0.025 rows=0 loops=1)
+                                  Index Cond: ((institution_id = 2) AND (student_id = 101))
+                                  Buffers: shared hit=2
+                            ->  Index Scan using tests_pkey on tests  (cost=0.14..2.36 rows=1 width=8) (never executed)
+                                  Index Cond: (id = marks.test_id)
+                                  Filter: (results_published_at IS NOT NULL)
+  ->  Index Scan using students_id_institution_unique on students  (cost=0.28..7.28 rows=1 width=621) (actual time=0.181..0.183 rows=1 loops=1)
+        Index Cond: ((id = 101) AND (institution_id = 2))
+        Buffers: shared hit=10
+        SubPlan 1
+          ->  Aggregate  (cost=4.76..4.77 rows=1 width=32) (actual time=0.027..0.028 rows=1 loops=1)
+                Buffers: shared hit=2
+                ->  Subquery Scan on child  (cost=0.29..4.75 rows=1 width=544) (actual time=0.024..0.025 rows=0 loops=1)
+                      Buffers: shared hit=2
+                      ->  Limit  (cost=0.29..4.75 rows=1 width=560) (actual time=0.023..0.024 rows=0 loops=1)
+                            Buffers: shared hit=2
+                            ->  Nested Loop Left Join  (cost=0.29..4.75 rows=1 width=560) (actual time=0.022..0.023 rows=0 loops=1)
+                                  Join Filter: (submissions.assignment_id = assignments.id)
+                                  Filter: (submissions.id IS NULL)
+                                  Buffers: shared hit=2
+                                  ->  Index Scan using assignments_institution_class_due_idx on assignments  (cost=0.14..2.37 rows=1 width=528) (actual time=0.021..0.021 rows=0 loops=1)
+                                        Index Cond: ((institution_id = 2) AND (class_id = students.class_id))
+                                        Filter: ((section_id = students.section_id) OR (section_id IS NULL))
+                                        Buffers: shared hit=2
+                                  ->  Index Scan using submissions_institution_student_idx on submissions  (cost=0.14..2.36 rows=1 width=8) (never executed)
+                                        Index Cond: ((institution_id = 2) AND (student_id = 101))
+Planning:
+  Buffers: shared hit=97
+Planning Time: 2.557 ms
+Execution Time: 0.490 ms
+
+## student/profile; initial JSON plan execution 0.488 ms
+SQL: select "students"."id", "students"."name", "students"."father_name", "students"."phone", "students"."gender", "students"."profile_picture_url", "students"."emergency_contact", "students"."parental_whatsapp", "students"."login_roll_number", "students"."class_roll_number", "students"."academic_status", "students"."age", "classes"."name", "sections"."name", "campuses"."name" from "students" left join "classes" on "students"."class_id" = "classes"."id" left join "sections" on "students"."section_id" = "sections"."id" left join "campuses" on "students"."campus_id" = "campuses"."id" where ("students"."id" = $1 and "students"."institution_id" = $2)
+Parameters: [101,2]
+Nested Loop Left Join  (cost=2.80..9.18 rows=1 width=1676) (actual time=0.126..0.154 rows=1 loops=1)
+  Buffers: shared hit=8
+  ->  Nested Loop Left Join  (cost=2.66..6.79 rows=1 width=1164) (actual time=0.103..0.130 rows=1 loops=1)
+        Buffers: shared hit=6
+        ->  Hash Right Join  (cost=2.51..4.40 rows=1 width=950) (actual time=0.080..0.107 rows=1 loops=1)
+              Hash Cond: (sections.id = students.section_id)
+              Buffers: shared hit=4
+              ->  Seq Scan on sections  (cost=0.00..1.70 rows=70 width=6) (actual time=0.008..0.017 rows=100 loops=1)
+                    Buffers: shared hit=1
+              ->  Hash  (cost=2.50..2.50 rows=1 width=952) (actual time=0.048..0.049 rows=1 loops=1)
+                    Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                    Buffers: shared hit=3
+                    ->  Index Scan using students_id_institution_unique on students  (cost=0.28..2.50 rows=1 width=952) (actual time=0.031..0.032 rows=1 loops=1)
+                          Index Cond: ((id = 101) AND (institution_id = 2))
+                          Buffers: shared hit=3
+        ->  Index Scan using classes_pkey on classes  (cost=0.15..2.37 rows=1 width=222) (actual time=0.019..0.019 rows=1 loops=1)
+              Index Cond: (id = students.class_id)
+              Buffers: shared hit=2
+  ->  Index Scan using campuses_pkey on campuses  (cost=0.14..2.36 rows=1 width=520) (actual time=0.021..0.021 rows=1 loops=1)
+        Index Cond: (id = students.campus_id)
+        Buffers: shared hit=2
+Planning:
+  Buffers: shared hit=54
+Planning Time: 1.759 ms
+Execution Time: 0.529 ms
+
+## staff/dashboard; initial JSON plan execution 0.453 ms
+SQL: select "name", coalesce((select json_agg(row_to_json(child)) from ((select "staff_assignments"."day_of_week" as "dayOfWeek", "staff_assignments"."start_time" as "startTime", "staff_assignments"."end_time" as "endTime", "subjects"."name" as "subjectName", "classes"."name" as "className", "sections"."name" as "sectionName" from "staff_assignments" left join "subjects" on "staff_assignments"."subject_id" = "subjects"."id" left join "sections" on "staff_assignments"."section_id" = "sections"."id" left join "classes" on "sections"."class_id" = "classes"."id" where ("staff_assignments"."staff_id" = $1 and "staff_assignments"."institution_id" = $2 and "staff_assignments"."day_of_week" = $3))) child), '[]'::json), coalesce((select json_agg(row_to_json(child)) from ((select "assignments"."id", "assignments"."title", to_char("assignments"."due_at", 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as "dueAt", "classes"."name" as "className", "sections"."name" as "sectionName", "subjects"."name" as "subjectName" from "assignments" inner join "classes" on "assignments"."class_id" = "classes"."id" left join "sections" on "assignments"."section_id" = "sections"."id" left join "subjects" on "assignments"."subject_id" = "subjects"."id" where ("assignments"."institution_id" = $4 and "assignments"."staff_id" = $5 and "assignments"."section_id" = ((select "section_id" from "staff_assignments" where ("staff_assignments"."staff_id" = $6 and "staff_assignments"."institution_id" = $7) order by "staff_assignments"."section_id" asc limit $8)) and "assignments"."due_at" > $9) order by "assignments"."due_at" limit $10)) child), '[]'::json) from "staff" where ("staff"."id" = $11 and "staff"."institution_id" = $12) limit $13
+Parameters: [101,2,4,2,101,101,2,1,"2026-10-01T17:28:01.171Z",3,101,2,1]
+Limit  (cost=18.50..20.72 rows=1 width=79) (actual time=0.259..0.269 rows=1 loops=1)
+  Buffers: shared hit=10
+  InitPlan 1 (returns $2)
+    ->  Aggregate  (cost=6.63..6.64 rows=1 width=32) (actual time=0.057..0.062 rows=1 loops=1)
+          Buffers: shared hit=2
+          ->  Nested Loop Left Join  (cost=2.18..6.62 rows=1 width=756) (actual time=0.053..0.058 rows=0 loops=1)
+                Buffers: shared hit=2
+                ->  Nested Loop Left Join  (cost=2.03..6.26 rows=1 width=542) (actual time=0.053..0.056 rows=0 loops=1)
+                      Buffers: shared hit=2
+                      ->  Hash Right Join  (cost=1.89..3.86 rows=1 width=30) (actual time=0.052..0.055 rows=0 loops=1)
+                            Hash Cond: (sections.id = staff_assignments.section_id)
+                            Buffers: shared hit=2
+                            ->  Seq Scan on sections  (cost=0.00..1.70 rows=70 width=10) (never executed)
+                            ->  Hash  (cost=1.88..1.88 rows=1 width=28) (actual time=0.029..0.030 rows=0 loops=1)
+                                  Buckets: 1024  Batches: 1  Memory Usage: 8kB
+                                  Buffers: shared hit=2
+                                  ->  Index Scan using staff_time_slot_unique on staff_assignments  (cost=0.28..1.88 rows=1 width=28) (actual time=0.029..0.029 rows=0 loops=1)
+                                        Index Cond: ((institution_id = 2) AND (staff_id = 101) AND (day_of_week = 4))
+                                        Buffers: shared hit=2
+                      ->  Index Scan using subjects_pkey on subjects  (cost=0.14..2.36 rows=1 width=520) (never executed)
+                            Index Cond: (id = staff_assignments.subject_id)
+                ->  Index Scan using classes_pkey on classes  (cost=0.15..0.35 rows=1 width=222) (never executed)
+                      Index Cond: (id = sections.class_id)
+  InitPlan 3 (returns $6)
+    ->  Aggregate  (cost=11.58..11.59 rows=1 width=32) (actual time=0.158..0.162 rows=1 loops=1)
+          Buffers: shared hit=5
+          ->  Subquery Scan on child  (cost=11.56..11.57 rows=1 width=1280) (actual time=0.155..0.158 rows=0 loops=1)
+                Buffers: shared hit=5
+                ->  Limit  (cost=11.56..11.56 rows=1 width=1296) (actual time=0.152..0.154 rows=0 loops=1)
+                      Buffers: shared hit=5
+                      InitPlan 2 (returns $3)
+                        ->  Limit  (cost=2.50..2.51 rows=1 width=4) (never executed)
+                              ->  Sort  (cost=2.50..2.51 rows=1 width=4) (never executed)
+                                    Sort Key: staff_assignments_1.section_id
+                                    ->  Index Scan using staff_assignments_institution_staff_idx on staff_assignments staff_assignments_1  (cost=0.28..2.49 rows=1 width=4) (never executed)
+                                          Index Cond: ((institution_id = 2) AND (staff_id = 101))
+                      ->  Sort  (cost=9.05..9.05 rows=1 width=1296) (actual time=0.151..0.153 rows=0 loops=1)
+                            Sort Key: assignments.due_at
+                            Sort Method: quicksort  Memory: 25kB
+                            Buffers: shared hit=5
+                            ->  Nested Loop Left Join  (cost=0.43..9.04 rows=1 width=1296) (actual time=0.045..0.046 rows=0 loops=1)
+                                  Buffers: shared hit=2
+                                  ->  Nested Loop Left Join  (cost=0.29..6.63 rows=1 width=752) (actual time=0.044..0.045 rows=0 loops=1)
+                                        Buffers: shared hit=2
+                                        ->  Nested Loop  (cost=0.29..4.75 rows=1 width=754) (actual time=0.044..0.044 rows=0 loops=1)
+                                              Buffers: shared hit=2
+                                              ->  Index Scan using assignments_institution_class_due_idx on assignments  (cost=0.14..2.37 rows=1 width=540) (actual time=0.042..0.043 rows=0 loops=1)
+                                                    Index Cond: ((institution_id = 2) AND (due_at > '2026-10-01 17:28:01.171'::timestamp without time zone))
+                                                    Filter: ((staff_id = 101) AND (section_id = $3))
+                                                    Buffers: shared hit=2
+                                              ->  Index Scan using classes_pkey on classes classes_1  (cost=0.15..2.37 rows=1 width=222) (never executed)
+                                                    Index Cond: (id = assignments.class_id)
+                                        ->  Seq Scan on sections sections_1  (cost=0.00..1.88 rows=1 width=6) (never executed)
+                                              Filter: (id = $3)
+                                  ->  Index Scan using subjects_pkey on subjects subjects_1  (cost=0.14..2.36 rows=1 width=520) (never executed)
+                                        Index Cond: (id = assignments.subject_id)
+  ->  Index Scan using staff_pkey on staff  (cost=0.28..2.50 rows=1 width=79) (actual time=0.258..0.258 rows=1 loops=1)
+        Index Cond: (id = 101)
+        Filter: (institution_id = 2)
+        Buffers: shared hit=10
+Planning:
+  Buffers: shared hit=54
+Planning Time: 3.389 ms
+Execution Time: 0.797 ms

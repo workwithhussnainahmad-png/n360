@@ -1,0 +1,245 @@
+PS D:\lms-backend-tunned\lms-backend> $env:TEST_ROLE = 'MIXED'
+PS D:\lms-backend-tunned\lms-backend> $env:BASE_URL = 'http://127.0.0.1:3000'
+PS D:\lms-backend-tunned\lms-backend> node scripts/verify-capacity-target.mjs
+Capacity preflight passed: Caddy → two healthy identical replicas, profiling off, 4 Docker CPUs, 7.76 GiB, 2500 MIXED tokens. Snapshot: .codex/latest-capacity-environment.json
+PS D:\lms-backend-tunned\lms-backend> npm.cmd run k6:load -- -e TARGET_VUS=2000 -e DURATION=5m
+
+> lms-backend@0.1.0 k6:load
+> node k6/run.mjs load -e TARGET_VUS=2000 -e DURATION=5m
+
+load: native k6, MIXED, 2500 accounts, target http://127.0.0.1:3000
+
+         /\      Grafana   /‾‾/
+    /\  /  \     |\  __   /  /
+   /  \/    \    | |/ /  /   ‾‾\
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/
+
+
+     execution: local
+        script: scripts/load.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 2000 max VUs, 9m30s max duration (incl. graceful stop):
+              * portal_browsing: Up to 2000 looping VUs for 9m0s over 4 stages (gracefulRampDown: 30s, gracefulStop: 30s)
+
+INFO[0000] Load test against http://127.0.0.1:3000 with 2500 tokens, target VUs=2000  source=console
+
+
+  █ THRESHOLDS
+
+    business_fail
+    ✓ 'rate==0' rate=0.00%
+
+    checks
+    ✓ 'rate==1' rate=100.00%
+
+    dashboard_ms
+    ✗ 'p(95)<500' p(95)=1154.0053
+
+    http_req_duration
+    ✗ 'p(95)<1000' p(95)=1.28s
+    ✗ 'p(99)<1000' p(99)=2.4s
+
+    http_req_failed
+    ✓ 'rate==0' rate=0.00%
+
+
+  █ TOTAL RESULTS
+
+    checks_total.......: 517331  956.063703/s
+    checks_succeeded...: 100.00% 517331 out of 517331
+    checks_failed......: 0.00%   0 out of 517331
+
+    ✓ dashboard 200
+    ✓ timetable 200
+    ✓ secondary page 200
+
+    CUSTOM
+    business_fail..................: 0.00%  0 out of 399412
+    dashboard_ms...................: avg=375.525176 min=0.515    med=250.7252   max=14400.107    p(90)=731.18244  p(95)=1154.0053   p(99)=2536.30057
+    outside_proxy_wait_ms..........: avg=59.681477  min=0        med=21.34185   max=1693.39832   p(90)=161.089875 p(95)=244.795317  p(99)=481.271079
+    proxy_ms.......................: avg=361.771779 min=0.606676 med=214.324001 max=14302.715339 p(90)=830.272811 p(95)=1194.400547 p(99)=2321.601677
+    secondary_ms...................: avg=681.23754  min=3.1959   med=659.82145  max=13169.4284   p(90)=1275.60464 p(95)=1518.54098  p(99)=2056.557507
+    timetable_ms...................: avg=529.746901 min=0.5556   med=431.5322   max=14406.644    p(90)=1116.89072 p(95)=1352.39855  p(99)=1923.481112
+
+    HTTP
+    http_req_duration..............: avg=421.58ms   min=515µs    med=279.68ms   max=14.4s        p(90)=922.08ms   p(95)=1.28s       p(99)=2.4s
+      { expected_response:true }...: avg=421.58ms   min=515µs    med=279.68ms   max=14.4s        p(90)=922.08ms   p(95)=1.28s       p(99)=2.4s
+    http_req_failed................: 0.00%  0 out of 517332
+    http_reqs......................: 517332 956.065551/s
+
+    EXECUTION
+    iteration_duration.............: avg=2.04s      min=1.5s     med=1.82s      max=16.72s       p(90)=2.82s      p(95)=3.27s       p(99)=4.57s
+    iterations.....................: 399412 738.141182/s
+    vus............................: 20     min=1           max=2000
+    vus_max........................: 2000   min=2000        max=2000
+
+    NETWORK
+    data_received..................: 481 MB 888 kB/s
+    data_sent......................: 263 MB 487 kB/s
+
+
+
+
+running (9m01.1s), 0000/2000 VUs, 399412 complete and 0 interrupted iterations
+portal_browsing ✓ [======================================] 0000/2000 VUs  9m0s
+ERRO[0544] thresholds on metrics 'dashboard_ms, http_req_duration' have been crossed
+PS D:\lms-backend-tunned\lms-backend> npm.cmd run k6:spike -- -e SPIKE_VUS=2000
+
+> lms-backend@0.1.0 k6:spike
+> node k6/run.mjs spike -e SPIKE_VUS=2000
+
+spike: native k6, MIXED, 2500 accounts, target http://127.0.0.1:3000
+
+         /\      Grafana   /‾‾/
+    /\  /  \     |\  __   /  /
+   /  \/    \    | |/ /  /   ‾‾\
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/
+
+
+     execution: local
+        script: scripts/spike.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 2000 max VUs, 3m50s max duration (incl. graceful stop):
+              * spike: Up to 2000 looping VUs for 3m20s over 6 stages (gracefulRampDown: 30s, gracefulStop: 30s)
+
+
+
+  █ THRESHOLDS
+
+    business_fail
+    ✓ 'rate==0' rate=0.00%
+
+    checks
+    ✓ 'rate==1' rate=100.00%
+
+    dashboard_ms
+    ✗ 'p(95)<500' p(95)=3518.61345
+
+    http_req_duration
+    ✗ 'p(95)<1000' p(95)=3.51s
+    ✗ 'p(99)<1000' p(99)=7.9s
+
+    http_req_failed
+    ✓ 'rate==0' rate=0.00%
+
+
+  █ TOTAL RESULTS
+
+    checks_total.......: 102836  513.903987/s
+    checks_succeeded...: 100.00% 102836 out of 102836
+    checks_failed......: 0.00%   0 out of 102836
+
+    ✓ dashboard 200
+
+    CUSTOM
+    business_fail..................: 0.00%  0 out of 102836
+    dashboard_ms...................: avg=1091.171046 min=0.9542   med=625.64795 max=54172.8451   p(90)=1930.7082   p(95)=3518.61345  p(99)=7904.009355
+    outside_proxy_wait_ms..........: avg=128.988404  min=0        med=69.039048 max=1574.279999  p(90)=327.117405  p(95)=441.006463  p(99)=830.183788
+    proxy_ms.......................: avg=962.03604   min=0.774196 med=462.7003  max=54173.146457 p(90)=1787.097571 p(95)=3421.135298 p(99)=7825.977751
+
+    HTTP
+    http_req_duration..............: avg=1.09s       min=954.2µs  med=625.64ms  max=54.17s       p(90)=1.93s       p(95)=3.51s       p(99)=7.9s
+      { expected_response:true }...: avg=1.09s       min=954.2µs  med=625.64ms  max=54.17s       p(90)=1.93s       p(95)=3.51s       p(99)=7.9s
+    http_req_failed................: 0.00%  0 out of 102836
+    http_reqs......................: 102836 513.903987/s
+
+    EXECUTION
+    iteration_duration.............: avg=1.39s       min=302.06ms med=927.02ms  max=54.47s       p(90)=2.23s       p(95)=3.82s       p(99)=8.2s
+    iterations.....................: 102836 513.903987/s
+    vus............................: 1      min=0           max=2000
+    vus_max........................: 2000   min=2000        max=2000
+
+    NETWORK
+    data_received..................: 88 MB  438 kB/s
+    data_sent......................: 52 MB  262 kB/s
+
+
+
+
+running (3m20.1s), 0000/2000 VUs, 102836 complete and 0 interrupted iterations
+spike ✓ [======================================] 0000/2000 VUs  3m20s
+ERRO[0201] thresholds on metrics 'dashboard_ms, http_req_duration' have been crossed
+PS D:\lms-backend-tunned\lms-backend> npm.cmd run k6:stress -- -e MAX_VUS=2000 -e DURATION=5m
+
+> lms-backend@0.1.0 k6:stress
+> node k6/run.mjs stress -e MAX_VUS=2000 -e DURATION=5m
+
+stress: native k6, MIXED, 2500 accounts, target http://127.0.0.1:3000
+
+         /\      Grafana   /‾‾/
+    /\  /  \     |\  __   /  /
+   /  \/    \    | |/ /  /   ‾‾\
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/
+
+
+     execution: local
+        script: scripts/stress.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 2000 max VUs, 20m30s max duration (incl. graceful stop):
+              * stress: Up to 2000 looping VUs for 20m0s over 9 stages (gracefulRampDown: 1m0s, gracefulStop: 30s)
+
+
+
+  █ THRESHOLDS
+
+    business_fail
+    ✓ 'rate==0' rate=0.00%
+
+    checks
+    ✓ 'rate==1' rate=100.00%
+
+    dashboard_ms
+    ✗ 'p(95)<500' p(95)=1465.47122
+
+    http_req_duration
+    ✗ 'p(95)<1000' p(95)=1.46s
+    ✗ 'p(99)<1000' p(99)=3.31s
+
+    http_req_failed
+    ✓ 'rate==0' rate=0.00%
+
+
+  █ TOTAL RESULTS
+
+    checks_total.......: 1785790 1487.804567/s
+    checks_succeeded...: 100.00% 1785790 out of 1785790
+    checks_failed......: 0.00%   0 out of 1785790
+
+    ✓ dashboard 200
+    ✓ not 429/502/503
+
+    CUSTOM
+    business_fail..................: 0.00%  0 out of 892895
+    dashboard_ms...................: avg=549.807338 min=0.5104   med=428.5812   max=33415.2752   p(90)=1069.36466 p(95)=1465.47122  p(99)=3316.862724
+    outside_proxy_wait_ms..........: avg=108.703556 min=0        med=48.837376  max=2621.081698  p(90)=297.256429 p(95)=431.410294  p(99)=697.175562
+    proxy_ms.......................: avg=440.96284  min=0.549166 med=304.175019 max=32679.076044 p(90)=886.584985 p(95)=1260.689088 p(99)=3153.806852
+
+    HTTP
+    http_req_duration..............: avg=549.8ms    min=510.4µs  med=428.58ms   max=33.41s       p(90)=1.06s      p(95)=1.46s       p(99)=3.31s
+      { expected_response:true }...: avg=549.8ms    min=510.4µs  med=428.58ms   max=33.41s       p(90)=1.06s      p(95)=1.46s       p(99)=3.31s
+    http_req_failed................: 0.00%  0 out of 892896
+    http_reqs......................: 892896 743.903117/s
+
+    EXECUTION
+    iteration_duration.............: avg=1.05s      min=500.56ms med=929.82ms   max=33.91s       p(90)=1.57s      p(95)=1.96s       p(99)=3.81s
+    iterations.....................: 892895 743.902284/s
+    vus............................: 13     min=0           max=2000
+    vus_max........................: 2000   min=2000        max=2000
+
+    NETWORK
+    data_received..................: 760 MB 633 kB/s
+    data_sent......................: 455 MB 379 kB/s
+
+
+
+
+running (20m00.3s), 0000/2000 VUs, 892895 complete and 0 interrupted iterations
+stress ✓ [======================================] 0000/2000 VUs  20m0s
+ERRO[1202] thresholds on metrics 'dashboard_ms, http_req_duration' have been crossed
+PS D:\lms-backend-tunned\lms-backend>

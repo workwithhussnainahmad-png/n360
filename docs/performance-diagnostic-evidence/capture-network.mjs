@@ -1,0 +1,15 @@
+import fs from 'node:fs';
+import {execFileSync} from 'node:child_process';
+const dir='docs/performance-diagnostic-evidence';
+const code=`const {Client}=require('pg'); (async()=>{ const out={}; for(const mode of ['direct','pgbouncer']){ const c=new Client({connectionString:mode==='direct'?process.env.DIRECT_URL:process.env.DATABASE_URL,application_name:'diagnosis_readonly',statement_timeout:2000});await c.connect(); const times=[];for(let i=0;i<8;i++){const t=performance.now();await c.query('SELECT 1');times.push(performance.now()-t);}await c.end();out[mode]=times;}console.log(JSON.stringify(out));})().catch(e=>{console.error(e.message);process.exitCode=1});`;
+const r=JSON.parse(fs.readFileSync(`${dir}/runtime.json`,'utf8'));
+r.idleSelect1FromAppContainer=JSON.parse(execFileSync('docker',['exec','lms-backend-app-1','node','-e',code],{encoding:'utf8'}));
+const lock=JSON.parse(fs.readFileSync('package-lock.json','utf8'));
+r.installedSourceVersions=Object.fromEntries(['ioredis','typescript','jose'].map(k=>[k,lock.packages[`node_modules/${k}`].version]));
+fs.writeFileSync(`${dir}/runtime.json`,JSON.stringify(r,null,2));
+const e=JSON.parse(fs.readFileSync('docs/performance-discrepancy-evidence.json','utf8'));
+const chosen=e.diagnostics.find(d=>d.directory.endsWith('21-34-42.508Z'));
+fs.writeFileSync(`${dir}/historical-4core-diagnostic.json`,JSON.stringify(chosen,null,2));
+const raw=fs.readFileSync('C:/Users/hussn/.codex/attachments/49dd0e18-7ada-4cb6-8b6d-44eccce3184a/Pasted text.txt','utf8');
+fs.writeFileSync(`${dir}/supplied-test-results.txt`,raw.replace(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g,'[REDACTED JWT]'));
+console.log(JSON.stringify({network:r.idleSelect1FromAppContainer,versions:r.installedSourceVersions,historical:chosen},null,2));

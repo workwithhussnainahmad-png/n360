@@ -1,0 +1,1 @@
+throw new Error("The retired B2 institution restore workflow is disabled. Institution backups are customer-owned Google Drive ZIP exports; PostgreSQL disaster recovery remains managed by the database backup workflow.");

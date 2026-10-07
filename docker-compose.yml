@@ -1,0 +1,480 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    init: true
+    ports:
+      # Loopback only. This was published as "5433:5432", which binds 0.0.0.0 and
+      # exposes Postgres to the internet/LAN even though the backend network is
+      # internal. Nothing in the stack connects through the host (the app uses
+      # pgbouncer:6432 and postgres:5432 over the docker network), so this is
+      # purely an admin convenience — it keeps working over an SSH tunnel.
+      - "127.0.0.1:5433:5432"
+    restart: unless-stopped
+    # Memory settings sized for the *whole* box, not for Postgres alone.
+    #
+    # This VPS has 8 GB and also runs two Next replicas, Valkey (260 MB), Caddy,
+    # PgBouncer and the worker. The previous values assumed a dedicated database
+    # server: shared_buffers=3GB plus effective_cache_size=9GB told the planner it
+    # had 9 GB of OS page cache on a box with 8 GB total, so it systematically
+    # under-estimated the cost of large scans and chose them over index paths; and
+    # work_mem=32MB x max_connections=100 is a 3.2 GB worst case that could OOM the
+    # box (the OOM killer usually takes the largest process, i.e. Postgres itself).
+    #
+    #   shared_buffers=1536MB       ~19% of RAM, leaves room for everything else
+    #   effective_cache_size=4GB    honest estimate of shared_buffers + OS cache
+    #   work_mem=16MB               per sort/hash node; PgBouncer caps real backends
+    #                               at DEFAULT_POOL_SIZE+RESERVE (30), so the
+    #                               realistic ceiling is ~480MB, not 3.2GB
+    #   random_page_cost=1.1        NVMe/SSD: a random read is not 4x a sequential
+    #                               one. This is the single most common cause of a
+    #                               planner preferring a seq scan over an index.
+    #   effective_io_concurrency=200 SSD queue depth, enables prefetch for bitmap scans
+    #   jit=off                     PG16 defaults JIT on above jit_above_cost=100000.
+    #                               For short OLTP statements the LLVM compile costs
+    #                               more CPU than it saves, and it is charged to the
+    #                               request. This is CPU handed straight back.
+    #   max_wal_size=2GB            fewer forced checkpoints under write bursts
+    #                               (attendance/marks entry), so less write
+    #                               amplification from repeated full-page images
+    #   autovacuum_* lowered        attendances/marks/notifications/expo_push_tickets
+    #                               are append-heavy; the 20% default scale factor
+    #                               lets tens of thousands of dead rows accumulate
+    #                               before a vacuum, which bloats indexes and slows
+    #                               every read of those tables
+    #   idle_in_transaction_session_timeout
+    #                               a wedged transaction blocks vacuum on every
+    #                               table it touched; with transaction pooling
+    #                               nothing legitimately idles inside one
+    command: >
+      postgres
+      -c shared_buffers=1536MB
+      -c effective_cache_size=4GB
+      -c work_mem=16MB
+      -c maintenance_work_mem=256MB
+      -c max_connections=100
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=32MB
+      -c max_wal_size=2GB
+      -c min_wal_size=512MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c jit=off
+      -c autovacuum_vacuum_scale_factor=0.05
+      -c autovacuum_analyze_scale_factor=0.02
+      -c autovacuum_naptime=30s
+      -c autovacuum_vacuum_cost_limit=1000
+      -c idle_in_transaction_session_timeout=60s
+      -c track_io_timing=on
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend
+      # Docker Desktop does not publish host ports from an internal-only
+      # network. The host binding remains loopback-only (127.0.0.1:5433), while
+      # this attachment makes the direct migration connection reachable.
+      - appnet
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-app}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    init: true
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres
+      DB_USER: ${POSTGRES_USER:-app}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB:-app}
+      AUTH_TYPE: scram-sha-256
+      POOL_MODE: transaction
+      # Protocol-level named statements survive transaction-pool reassignment.
+      # Requires PgBouncer >=1.21; the measured deployment uses 1.25.2.
+      MAX_PREPARED_STATEMENTS: 200
+      MAX_CLIENT_CONN: 5000
+      DEFAULT_POOL_SIZE: ${PGBOUNCER_DEFAULT_POOL_SIZE:-25}
+      RESERVE_POOL_SIZE: ${PGBOUNCER_RESERVE_POOL_SIZE:-5}
+      RESERVE_POOL_TIMEOUT: 3
+      QUERY_TIMEOUT: 10
+      # node-postgres may send this as a startup parameter; PgBouncer cannot
+      # apply it per transaction, so accept and ignore it at the pool boundary.
+      IGNORE_STARTUP_PARAMETERS: statement_timeout
+      LISTEN_PORT: 6432
+      # For 4000-5000 concurrent users
+      SERVER_IDLE_TIMEOUT: 30
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - backend
+      - appnet
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 6432 -U ${POSTGRES_USER:-app}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  valkey:
+    # Valkey = Redis fork, 100% drop-in compatible, OSS licensed
+    image: valkey/valkey:8-alpine
+    init: true
+    restart: unless-stopped
+    # 260MB is enough for short-TTL dashboard/auth/rate-limit keys; rest of RAM goes to Next/Postgres.
+    command: valkey-server --maxmemory 260mb --maxmemory-policy allkeys-lru --save ""
+    volumes:
+      - valkey_data:/data
+    networks:
+      - appnet
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrator
+    restart: "no"
+    environment:
+      NODE_ENV: production
+      DIRECT_URL: postgres://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-app}
+    command: ["node", "scripts/migrate-production.mjs", "--apply"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - backend
+
+  app:
+    init: true
+    # Option 1: build locally on the ARM Oracle VM
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Option 2: use a prebuilt image instead, comment out build: above and uncomment:
+    # image: ghcr.io/yourname/yourapp:latest
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DEPLOYMENT_ENV: production
+      # Bound the V8 heap per replica. Left unset, V8 sizes the old space from total
+      # system memory (~4 GB on this box), so two replicas plus Postgres can exhaust
+      # RAM — and the kernel's OOM killer then usually picks the largest process,
+      # which is Postgres. A 1 GB ceiling converts a whole-box outage into a bounded,
+      # restartable single-replica failure: Docker restarts it and Caddy's health
+      # check has already moved traffic to the other replica. Smaller heaps also mean
+      # shorter, more predictable GC pauses.
+      NODE_OPTIONS: --max-old-space-size=1024
+      # Standalone server.js reads this directly. Caddy retires sockets at 60s.
+      KEEP_ALIVE_TIMEOUT: 65000
+      # Direct dispatch of the guarded portal JSON GET routes, bypassing Next's
+      # per-request router pipeline (scripts/standalone-server.cjs). Set to 0 to
+      # route every request through Next without rebuilding the image.
+      HOT_PATH_LANE: ${HOT_PATH_LANE:-1}
+      HOT_PATH_NATIVE_WARM: ${HOT_PATH_NATIVE_WARM:-1}
+      HOT_PATH_LIGHT_REQUEST: ${HOT_PATH_LIGHT_REQUEST:-1}
+      DB_PREPARED_STATEMENTS: ${DB_PREPARED_STATEMENTS:-1}
+      # App -> PgBouncer, NOT direct to postgres
+      DATABASE_URL: postgres://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD}@pgbouncer:6432/${POSTGRES_DB:-app}?pgbouncer=true&connection_limit=1
+      # Direct postgres URL for migrations (Prisma/Drizzle)
+      DIRECT_URL: postgres://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-app}
+      # Valkey - 100% Redis compatible
+      REDIS_URL: redis://valkey:6379
+      # Explicit DB pool max limit per replica
+      DB_POOL_MAX: ${DB_POOL_MAX:-15}
+      # Shared auth secret
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+      # Dedicated at-rest encryption key for Bunny/Mux credentials. JWT_SECRET
+      # remains the compatibility fallback when this optional value is empty.
+      STREAMING_CREDENTIALS_SECRET: ${STREAMING_CREDENTIALS_SECRET:-}
+      # Required for the authenticated/manual push-receipt endpoint.
+      CRON_SECRET: ${CRON_SECRET:?CRON_SECRET must be set}
+      GOOGLE_DRIVE_CENTRAL_CLIENT_ID: ${GOOGLE_DRIVE_CENTRAL_CLIENT_ID:-}
+      GOOGLE_DRIVE_CENTRAL_CLIENT_SECRET: ${GOOGLE_DRIVE_CENTRAL_CLIENT_SECRET:-}
+      GOOGLE_DRIVE_CENTRAL_REDIRECT_URI: ${GOOGLE_DRIVE_CENTRAL_REDIRECT_URI:-}
+      GOOGLE_DRIVE_CLIENT_ID: ${GOOGLE_DRIVE_CLIENT_ID:-}
+      GOOGLE_DRIVE_CLIENT_SECRET: ${GOOGLE_DRIVE_CLIENT_SECRET:-}
+      GOOGLE_DRIVE_REDIRECT_URI: ${GOOGLE_DRIVE_REDIRECT_URI:-}
+      GOOGLE_DRIVE_CENTRAL_REFRESH_TOKEN: ${GOOGLE_DRIVE_CENTRAL_REFRESH_TOKEN:-}
+      CENTRAL_DATABASE_BACKUP_DRIVE_FOLDER_ID: ${CENTRAL_DATABASE_BACKUP_DRIVE_FOLDER_ID:-}
+      CENTRAL_INSTITUTION_BACKUPS_DRIVE_FOLDER_ID: ${CENTRAL_INSTITUTION_BACKUPS_DRIVE_FOLDER_ID:-}
+      # Add your other Next.js env vars here
+      NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: ${NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME:?NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME must be set}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:?CLOUDINARY_API_KEY must be set}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:?CLOUDINARY_API_SECRET must be set}
+      B2_REGION: ${B2_REGION:?B2_REGION must be set}
+      B2_APPLICATION_KEY_ID: ${B2_APPLICATION_KEY_ID:?B2_APPLICATION_KEY_ID must be set}
+      B2_APPLICATION_KEY: ${B2_APPLICATION_KEY:?B2_APPLICATION_KEY must be set}
+      B2_BUCKET_NAME: ${B2_BUCKET_NAME:?B2_BUCKET_NAME must be set}
+      NEXT_PUBLIC_APP_DOMAIN: ${NEXT_PUBLIC_APP_DOMAIN:-nisaab360.app}
+      PUBLIC_SITE_BASE_DOMAIN: ${PUBLIC_SITE_BASE_DOMAIN:-nisaab360.app}
+      APP_DOMAIN: ${APP_DOMAIN:-nisaab360.app}
+      GMAIL_USER: ${GMAIL_USER:?GMAIL_USER must be set}
+      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD:?GMAIL_APP_PASSWORD must be set}
+      API_ALLOWED_ORIGINS: ${API_ALLOWED_ORIGINS:-https://nisaab360.app}
+      # NEXTAUTH_URL: https://${DOMAIN}
+      # NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+    depends_on:
+      pgbouncer:
+        condition: service_started
+      valkey:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - appnet
+      - backend
+    volumes:
+      - app_downloads:/app/public/downloads
+      - postgres_backup:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app2:
+    init: true
+    container_name: nisaab360-app2
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DEPLOYMENT_ENV: production
+      # Same heap ceiling as app; see the comment there.
+      NODE_OPTIONS: --max-old-space-size=1024
+      KEEP_ALIVE_TIMEOUT: 65000
+      HOT_PATH_LANE: ${HOT_PATH_LANE:-1}
+      HOT_PATH_NATIVE_WARM: ${HOT_PATH_NATIVE_WARM:-1}
+      HOT_PATH_LIGHT_REQUEST: ${HOT_PATH_LIGHT_REQUEST:-1}
+      DB_PREPARED_STATEMENTS: ${DB_PREPARED_STATEMENTS:-1}
+      DATABASE_URL: postgres://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD}@pgbouncer:6432/${POSTGRES_DB:-app}?pgbouncer=true&connection_limit=1
+      DIRECT_URL: postgres://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-app}
+      REDIS_URL: redis://valkey:6379
+      # Explicit DB pool max limit per replica
+      DB_POOL_MAX: ${DB_POOL_MAX:-15}
+      # Shared auth secret
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+      STREAMING_CREDENTIALS_SECRET: ${STREAMING_CREDENTIALS_SECRET:-}
+      # Required for the authenticated/manual push-receipt endpoint.
+      CRON_SECRET: ${CRON_SECRET:?CRON_SECRET must be set}
+      GOOGLE_DRIVE_CENTRAL_CLIENT_ID: ${GOOGLE_DRIVE_CENTRAL_CLIENT_ID:-}
+      GOOGLE_DRIVE_CENTRAL_CLIENT_SECRET: ${GOOGLE_DRIVE_CENTRAL_CLIENT_SECRET:-}
+      GOOGLE_DRIVE_CENTRAL_REDIRECT_URI: ${GOOGLE_DRIVE_CENTRAL_REDIRECT_URI:-}
+      GOOGLE_DRIVE_CLIENT_ID: ${GOOGLE_DRIVE_CLIENT_ID:-}
+      GOOGLE_DRIVE_CLIENT_SECRET: ${GOOGLE_DRIVE_CLIENT_SECRET:-}
+      GOOGLE_DRIVE_REDIRECT_URI: ${GOOGLE_DRIVE_REDIRECT_URI:-}
+      GOOGLE_DRIVE_CENTRAL_REFRESH_TOKEN: ${GOOGLE_DRIVE_CENTRAL_REFRESH_TOKEN:-}
+      CENTRAL_DATABASE_BACKUP_DRIVE_FOLDER_ID: ${CENTRAL_DATABASE_BACKUP_DRIVE_FOLDER_ID:-}
+      CENTRAL_INSTITUTION_BACKUPS_DRIVE_FOLDER_ID: ${CENTRAL_INSTITUTION_BACKUPS_DRIVE_FOLDER_ID:-}
+      NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: ${NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME:?NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME must be set}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:?CLOUDINARY_API_KEY must be set}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:?CLOUDINARY_API_SECRET must be set}
+      B2_REGION: ${B2_REGION:?B2_REGION must be set}
+      B2_APPLICATION_KEY_ID: ${B2_APPLICATION_KEY_ID:?B2_APPLICATION_KEY_ID must be set}
+      B2_APPLICATION_KEY: ${B2_APPLICATION_KEY:?B2_APPLICATION_KEY must be set}
+      B2_BUCKET_NAME: ${B2_BUCKET_NAME:?B2_BUCKET_NAME must be set}
+      # Keep the second web replica aligned with app. Override these with
+      # localhost when running the compose stack locally.
+      NEXT_PUBLIC_APP_DOMAIN: ${NEXT_PUBLIC_APP_DOMAIN:-nisaab360.app}
+      PUBLIC_SITE_BASE_DOMAIN: ${PUBLIC_SITE_BASE_DOMAIN:-nisaab360.app}
+      APP_DOMAIN: ${APP_DOMAIN:-nisaab360.app}
+      GMAIL_USER: ${GMAIL_USER:?GMAIL_USER must be set}
+      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD:?GMAIL_APP_PASSWORD must be set}
+      API_ALLOWED_ORIGINS: ${API_ALLOWED_ORIGINS:-https://nisaab360.app}
+    depends_on:
+      pgbouncer:
+        condition: service_started
+      valkey:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - appnet
+      - backend
+    volumes:
+      - app_downloads:/app/public/downloads
+      - postgres_backup:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Receipt checks run outside the web processes. It calls Postgres/Expo directly
+  # and has no public port or Caddy route.
+  push-receipt-worker:
+    init: true
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: push-receipt-worker
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      # The worker only ever holds a few thousand rows at a time; a 384 MB ceiling is
+      # ample and keeps it from competing with Postgres for RAM. --enable-source-maps
+      # keeps stack traces pointing at the TypeScript sources now that the entry
+      # point is a compiled bundle (see the push-receipt-worker stage in Dockerfile).
+      NODE_OPTIONS: --max-old-space-size=384 --enable-source-maps
+      DATABASE_URL: postgres://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD}@pgbouncer:6432/${POSTGRES_DB:-app}?pgbouncer=true&connection_limit=1
+      DIRECT_URL: postgres://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-app}
+      # Without this, every cache invalidation the worker triggers (fee-voucher
+      # announcements and notifications invalidate student dashboard/announcement
+      # keys) silently connected to 127.0.0.1:6379 inside the worker container,
+      # failed, and was swallowed — so the two web replicas kept serving stale
+      # cached data until the TTL expired. The worker is already on appnet.
+      REDIS_URL: redis://valkey:6379
+      # Receipt processing is intentionally low-concurrency and must not add a
+      # second five-connection application pool behind PgBouncer.
+      DB_POOL_MAX: 1
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+      STREAMING_CREDENTIALS_SECRET: ${STREAMING_CREDENTIALS_SECRET:-}
+      GOOGLE_DRIVE_CENTRAL_CLIENT_ID: ${GOOGLE_DRIVE_CENTRAL_CLIENT_ID:-}
+      GOOGLE_DRIVE_CENTRAL_CLIENT_SECRET: ${GOOGLE_DRIVE_CENTRAL_CLIENT_SECRET:-}
+      GOOGLE_DRIVE_CENTRAL_REDIRECT_URI: ${GOOGLE_DRIVE_CENTRAL_REDIRECT_URI:-}
+      GOOGLE_DRIVE_CLIENT_ID: ${GOOGLE_DRIVE_CLIENT_ID:-}
+      GOOGLE_DRIVE_CLIENT_SECRET: ${GOOGLE_DRIVE_CLIENT_SECRET:-}
+      GOOGLE_DRIVE_REDIRECT_URI: ${GOOGLE_DRIVE_REDIRECT_URI:-}
+      GOOGLE_DRIVE_CENTRAL_REFRESH_TOKEN: ${GOOGLE_DRIVE_CENTRAL_REFRESH_TOKEN:-}
+      CENTRAL_INSTITUTION_BACKUPS_DRIVE_FOLDER_ID: ${CENTRAL_INSTITUTION_BACKUPS_DRIVE_FOLDER_ID:-}
+      PUSH_RECEIPT_INTERVAL_MS: ${PUSH_RECEIPT_INTERVAL_MS:-60000}
+      B2_REGION: ${B2_REGION:?B2_REGION must be set}
+      B2_APPLICATION_KEY_ID: ${B2_APPLICATION_KEY_ID:?B2_APPLICATION_KEY_ID must be set}
+      B2_APPLICATION_KEY: ${B2_APPLICATION_KEY:?B2_APPLICATION_KEY must be set}
+      B2_BUCKET_NAME: ${B2_BUCKET_NAME:?B2_BUCKET_NAME must be set}
+      GMAIL_USER: ${GMAIL_USER:?GMAIL_USER must be set}
+      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD:?GMAIL_APP_PASSWORD must be set}
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+    networks:
+      - backend
+      - appnet
+
+  # Recovery runs separately so staging/ZIP work cannot delay receipt or email
+  # delivery. The larger heap is a ceiling, not an idle allocation. A single
+  # global PostgreSQL lease prevents concurrent imports across deployments.
+  institution-restore-worker:
+    init: true
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: push-receipt-worker
+    command: ["node", "dist/institution-restore-worker.cjs"]
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NODE_OPTIONS: --max-old-space-size=1024 --enable-source-maps
+      DIRECT_URL: postgres://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-app}
+      DATABASE_URL: postgres://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD}@pgbouncer:6432/${POSTGRES_DB:-app}?pgbouncer=true
+      REDIS_URL: redis://valkey:6379
+      DB_POOL_MAX: 1
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+      STREAMING_CREDENTIALS_SECRET: ${STREAMING_CREDENTIALS_SECRET:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - backend
+      - appnet
+
+  caddy:
+    image: caddy:2-alpine
+    init: true
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+      app2:
+        condition: service_healthy
+    networks:
+      - appnet
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:2019/config/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # Verified custom-format PostgreSQL backups are retained locally and uploaded
+  # to a private Backblaze B2 bucket. The container also verifies each dump's
+  # catalog and the uploaded object before updating its health marker.
+  postgres-backup:
+    build: ./backup
+    init: true
+    restart: unless-stopped
+    volumes:
+      - postgres_backup:/backups
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DATABASE: ${POSTGRES_DB:-app}
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Run a verified backup on startup and daily at midnight UTC.
+      SCHEDULE: "0 0 * * *"
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-30}
+      BACKUP_ON_STARTUP: ${BACKUP_ON_STARTUP:-true}
+      # S3 Upload (Backblaze B2)
+      S3_ENDPOINT: "${B2_REGION:+https://s3.${B2_REGION}.backblazeb2.com}"
+      S3_ACCESS_KEY_ID: ${B2_APPLICATION_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${B2_APPLICATION_KEY:-}
+      S3_BUCKET: ${B2_BUCKET_NAME:-}
+      # Keep full-database retention isolated from per-institution retention.
+      S3_PREFIX: "postgres-backups/disaster-recovery"
+      S3_REGION: ${B2_REGION:-}
+      # Central Google Drive backup (primary destination).
+      # Set these to enable Drive uploads after completing the one-time OAuth setup.
+      # Leave unset to skip Drive uploads and continue B2-only operation.
+      CRON_SECRET: ${CRON_SECRET:?CRON_SECRET must be set}
+      CENTRAL_DATABASE_BACKUP_DRIVE_FOLDER_ID: ${CENTRAL_DATABASE_BACKUP_DRIVE_FOLDER_ID:-}
+      CENTRAL_DATABASE_BACKUP_ENCRYPTION_KEY: ${CENTRAL_DATABASE_BACKUP_ENCRYPTION_KEY:-}
+      CENTRAL_DATABASE_BACKUP_KEEP_DAILY: ${CENTRAL_DATABASE_BACKUP_KEEP_DAILY:-30}
+      CENTRAL_DATABASE_BACKUP_KEEP_MONTHLY: ${CENTRAL_DATABASE_BACKUP_KEEP_MONTHLY:-12}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - backend
+      - appnet
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /backups/last-success && test $$(($$(date +%s) - $$(cat /backups/last-success))) -lt 129600"]
+      interval: 1h
+      timeout: 5s
+      retries: 2
+      start_period: 10m
+
+volumes:
+  postgres_data:
+  postgres_backup:
+  valkey_data:
+  caddy_data:
+  caddy_config:
+  app_downloads:
+
+networks:
+  backend:
+    internal: true
+  appnet:
