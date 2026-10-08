@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { institutionGoogleDriveBackups, institutions } from "@/db/schema";
 import { requireRole } from "@/lib/rbac";
-import { verifyGoogleDriveState, exchangeGoogleDriveCode, ensureInstitutionBackupFolder } from "@/lib/google-drive-backups";
+import { verifyGoogleDriveState, exchangeGoogleDriveCode, ensureInstitutionBackupFolder, googleDriveSettingsRedirectUrl } from "@/lib/google-drive-backups";
 import { encryptStreamingCredentials } from "@/lib/streaming-credentials";
 
 export const GET = requireRole(["INSTITUTION"], async (req: NextRequest, { session }) => {
@@ -18,10 +18,5 @@ export const GET = requireRole(["INSTITUTION"], async (req: NextRequest, { sessi
   const folder = await ensureInstitutionBackupFolder(credentials.refreshToken, institution.name, institutionId);
   const encrypted = encryptStreamingCredentials({ refreshToken: credentials.refreshToken });
   await db.insert(institutionGoogleDriveBackups).values({ institutionId, credentialsEncrypted: encrypted, folderId: folder.folderId, folderName: folder.folderName, updatedAt: new Date() }).onConflictDoUpdate({ target: institutionGoogleDriveBackups.institutionId, set: { credentialsEncrypted: encrypted, folderId: folder.folderId, folderName: folder.folderName, updatedAt: new Date(), lastBackupError: null } });
-  const redirectUrl = new URL("/institution/settings?googleDrive=connected", req.url);
-  // Next may build req.url from HOSTNAME=0.0.0.0 while listening on all
-  // interfaces. That address is valid for binding a server but not for a
-  // browser redirect; normalize it to the local URL users can open.
-  if (redirectUrl.hostname === "0.0.0.0") redirectUrl.hostname = "localhost";
-  return NextResponse.redirect(redirectUrl);
+  return NextResponse.redirect(googleDriveSettingsRedirectUrl());
 }, { mutatesOnRead: true , permission: 'institution.security'});

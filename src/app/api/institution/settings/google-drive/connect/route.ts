@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { institutions } from "@/db/schema";
 import { getTenantContext, requireRole } from "@/lib/rbac";
-import { createGoogleDriveState, googleDriveAuthorizationUrl, verifyGoogleDriveState, exchangeGoogleDriveCode, ensureInstitutionBackupFolder } from "@/lib/google-drive-backups";
+import { createGoogleDriveState, googleDriveAuthorizationUrl, verifyGoogleDriveState, exchangeGoogleDriveCode, ensureInstitutionBackupFolder, googleDriveSettingsRedirectUrl } from "@/lib/google-drive-backups";
 import { encryptStreamingCredentials } from "@/lib/streaming-credentials";
 import { institutionGoogleDriveBackups } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -28,7 +28,5 @@ export const POST = requireRole(["INSTITUTION"], async (req: NextRequest, { sess
     target: institutionGoogleDriveBackups.institutionId,
     set: { credentialsEncrypted: encrypted, folderId: folder.folderId, folderName: folder.folderName, updatedAt: new Date(), lastBackupError: null },
   });
-  const redirectUrl = new URL("/institution/settings?googleDrive=connected", req.url);
-  if (redirectUrl.hostname === "0.0.0.0") redirectUrl.hostname = "localhost";
-  return NextResponse.redirect(redirectUrl);
+  return NextResponse.redirect(googleDriveSettingsRedirectUrl());
 }, { permission: 'institution.security' });

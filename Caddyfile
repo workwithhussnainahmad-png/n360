@@ -44,7 +44,7 @@
     }
 }
 
-:3000, http://localhost:3000, http://127.0.0.1:3000, nisaab360.app, www.nisaab360.app, blog.nisaab360.app, student.nisaab360.app, staff.nisaab360.app, institution.nisaab360.app, employee.nisaab360.app, sa.nisaab360.app, superadmin.nisaab360.app {
+:3000, http://localhost:3000, http://127.0.0.1:3000, nisaab360.app, www.nisaab360.app, blog.nisaab360.app, student.nisaab360.app, staff.nisaab360.app, parent.nisaab360.app, institution.nisaab360.app, employee.nisaab360.app, sa.nisaab360.app, superadmin.nisaab360.app {
     # Use HTTP-01 for public certificates. TLS-ALPN-01 is being answered by
     # another endpoint before it reaches this Caddy instance.
     tls {

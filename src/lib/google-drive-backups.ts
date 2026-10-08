@@ -21,6 +21,12 @@ function clientConfig() {
   };
 }
 
+export function googleDriveSettingsRedirectUrl() {
+  // The OAuth callback is configured with the public portal origin. Behind a
+  // reverse proxy, req.url can instead contain the internal listener address.
+  return new URL("/institution/settings?googleDrive=connected", required("GOOGLE_DRIVE_REDIRECT_URI"));
+}
+
 export async function createGoogleDriveState(institutionId: number) {
   return new SignJWT({ institutionId, purpose: "institution-google-drive" })
     .setProtectedHeader({ alg: "HS256" })
