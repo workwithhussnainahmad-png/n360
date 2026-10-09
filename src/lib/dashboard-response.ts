@@ -24,6 +24,13 @@ function serializedResponse(body: string, init: ResponseInit) {
   return Object.defineProperty(new Response(stream, init), Symbol.for('nisaab360.serialized-json'), { value: body });
 }
 
+/** Small uncached JSON responses may use the same direct-write lane transport. */
+export function serializedJsonResponse(payload: object, init: ResponseInit = {}) {
+  const headers = new Headers(init.headers);
+  headers.set("Content-Type", "application/json; charset=utf-8");
+  return serializedResponse(JSON.stringify(payload), { ...init, headers });
+}
+
 /** Dashboard callers treat these decoded payloads as immutable. */
 export function decodeDashboardPayload<T extends object>(json: string): T {
   const hit = decoded.get(json);

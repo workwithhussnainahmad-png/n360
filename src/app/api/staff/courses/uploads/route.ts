@@ -1,3 +1,4 @@
+import { validationError } from '@/lib/validation-errors';
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -15,7 +16,7 @@ function muxAuthorization(credentials: Record<string, string>) {
 
 export const POST = requireRole(["STAFF"], async (req: NextRequest, { session }) => {
   const parsed = createSchema.safeParse(await req.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "Choose a valid video file and enter a lecture title" }, { status: 400 });
+  if (!parsed.success) return NextResponse.json(validationError(parsed.error), { status: 400 });
   const institutionId = getTenantContext(session);
   const settings = await getEffectiveCourseStreamingSettings(institutionId, session.userId);
   if (!settings) return NextResponse.json({ error: "Course streaming is not configured" }, { status: 409 });
@@ -91,7 +92,7 @@ export const GET = requireRole(["STAFF"], async (req: NextRequest, { session }) 
     const uploadResponse = await fetch(`https://api.mux.com/video/v1/uploads/${encodeURIComponent(uploadId)}`, {
       headers: { Authorization: authorization, Accept: "application/json" },
       cache: "no-store",
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.any([req.signal, AbortSignal.timeout(10_000)]),
     });
     const upload = await uploadResponse.json().catch(() => null) as { data?: { status?: string; asset_id?: string; error?: { message?: string } } } | null;
     if (!uploadResponse.ok) return NextResponse.json({ error: "Mux could not check this upload" }, { status: 502 });
@@ -100,7 +101,7 @@ export const GET = requireRole(["STAFF"], async (req: NextRequest, { session }) 
     const assetResponse = await fetch(`https://api.mux.com/video/v1/assets/${encodeURIComponent(upload.data.asset_id)}`, {
       headers: { Authorization: authorization, Accept: "application/json" },
       cache: "no-store",
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.any([req.signal, AbortSignal.timeout(10_000)]),
     });
     const asset = await assetResponse.json().catch(() => null) as { data?: { status?: string; playback_ids?: Array<{ id?: string; policy?: string }>; errors?: { messages?: string[] } } } | null;
     if (!assetResponse.ok) return NextResponse.json({ error: "Mux could not check the uploaded asset" }, { status: 502 });
@@ -114,7 +115,7 @@ export const GET = requireRole(["STAFF"], async (req: NextRequest, { session }) 
   const response = await fetch(`https://video.bunnycdn.com/library/${encodeURIComponent(libraryId)}/videos/${encodeURIComponent(uploadId)}`, {
     headers: { AccessKey: apiKey, Accept: "application/json" },
     cache: "no-store",
-    signal: AbortSignal.timeout(10_000),
+    signal: AbortSignal.any([req.signal, AbortSignal.timeout(10_000)]),
   });
   const video = await response.json().catch(() => null) as { status?: number; encodeProgress?: number; transcodingMessages?: Array<{ message?: string; level?: number }> } | null;
   if (!response.ok) return NextResponse.json({ error: "Bunny Stream could not check this upload" }, { status: 502 });

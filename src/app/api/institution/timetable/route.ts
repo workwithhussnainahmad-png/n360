@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { staffAssignments, staff, sections, classes, subjects } from "@/db/schema";
@@ -165,6 +166,9 @@ export const POST = requireRole(["INSTITUTION", "INSTITUTION_ADMIN"], async (req
 
     return NextResponse.json({ id: inserted.id });
   } catch (error: any) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     return NextResponse.json({ error: error.message || "Failed to create assignment" }, { status: 500 });
   }
 });

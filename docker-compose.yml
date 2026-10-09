@@ -144,6 +144,10 @@ services:
       dockerfile: Dockerfile
       target: migrator
     restart: "no"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     environment:
       NODE_ENV: production
       DIRECT_URL: postgres://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-app}
@@ -156,6 +160,10 @@ services:
 
   app:
     init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     # Option 1: build locally on the ARM Oracle VM
     build:
       context: .
@@ -193,6 +201,11 @@ services:
       DB_POOL_MAX: ${DB_POOL_MAX:-15}
       # Shared auth secret
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+      STUDENT_QR_SIGNING_SECRET: ${STUDENT_QR_SIGNING_SECRET:-}
+      STUDENT_QR_KEY_ID: ${STUDENT_QR_KEY_ID:-v1}
+      STUDENT_QR_PREVIOUS_KEYS: ${STUDENT_QR_PREVIOUS_KEYS:-}
+      STUDENT_QR_LEGACY_SECRET: ${STUDENT_QR_LEGACY_SECRET:-}
+      STUDENT_QR_LEGACY_VALID_UNTIL: ${STUDENT_QR_LEGACY_VALID_UNTIL:-}
       # Dedicated at-rest encryption key for Bunny/Mux credentials. JWT_SECRET
       # remains the compatibility fallback when this optional value is empty.
       STREAMING_CREDENTIALS_SECRET: ${STREAMING_CREDENTIALS_SECRET:-}
@@ -245,6 +258,10 @@ services:
 
   app2:
     init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     container_name: nisaab360-app2
     build:
       context: .
@@ -267,6 +284,11 @@ services:
       DB_POOL_MAX: ${DB_POOL_MAX:-15}
       # Shared auth secret
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+      STUDENT_QR_SIGNING_SECRET: ${STUDENT_QR_SIGNING_SECRET:-}
+      STUDENT_QR_KEY_ID: ${STUDENT_QR_KEY_ID:-v1}
+      STUDENT_QR_PREVIOUS_KEYS: ${STUDENT_QR_PREVIOUS_KEYS:-}
+      STUDENT_QR_LEGACY_SECRET: ${STUDENT_QR_LEGACY_SECRET:-}
+      STUDENT_QR_LEGACY_VALID_UNTIL: ${STUDENT_QR_LEGACY_VALID_UNTIL:-}
       STREAMING_CREDENTIALS_SECRET: ${STREAMING_CREDENTIALS_SECRET:-}
       # Required for the authenticated/manual push-receipt endpoint.
       CRON_SECRET: ${CRON_SECRET:?CRON_SECRET must be set}
@@ -317,6 +339,10 @@ services:
   # and has no public port or Caddy route.
   push-receipt-worker:
     init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     build:
       context: .
       dockerfile: Dockerfile
@@ -341,6 +367,11 @@ services:
       # second five-connection application pool behind PgBouncer.
       DB_POOL_MAX: 1
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+      STUDENT_QR_SIGNING_SECRET: ${STUDENT_QR_SIGNING_SECRET:-}
+      STUDENT_QR_KEY_ID: ${STUDENT_QR_KEY_ID:-v1}
+      STUDENT_QR_PREVIOUS_KEYS: ${STUDENT_QR_PREVIOUS_KEYS:-}
+      STUDENT_QR_LEGACY_SECRET: ${STUDENT_QR_LEGACY_SECRET:-}
+      STUDENT_QR_LEGACY_VALID_UNTIL: ${STUDENT_QR_LEGACY_VALID_UNTIL:-}
       STREAMING_CREDENTIALS_SECRET: ${STREAMING_CREDENTIALS_SECRET:-}
       GOOGLE_DRIVE_CENTRAL_CLIENT_ID: ${GOOGLE_DRIVE_CENTRAL_CLIENT_ID:-}
       GOOGLE_DRIVE_CENTRAL_CLIENT_SECRET: ${GOOGLE_DRIVE_CENTRAL_CLIENT_SECRET:-}
@@ -369,6 +400,10 @@ services:
   # global PostgreSQL lease prevents concurrent imports across deployments.
   institution-restore-worker:
     init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     build:
       context: .
       dockerfile: Dockerfile
@@ -383,6 +418,11 @@ services:
       REDIS_URL: redis://valkey:6379
       DB_POOL_MAX: 1
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+      STUDENT_QR_SIGNING_SECRET: ${STUDENT_QR_SIGNING_SECRET:-}
+      STUDENT_QR_KEY_ID: ${STUDENT_QR_KEY_ID:-v1}
+      STUDENT_QR_PREVIOUS_KEYS: ${STUDENT_QR_PREVIOUS_KEYS:-}
+      STUDENT_QR_LEGACY_SECRET: ${STUDENT_QR_LEGACY_SECRET:-}
+      STUDENT_QR_LEGACY_VALID_UNTIL: ${STUDENT_QR_LEGACY_VALID_UNTIL:-}
       STREAMING_CREDENTIALS_SECRET: ${STREAMING_CREDENTIALS_SECRET:-}
     depends_on:
       postgres:

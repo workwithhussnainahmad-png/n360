@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextResponse } from 'next/server';
 import cloudinary from '@/lib/cloudinary';
 import { requireRole } from '@/lib/rbac';
@@ -73,6 +74,9 @@ export const POST = requireRole(['STUDENT', 'STAFF', 'INSTITUTION', 'INSTITUTION
       { headers: { 'Cache-Control': 'no-store' } },
     );
   } catch (err) {
+    const publicInputError = inputErrorResponse(err);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error('Cloudinary Signature Error:', err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

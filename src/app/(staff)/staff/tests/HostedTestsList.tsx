@@ -1,9 +1,10 @@
 "use client";
+import { ActionForm } from '@/components/ui/action-form';
 
 import { useEffect, useState } from "react";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { TestActions } from "@/components/tests/TestActions";
-import { gradeMixedTestAction } from "@/app/actions/online-test-actions";
+import { gradeMixedTestWithFeedback as gradeMixedTestAction } from '@/app/actions/feedback-actions';
 import { formatClassSection } from "@/lib/class-section-label";
 
 type TestSummary = { id: number; onlineTestId: number; title: string; maxMarks: number; className: string; sectionName: string | null; subjectName: string | null; durationMinutes: number; mode: "MCQ" | "MIX"; submissionCount: number; pendingReviewCount: number };
@@ -74,7 +75,7 @@ export function HostedTestsList({
             return <details key={submission.id} className="rounded-md border border-border bg-white" onToggle={(event) => {
               if ((event.currentTarget as HTMLDetailsElement).open) void loadAnswers(test.onlineTestId, submission.id);
             }}><summary className="flex cursor-pointer justify-between gap-2 p-4"><span><b>{submission.studentName}</b> <span className="text-stone-500">({submission.rollNumber})</span><br /><span className="text-sm text-stone-500">{submission.status}</span></span><b>{submission.totalScore}/{test.maxMarks}</b></summary>
-              <div className="border-t border-border p-4">{!answerMap ? <p className="text-sm text-stone-500">Loading answers…</p> : <><div className="space-y-3">{detail.questions.map((question) => <div key={question.id} className="rounded-md border border-border bg-stone-50 p-3"><p className="font-semibold">{question.prompt}</p><p className="text-sm">Answer: {String(answerMap[String(question.id)] ?? "Not answered")}</p></div>)}</div>{test.mode === "MIX" && submission.status === "PENDING_REVIEW" && <form action={gradeMixedTestAction} className="mt-4 space-y-3"><input type="hidden" name="submissionId" value={submission.id} />{shortQuestions.map((question) => <label key={question.id} className="grid gap-2 sm:grid-cols-[1fr_140px]"><span>{question.prompt}</span><input name={`score-${question.id}`} type="number" min="0" max={question.marks} step="0.5" required /></label>)}<SubmitButton>Save Grade</SubmitButton></form>}</>}</div>
+              <div className="border-t border-border p-4">{!answerMap ? <p className="text-sm text-stone-500">Loading answers…</p> : <><div className="space-y-3">{detail.questions.map((question) => <div key={question.id} className="rounded-md border border-border bg-stone-50 p-3"><p className="font-semibold">{question.prompt}</p><p className="text-sm">Answer: {String(answerMap[String(question.id)] ?? "Not answered")}</p></div>)}</div>{test.mode === "MIX" && submission.status === "PENDING_REVIEW" && <ActionForm action={gradeMixedTestAction} className="mt-4 space-y-3"><input type="hidden" name="submissionId" value={submission.id} />{shortQuestions.map((question) => <label key={question.id} className="grid gap-2 sm:grid-cols-[1fr_140px]"><span>{question.prompt}</span><input name={`score-${question.id}`} type="number" min="0" max={question.marks} step="0.5" required /></label>)}<SubmitButton>Save Grade</SubmitButton></ActionForm>}</>}</div>
             </details>;
           })}</div>}
         </div>

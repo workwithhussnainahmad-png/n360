@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { notifications } from "@/db/schema";
@@ -44,6 +45,9 @@ export const PATCH = requireRole(["STUDENT", "STAFF", "INSTITUTION", "INSTITUTIO
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error marking all notifications as read:", error);
     return NextResponse.json({ error: "Failed to update notifications" }, { status: 500 });
   }

@@ -1,3 +1,4 @@
+import { validationError } from '@/lib/validation-errors';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { announcements, campuses, institutions, staff, staffProfileChangeRequests } from "@/db/schema";
@@ -36,7 +37,7 @@ export const PATCH = requireRole(["INSTITUTION", "INSTITUTION_ADMIN"], async (
   const body = await req.json();
   const parsed = reviewStaffProfileChangeRequestSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error }, { status: 400 });
+    return NextResponse.json(validationError(parsed.error), { status: 400 });
   }
 
   const { id } = await params;

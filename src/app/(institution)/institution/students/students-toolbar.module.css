@@ -1,0 +1,31 @@
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 180px));
+  gap: 12px;
+  min-width: 0;
+}
+.filter { display: grid; min-width: 0; gap: 5px; }
+.filter span { font-size: 11px; line-height: 1.4; font-weight: 500; color: #827c72; }
+.filter select {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--border, #ded8cc);
+  border-radius: 5px;
+  background: var(--surface, #faf9f6);
+  color: var(--foreground, #20251e);
+  font-size: 12px;
+}
+.filter select:disabled { color: #827c72; cursor: not-allowed; }
+@media (max-width: 640px) {
+  .filters { width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

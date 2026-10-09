@@ -1,3 +1,5 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
+import { validationError } from '@/lib/validation-errors';
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { blogs } from "@/db/schema";
@@ -30,7 +32,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     const result = blogUpdateSchema.safeParse(body);
 
     if (!result.success) {
-      return NextResponse.json({ error: "Invalid data", details: result.error.issues }, { status: 400 });
+      return NextResponse.json(validationError(result.error), { status: 400 });
     }
 
     // Check slug uniqueness excluding self
@@ -55,6 +57,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
     return NextResponse.json(updatedBlog[0]);
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error updating blog:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
@@ -74,6 +79,9 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error deleting blog:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

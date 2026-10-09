@@ -1,3 +1,5 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
+import { validationError } from '@/lib/validation-errors';
 import { after, NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { accountLockouts, superAdmins, employees, institutions, staff, students, institutionAdmins, parentAccounts } from '@/db/schema';
@@ -230,7 +232,7 @@ export async function POST(req: NextRequest) {
     }
     const parsed = loginSchema.safeParse(bodyResult.data);
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+      return NextResponse.json(validationError(parsed.error), { status: 400 });
     }
 
     const { emailOrUsername, password, roleHint, securityAnswer, returnTokens, institutionUsername } = parsed.data;
@@ -617,6 +619,9 @@ export async function POST(req: NextRequest) {
       { headers: { 'Cache-Control': 'no-store' } },
     );
   } catch (err) {
+    const publicInputError = inputErrorResponse(err);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     if (err instanceof Error && err.message.startsWith('Account temporarily locked')) {
       return NextResponse.json({ error: err.message }, { status: 423 });
     }

@@ -1,3 +1,5 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
+import { validationError } from '@/lib/validation-errors';
 import { after, NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { students, institutions, campuses, classes, sections } from '@/db/schema';
@@ -55,7 +57,7 @@ export const POST = requireRole(['INSTITUTION', 'INSTITUTION_ADMIN'], async (req
     const parsed = createStudentSchema.safeParse(body);
     
     if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error }, { status: 400 });
+      return NextResponse.json(validationError(parsed.error), { status: 400 });
     }
 
     const { firstName, lastName, campusId: requestedCampusId, classId, sectionId, gender, yearOfJoining, classRollNumber, phone, age, guardianEmail } = parsed.data;
@@ -211,8 +213,11 @@ export const POST = requireRole(['INSTITUTION', 'INSTITUTION_ADMIN'], async (req
       credentials: { loginRollNumber, initialPassword } 
     }, { status: 201 });
   } catch (err: any) {
+    const publicInputError = inputErrorResponse(err);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     if (err instanceof ZodError) {
-      return NextResponse.json({ error: err.issues[0]?.message || 'Invalid guardian email' }, { status: 400 });
+      return NextResponse.json(validationError(err), { status: 400 });
     }
     const isDuplicate = err?.code === '23505' || err?.cause?.code === '23505';
     if (isDuplicate) {

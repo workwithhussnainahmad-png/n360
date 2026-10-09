@@ -14,7 +14,7 @@ export type TeacherPerformancePoint = {
 
 function TeacherPerformanceChartInner({ data }: { data: TeacherPerformancePoint[] }) {
   if (data.length === 0) {
-    return <div className="flex h-full items-center justify-center rounded-md border border-dashed border-stone-300 bg-stone-50"><p className="max-w-xs text-center text-sm text-stone-500">No published daily, weekly, or monthly results in this period.</p></div>;
+    return <div className="flex h-full items-center justify-center rounded-md border border-dashed border-stone-300 bg-stone-50 p-5"><p className="max-w-xs text-center text-sm leading-6 text-stone-500">No published daily, weekly, or monthly results in this period.</p></div>;
   }
 
   return (

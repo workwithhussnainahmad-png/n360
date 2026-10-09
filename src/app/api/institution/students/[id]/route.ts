@@ -1,3 +1,5 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
+import { validationError } from '@/lib/validation-errors';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { campuses, classes, institutions, sections, studentPromotions, students } from "@/db/schema";
@@ -221,9 +223,12 @@ export const PATCH = requireRole(["INSTITUTION", "INSTITUTION_ADMIN"], async (re
     await invalidateInstitutionRosterCaches(tenantId);
     return NextResponse.json({ message: "Student updated successfully" });
   } catch (err: any) {
+    const publicInputError = inputErrorResponse(err);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     if (err instanceof ZodError) {
       return NextResponse.json(
-        { error: err.issues[0]?.message || "Invalid guardian email" },
+        validationError(err),
         { status: 400 },
       );
     }
@@ -278,6 +283,9 @@ export const DELETE = requireRole(["INSTITUTION", "INSTITUTION_ADMIN"], async (r
 
     return NextResponse.json({ message: "Student deleted successfully" });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error deleting student:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }

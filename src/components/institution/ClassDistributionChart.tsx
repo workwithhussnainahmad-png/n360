@@ -33,7 +33,19 @@ function ClassDistributionChartInner({ data }: { data: { name: string, value: nu
         <Tooltip 
           contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
         />
-        <Legend verticalAlign="bottom" height={36} iconType="circle" />
+        {data.length > 4 ? (
+          <Legend
+            verticalAlign="bottom"
+            height={36}
+            content={() => (
+              <div className="text-center text-sm text-stone-500">
+                {data.length} Classes
+              </div>
+            )}
+          />
+        ) : (
+          <Legend verticalAlign="bottom" height={36} iconType="circle" />
+        )}
       </PieChart>
     </ResponsiveContainer>
   );

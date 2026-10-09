@@ -1,3 +1,7 @@
+import { positiveInteger } from "@/lib/pagination";
+import { ServerPagination } from "@/components/ui/server-pagination";
+import { actionFeedback } from '@/lib/action-feedback';
+import { ActionForm } from '@/components/ui/action-form';
 import { db } from "@/db";
 import { institutions } from "@/db/schema";
 import { and, desc, eq, isNull } from "drizzle-orm";
@@ -18,8 +22,9 @@ const STATUS_FILTERS = [
 ] as const;
 type StatusFilter = typeof STATUS_FILTERS[number]["value"];
 
-export default async function EmployeeVerificationQueuePage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
+export default async function EmployeeVerificationQueuePage({ searchParams }: { searchParams: Promise<{ status?: string; page?: string }> }) {
   const resolvedSearchParams = await searchParams;
+  const page = positiveInteger(resolvedSearchParams.page);
   const session = await getSession();
   if (!session || session.role !== "EMPLOYEE") {
     redirect("/login");
@@ -31,7 +36,7 @@ export default async function EmployeeVerificationQueuePage({ searchParams }: { 
 
   // Default to PENDING applications only — the queue employees actually need to
   // act on — instead of loading every institution regardless of status.
-  const allInstitutions = await db.select({
+  const institutionRows = await db.select({
     id: institutions.id,
     name: institutions.name,
     username: institutions.username,
@@ -44,16 +49,11 @@ export default async function EmployeeVerificationQueuePage({ searchParams }: { 
   })
     .from(institutions)
     .where(and(isNull(institutions.parentInstitutionId), status === "ALL" ? undefined : eq(institutions.status, status)))
-    .orderBy(desc(institutions.createdAt));
+    .orderBy(desc(institutions.createdAt), desc(institutions.id)).limit(51).offset((page - 1) * 50);
+  const allInstitutions = institutionRows.slice(0, 50);
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-brand-950">Institutions Queue</h1>
-          <p className="text-stone-500 mt-1">Review, verify, and manage institution applications.</p>
-        </div>
-      </div>
 
       <Card>
         <CardHeader className="border-b border-border bg-stone-50/50">
@@ -141,21 +141,27 @@ export default async function EmployeeVerificationQueuePage({ searchParams }: { 
                       <div className="flex flex-wrap items-center gap-2">
                         {inst.status === "PENDING" && (
                           <>
-                            <form action={async () => {
+                            <ActionForm action={async () => {
                               "use server";
+    return actionFeedback(async () => {
                               await updateInstitutionStatusAction(inst.id, "APPROVED");
-                            }}>
+
+    });
+  }}>
                               <SubmitButton className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-md px-3 py-1 text-xs font-medium">Accept</SubmitButton>
-                            </form>
-                            <form action={async () => {
+                            </ActionForm>
+                            <ActionForm action={async () => {
                               "use server";
+    return actionFeedback(async () => {
                               await updateInstitutionStatusAction(inst.id, "REJECTED");
-                            }}>
+
+    });
+  }}>
                               <SubmitButton className="bg-rose-600 hover:bg-rose-700 text-white rounded-md px-3 py-1 text-xs font-medium">Reject</SubmitButton>
-                            </form>
+                            </ActionForm>
                           </>
                         )}
-                        
+
                       </div>
                     </td>
                   </tr>
@@ -165,6 +171,7 @@ export default async function EmployeeVerificationQueuePage({ searchParams }: { 
           </div>
         </CardContent>
       </Card>
+      <ServerPagination page={page} hasMore={institutionRows.length > 50} params={{ status }} />
     </div>
   );
 }

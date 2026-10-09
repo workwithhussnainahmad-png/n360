@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { checkExpoPushReceipts } from "@/lib/notifications";
 import { timingSafeEqual } from "@/lib/auth";
@@ -27,6 +28,9 @@ export async function POST(req: NextRequest) {
     const result = await checkExpoPushReceipts();
     return NextResponse.json({ success: true, ...result });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Push receipt check failed:", error);
     return NextResponse.json({ error: "Push receipt check failed" }, { status: 500 });
   }

@@ -55,10 +55,6 @@ export default async function StudentAttendancePage() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-display font-bold text-brand-950">Attendance Record</h1>
-        <p className="text-stone-500 mt-1">Track your daily presence and absence history.</p>
-      </div>
 
       {records.length === 0 ? (
         <Card>

@@ -1,4 +1,6 @@
 "use client";
+import { responseErrorMessage, apiErrorMessage } from '@/lib/validation-errors';
+
 
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
@@ -69,7 +71,10 @@ export default function BlogClient({
   };
 
   const handleSave = async () => {
-    if (!title || !content) return;
+    if (!title.trim() || !content.trim()) {
+      toast({ title: 'Complete the blog', description: !title.trim() ? 'Title is required.' : 'Content is required.', variant: 'destructive' });
+      return;
+    }
     setIsSaving(true);
     
     // Auto-generate slug if empty
@@ -133,12 +138,12 @@ export default function BlogClient({
     if (!confirm("Are you sure you want to delete this blog?")) return;
     try {
       const res = await fetch(`/api/admin/blogs/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete");
+      if (!res.ok) throw new Error(await responseErrorMessage(res));
       toast({ title: "Success", description: "Blog deleted successfully." });
       if (editingId === id) resetForm();
       await fetchBlogs();
     } catch (error) {
-      toast({ title: "Error", description: "Failed to delete blog.", variant: "destructive" });
+      toast({ title: "Error", description: apiErrorMessage(error), variant: "destructive" });
     }
   };
 
@@ -301,7 +306,7 @@ export default function BlogClient({
 
           <Button 
             onClick={handleSave} 
-            disabled={isSaving || !title || !content} 
+            disabled={isSaving}
             className="w-full bg-brand-600 hover:bg-brand-700 text-white rounded-xl py-6 h-auto font-medium shadow-lg shadow-brand-500/20 transition-all hover:shadow-brand-500/40 hover:-translate-y-0.5"
           >
             {isSaving ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Sparkles className="w-5 h-5 mr-2" />}

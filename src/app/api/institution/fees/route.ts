@@ -1,16 +1,16 @@
+import { validationError } from '@/lib/validation-errors';
+import { FeeBillingError, issueMonthlyFees, issueOneTimeFees } from "@/lib/fee-billing";
+import { reviewStudentFeeProof } from '@/lib/manual-fee-submissions';
 import { NextRequest, NextResponse } from "next/server";
-import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, isNotNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   classes,
   classFeeItems,
   feeHeads,
-  feeInvoiceItems,
   feeInvoices,
   feePayments,
   feePaymentSubmissions,
-  institutions,
-  sections,
   studentFeeAdjustments,
   students,
 } from "@/db/schema";
@@ -20,33 +20,39 @@ import { logAudit } from "@/lib/audit";
 import { getClientIp } from "@/lib/client-ip";
 
 const PAGE_SIZE = 50;
-const INSERT_CHUNK = 1_000;
-
-function chunks<T>(rows: T[], size = INSERT_CHUNK) {
-  const result: T[][] = [];
-  for (let index = 0; index < rows.length; index += size)
-    result.push(rows.slice(index, index + size));
-  return result;
-}
-
 export const GET = requireRole(
   ["INSTITUTION", "INSTITUTION_ADMIN"],
   async (req: NextRequest, { session }) => {
     const institutionId = getTenantContext(session);
     const params = req.nextUrl.searchParams;
+    const page = Number(params.get("page") || 1);
+    if (!Number.isSafeInteger(page) || page < 1 || page > 1000000) return NextResponse.json({ error: "Invalid page" }, { status: 400 });
     const billingMonth =
       params.get("month") || new Date().toISOString().slice(0, 7);
     const status = params.get("status");
     const query = (params.get("q") || "").trim().slice(0, 80);
     const includeMeta = params.get("meta") !== "0";
     const view = params.get("view") || "all";
-    const includeSetup = view === "all" || view === "setup";
+    const requestedMonth = params.get("month");
+    if (requestedMonth && !/^\d{4}-(0[1-9]|1[0-2])$/.test(requestedMonth)) {
+      return NextResponse.json({ error: "Invalid billing month" }, { status: 400 });
+    }
+    const includeSetup = view === "all" || view === "setup" || view === "billing";
     const includeCollections =
       view === "all" || view === "collections" || view === "paid";
+    const includeSummary = includeCollections && view !== "paid" && params.get("summary") !== "0";
+    const includeClasses = includeMeta && (includeSetup || includeCollections);
+    const classParam = params.get("classId");
+    const classId = classParam ? Number(classParam) : null;
+    if (classId !== null && (!Number.isSafeInteger(classId) || classId < 1)) {
+      return NextResponse.json({ error: "Invalid class filter" }, { status: 400 });
+    }
 
     const invoiceConditions = [eq(feeInvoices.institutionId, institutionId)];
-    if (view !== "paid")
+    if (classId !== null) invoiceConditions.push(eq(feeInvoices.classIdAtIssue, classId));
+    if (view !== "paid" || requestedMonth)
       invoiceConditions.push(eq(feeInvoices.billingMonth, billingMonth));
+    if (view === "collections") invoiceConditions.push(inArray(feeInvoices.status, ["DUE", "PARTIAL"]));
     if (status && ["DUE", "PARTIAL", "PAID", "VOID"].includes(status)) {
       invoiceConditions.push(
         eq(feeInvoices.status, status as "DUE" | "PARTIAL" | "PAID" | "VOID"),
@@ -70,8 +76,9 @@ export const GET = requireRole(
       classItems,
       invoices,
       summaryRows,
+      countRows,
     ] = await Promise.all([
-      includeSetup && includeMeta
+      includeClasses
         ? db
             .select({ id: classes.id, name: classes.name })
             .from(classes)
@@ -109,9 +116,11 @@ export const GET = requireRole(
               studentId: students.id,
               studentName: students.name,
               loginRollNumber: students.loginRollNumber,
-              className: classes.name,
-              sectionName: sections.name,
+              className: sql<string>`coalesce(${feeInvoices.classNameAtIssue}, 'Not recorded')`,
+              sectionName: sql<string>`coalesce(${feeInvoices.sectionNameAtIssue}, '')`,
               billingMonth: feeInvoices.billingMonth,
+              billingKind: feeInvoices.billingKind,
+              billingLabel: feeInvoices.billingLabel,
               dueDate: feeInvoices.dueDate,
               status: feeInvoices.status,
               totalAmount: feeInvoices.totalAmount,
@@ -119,20 +128,19 @@ export const GET = requireRole(
               balance: sql<number>`${feeInvoices.totalAmount} - ${feeInvoices.paidAmount}`,
             })
             .from(feeInvoices)
-            .innerJoin(students, eq(feeInvoices.studentId, students.id))
-            .innerJoin(classes, eq(students.classId, classes.id))
-            .innerJoin(sections, eq(students.sectionId, sections.id))
+            .innerJoin(students, and(eq(feeInvoices.studentId, students.id), eq(students.institutionId, institutionId)))
             .where(and(...invoiceConditions))
-            .orderBy(desc(feeInvoices.createdAt))
-            .limit(PAGE_SIZE)
+            .orderBy(...(view === "paid" ? [desc(feeInvoices.billingMonth)] : []), desc(feeInvoices.createdAt), desc(feeInvoices.id))
+            .limit(PAGE_SIZE).offset((page - 1) * PAGE_SIZE)
         : Promise.resolve(null),
-      includeCollections
+      includeSummary
         ? db
             .select({
               invoiceCount: sql<number>`count(*)::int`,
-              billed: sql<number>`coalesce(sum(${feeInvoices.totalAmount}), 0)::int`,
-              collected: sql<number>`coalesce(sum(${feeInvoices.paidAmount}), 0)::int`,
-              outstanding: sql<number>`coalesce(sum(${feeInvoices.totalAmount} - ${feeInvoices.paidAmount}) filter (where ${feeInvoices.status} <> 'VOID'), 0)::int`,
+              studentCount: sql<number>`count(distinct ${feeInvoices.studentId})::int`,
+              billed: sql<number>`coalesce(sum(${feeInvoices.totalAmount}), 0)`.mapWith(Number),
+              collected: sql<number>`coalesce(sum(${feeInvoices.paidAmount}), 0)`.mapWith(Number),
+              outstanding: sql<number>`coalesce(sum(${feeInvoices.totalAmount} - ${feeInvoices.paidAmount}) filter (where ${feeInvoices.status} <> 'VOID'), 0)`.mapWith(Number),
               defaulters: sql<number>`count(*) filter (where ${feeInvoices.status} in ('DUE', 'PARTIAL') and ${feeInvoices.dueDate} < current_date)::int`,
             })
             .from(feeInvoices)
@@ -144,17 +152,41 @@ export const GET = requireRole(
             )
         : Promise.resolve(null),
 
+      includeCollections ? db.select({ total: sql<number>`count(*)::int` }).from(feeInvoices)
+        .innerJoin(students, and(eq(feeInvoices.studentId, students.id), eq(students.institutionId, institutionId)))
+        .where(and(...invoiceConditions)) : Promise.resolve(null),
     ]);
     const invoiceIds = invoices?.map((invoice) => invoice.id) || [];
+    // Issued classes remain selectable even after graduation or deletion.
+    const issuedClasses = includeClasses && includeCollections
+      ? await db.selectDistinctOn([feeInvoices.classIdAtIssue], {
+          id: feeInvoices.classIdAtIssue,
+          name: feeInvoices.classNameAtIssue,
+        }).from(feeInvoices).where(and(
+          eq(feeInvoices.institutionId, institutionId),
+          isNotNull(feeInvoices.classIdAtIssue),
+          isNotNull(feeInvoices.classNameAtIssue),
+        )).orderBy(asc(feeInvoices.classIdAtIssue), desc(feeInvoices.createdAt), desc(feeInvoices.id))
+      : [];
+    const availableClasses = new Map((classRows || []).map(row => [row.id, row]));
+    for (const row of issuedClasses) {
+      if (row.id !== null && row.name !== null && !availableClasses.has(row.id)) {
+        availableClasses.set(row.id, { id: row.id, name: row.name });
+      }
+    }
     const submissions =
       invoiceIds.length > 0
         ? await db
-            .select()
+            .select({ id: feePaymentSubmissions.id, invoiceId: feePaymentSubmissions.invoiceId, amount: feePaymentSubmissions.amount,
+              sourceBankName: feePaymentSubmissions.sourceBankName, transactionId: feePaymentSubmissions.transactionId,
+              status: feePaymentSubmissions.status, reviewerNote: feePaymentSubmissions.reviewerNote,
+              submittedAt: feePaymentSubmissions.submittedAt, paymentAccount: feePaymentSubmissions.paymentAccount })
             .from(feePaymentSubmissions)
             .where(
               and(
                 eq(feePaymentSubmissions.institutionId, institutionId),
                 inArray(feePaymentSubmissions.invoiceId, invoiceIds),
+                eq(feePaymentSubmissions.status, "SUBMITTED"),
               ),
             )
             .orderBy(desc(feePaymentSubmissions.submittedAt))
@@ -162,9 +194,9 @@ export const GET = requireRole(
 
     return NextResponse.json({
       billingMonth,
+      ...(includeClasses ? { classes: [...availableClasses.values()] } : {}),
       ...(includeSetup && includeMeta
         ? {
-            classes: classRows,
             heads,
             classItems,
           }
@@ -173,13 +205,8 @@ export const GET = requireRole(
         ? {
             invoices,
             submissions,
-            summary: summaryRows?.[0] || {
-              invoiceCount: 0,
-              billed: 0,
-              collected: 0,
-              outstanding: 0,
-              defaulters: 0,
-            },
+            pagination: { page, pageSize: PAGE_SIZE, total: countRows?.[0]?.total || 0, pages: Math.max(1, Math.ceil((countRows?.[0]?.total || 0) / PAGE_SIZE)) },
+            ...(includeSummary ? { summary: summaryRows?.[0] || { invoiceCount: 0, studentCount: 0, billed: 0, collected: 0, outstanding: 0, defaulters: 0 } } : {}),
           }
         : {}),
       pageSize: PAGE_SIZE,
@@ -203,7 +230,7 @@ export const POST = requireRole(
     const parsed = feeActionSchema.safeParse(json);
     if (!parsed.success)
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message || "Invalid fee request" },
+        validationError(parsed.error),
         { status: 400 },
       );
     const action = parsed.data;
@@ -213,7 +240,13 @@ export const POST = requireRole(
         const [head] = await db
           .insert(feeHeads)
           .values({ institutionId, name: action.name, kind: action.kind })
+          .onConflictDoUpdate({
+            target: [feeHeads.institutionId, feeHeads.name],
+            set: { kind: action.kind, isActive: true },
+            setWhere: eq(feeHeads.isActive, false),
+          })
           .returning();
+        if (!head) return NextResponse.json({ error: "An active fee head with this name already exists." }, { status: 409 });
         await logAudit({
           institutionId,
           actorId: session.userId,
@@ -223,6 +256,18 @@ export const POST = requireRole(
           ip: getClientIp(req),
         });
         return NextResponse.json({ head }, { status: 201 });
+      }
+
+      if (action.action === "removeHead" || action.action === "updateHeadKind") {
+        const [head] = await db.update(feeHeads)
+          .set(action.action === "removeHead" ? { isActive: false } : { kind: action.kind })
+          .where(and(eq(feeHeads.id, action.feeHeadId), eq(feeHeads.institutionId, institutionId), eq(feeHeads.isActive, true)))
+          .returning();
+        if (!head) return NextResponse.json({ error: "Active fee head not found." }, { status: 404 });
+        await logAudit({ institutionId, actorId: session.userId, actorRole: session.role,
+          action: action.action === "removeHead" ? "REMOVE_FEE_HEAD" : "UPDATE_FEE_HEAD_KIND",
+          target: `Fee head ${head.id}`, ip: getClientIp(req) });
+        return NextResponse.json({ head });
       }
 
       if (action.action === "setClassFee") {
@@ -274,6 +319,7 @@ export const POST = requireRole(
       }
 
       if (action.action === "addAdjustment") {
+        if (action.startMonth && action.endMonth && action.endMonth < action.startMonth) return NextResponse.json({ error: "End month cannot be before start month" }, { status: 400 });
         const [student] = await db
           .select({ id: students.id })
           .from(students)
@@ -298,6 +344,9 @@ export const POST = requireRole(
             label: action.label,
             type: action.type,
             amount: action.amount,
+            frequency: action.frequency,
+            startMonth: action.startMonth,
+            endMonth: action.endMonth,
           })
           .returning();
         return NextResponse.json({ adjustment }, { status: 201 });
@@ -352,287 +401,16 @@ export const POST = requireRole(
         return NextResponse.json({ adjustment: updated });
       }
 
-      if (action.action === "generateMonth") {
-        if (!action.dueDate.startsWith(`${action.billingMonth}-`)) {
-          return NextResponse.json(
-            { error: "Due date must fall inside the billing month" },
-            { status: 400 },
-          );
-        }
-        const [studentRows, feeRows, adjustmentRows, existingRows, allRecurringHeads] =
-          await Promise.all([
-            db
-              .select({ id: students.id, classId: students.classId })
-              .from(students)
-              .where(
-                and(
-                  eq(students.institutionId, institutionId),
-                  eq(students.isActive, true),
-                  eq(students.academicStatus, "ACTIVE"),
-                  isNull(students.deletedAt),
-                ),
-              ),
-            db
-              .select({
-                classId: classFeeItems.classId,
-                feeHeadId: feeHeads.id,
-                label: feeHeads.name,
-                amount: classFeeItems.amount,
-              })
-              .from(classFeeItems)
-              .innerJoin(feeHeads, eq(classFeeItems.feeHeadId, feeHeads.id))
-              .where(
-                and(
-                  eq(classFeeItems.institutionId, institutionId),
-                  eq(feeHeads.isActive, true),
-                  eq(feeHeads.kind, "RECURRING"),
-                ),
-              ),
-            db
-              .select()
-              .from(studentFeeAdjustments)
-              .where(
-                and(
-                  eq(studentFeeAdjustments.institutionId, institutionId),
-                  eq(studentFeeAdjustments.isActive, true),
-                ),
-              ),
-            db
-              .select({ studentId: feeInvoices.studentId })
-              .from(feeInvoices)
-              .where(
-                and(
-                  eq(feeInvoices.institutionId, institutionId),
-                  eq(feeInvoices.billingMonth, action.billingMonth),
-                ),
-              ),
-            db
-              .select({
-                feeHeadId: feeHeads.id,
-                label: feeHeads.name,
-              })
-              .from(feeHeads)
-              .where(
-                and(
-                  eq(feeHeads.institutionId, institutionId),
-                  eq(feeHeads.isActive, true),
-                  eq(feeHeads.kind, "RECURRING"),
-                ),
-              ),
-          ]);
-        const existing = new Set(existingRows.map((row) => row.studentId));
-        const feesByClass = new Map<number, typeof feeRows>();
-        for (const fee of feeRows)
-          feesByClass.set(fee.classId, [
-            ...(feesByClass.get(fee.classId) || []),
-            fee,
-          ]);
-        const adjustmentsByStudent = new Map<number, typeof adjustmentRows>();
-        for (const adjustment of adjustmentRows)
-          adjustmentsByStudent.set(adjustment.studentId, [
-            ...(adjustmentsByStudent.get(adjustment.studentId) || []),
-            adjustment,
-          ]);
-
-        const prepared = studentRows.flatMap((student) => {
-          if (existing.has(student.id)) return [];
-          const classFees = feesByClass.get(student.classId) || [];
-
-          const fees = allRecurringHeads.map((head) => {
-            const existingFee = classFees.find(
-              (f) => f.feeHeadId === head.feeHeadId,
-            );
-            return {
-              feeHeadId: head.feeHeadId,
-              label: head.label,
-              amount: existingFee ? existingFee.amount : 0,
-            };
-          });
-
-          if (fees.length === 0) return [];
-          const adjustments = adjustmentsByStudent.get(student.id) || [];
-          const subtotal = fees.reduce((sum, row) => sum + row.amount, 0);
-          const additionalAmount = adjustments
-            .filter((row) => row.type === "CHARGE")
-            .reduce((sum, row) => sum + row.amount, 0);
-          const rawDiscount = adjustments
-            .filter((row) => row.type === "DISCOUNT")
-            .reduce((sum, row) => sum + row.amount, 0);
-          const discountAmount = Math.min(
-            rawDiscount,
-            subtotal + additionalAmount,
-          );
-          return [
-            {
-              student,
-              fees,
-              adjustments,
-              subtotal,
-              additionalAmount,
-              discountAmount,
-              totalAmount: subtotal + additionalAmount - discountAmount,
-            },
-          ];
-        });
-
-        let created = 0;
-        await db.transaction(async (tx) => {
-          for (const group of chunks(prepared, 500)) {
-            const inserted = await tx
-              .insert(feeInvoices)
-              .values(
-                group.map((row) => ({
-                  institutionId,
-                  studentId: row.student.id,
-                  billingMonth: action.billingMonth,
-                  dueDate: action.dueDate,
-                  subtotal: row.subtotal,
-                  discountAmount: row.discountAmount,
-                  additionalAmount: row.additionalAmount,
-                  totalAmount: row.totalAmount,
-                })),
-              )
-              .onConflictDoNothing()
-              .returning({
-                id: feeInvoices.id,
-                studentId: feeInvoices.studentId,
-              });
-            created += inserted.length;
-            const insertedByStudent = new Map(
-              inserted.map((row) => [row.studentId, row.id]),
-            );
-            const itemValues = group.flatMap((row) => {
-              const invoiceId = insertedByStudent.get(row.student.id);
-              if (!invoiceId) return [];
-              const feeItems = row.fees.map((fee) => ({
-                invoiceId,
-                feeHeadId: fee.feeHeadId,
-                label: fee.label,
-                type: "FEE" as const,
-                amount: fee.amount,
-              }));
-              let remainingDiscount = row.discountAmount;
-              const adjustmentItems = row.adjustments.flatMap((item) => {
-                const amount =
-                  item.type === "DISCOUNT"
-                    ? Math.min(item.amount, remainingDiscount)
-                    : item.amount;
-                if (item.type === "DISCOUNT") remainingDiscount -= amount;
-                return amount > 0
-                  ? [
-                      {
-                        invoiceId,
-                        feeHeadId: null,
-                        label: item.label,
-                        type: item.type,
-                        amount,
-                      },
-                    ]
-                  : [];
-              });
-              return [...feeItems, ...adjustmentItems];
-            });
-            for (const itemChunk of chunks(itemValues))
-              await tx.insert(feeInvoiceItems).values(itemChunk);
-          }
-        });
-        await logAudit({
-          institutionId,
-          actorId: session.userId,
-          actorRole: session.role,
-          action: "GENERATE_FEE_INVOICES",
-          target: `${action.billingMonth}: ${created} invoices`,
-          ip: getClientIp(req),
-        });
-        return NextResponse.json({
-          created,
-          skipped: studentRows.length - created,
-        });
+      if (action.action === "generateMonth" || action.action === "previewMonth" || action.action === "issueOneTime") {
+        const result = action.action === "issueOneTime"
+          ? await db.transaction(tx => issueOneTimeFees(tx, institutionId, action))
+          : await db.transaction(tx => issueMonthlyFees(tx, institutionId, action, action.action === "previewMonth"));
+        if (action.action !== "previewMonth") await logAudit({ institutionId, actorId: session.userId, actorRole: session.role, action: "ISSUE_FEE_INVOICES", target: action.billingMonth + ": " + result.created + " invoices", ip: getClientIp(req) });
+        return NextResponse.json(result);
       }
 
       if (action.action === "reviewStudentPayment") {
-        const result = await db.transaction(async (tx) => {
-          await tx.execute(
-            sql`select ${feePaymentSubmissions.id} from ${feePaymentSubmissions} where ${feePaymentSubmissions.id} = ${action.submissionId} and ${feePaymentSubmissions.institutionId} = ${institutionId} for update`,
-          );
-          const [submission] = await tx
-            .select()
-            .from(feePaymentSubmissions)
-            .where(
-              and(
-                eq(feePaymentSubmissions.id, action.submissionId),
-                eq(feePaymentSubmissions.institutionId, institutionId),
-              ),
-            )
-            .limit(1);
-          if (!submission || submission.status !== "SUBMITTED")
-            throw new Error("SUBMISSION_NOT_FOUND");
-          if (action.status === "REJECTED") {
-            await tx
-              .update(feePaymentSubmissions)
-              .set({
-                status: "REJECTED",
-                reviewerNote: action.note,
-                updatedAt: new Date(),
-              })
-              .where(eq(feePaymentSubmissions.id, submission.id));
-            return { status: "REJECTED" as const };
-          }
-          await tx.execute(
-            sql`select ${feeInvoices.id} from ${feeInvoices} where ${feeInvoices.id} = ${submission.invoiceId} and ${feeInvoices.institutionId} = ${institutionId} for update`,
-          );
-          const [invoice] = await tx
-            .select()
-            .from(feeInvoices)
-            .where(
-              and(
-                eq(feeInvoices.id, submission.invoiceId),
-                eq(feeInvoices.institutionId, institutionId),
-              ),
-            )
-            .limit(1);
-          if (
-            !invoice ||
-            invoice.status === "VOID" ||
-            submission.amount > invoice.totalAmount - invoice.paidAmount
-          )
-            throw new Error("SUBMISSION_AMOUNT_INVALID");
-          const receiptNumber = `R-${invoice.id}-${Date.now().toString(36).toUpperCase()}`;
-          const [payment] = await tx
-            .insert(feePayments)
-            .values({
-              institutionId,
-              invoiceId: invoice.id,
-              studentId: invoice.studentId,
-              receiptNumber,
-              amount: submission.amount,
-              method: "BANK",
-              reference: submission.transactionId,
-              notes: `Source: ${submission.sourceBankName}`,
-              recordedBy: session.userId,
-            })
-            .returning();
-          const paidAmount = invoice.paidAmount + submission.amount;
-          await tx
-            .update(feeInvoices)
-            .set({
-              paidAmount,
-              status: paidAmount >= invoice.totalAmount ? "PAID" : "PARTIAL",
-              updatedAt: new Date(),
-            })
-            .where(eq(feeInvoices.id, invoice.id));
-          await tx
-            .update(feePaymentSubmissions)
-            .set({
-              status: "VERIFIED",
-              reviewerNote: action.note || null,
-              verifiedBy: session.userId,
-              verifiedAt: new Date(),
-              updatedAt: new Date(),
-            })
-            .where(eq(feePaymentSubmissions.id, submission.id));
-          return { status: "VERIFIED" as const, payment };
-        });
+        const result = await db.transaction(tx => reviewStudentFeeProof(tx, { institutionId, submissionId: action.submissionId, status: action.status, note: action.note, reviewerId: session.userId }));
         await logAudit({
           institutionId,
           actorId: session.userId,
@@ -714,6 +492,7 @@ export const POST = requireRole(
       });
       return NextResponse.json(payment, { status: 201 });
     } catch (error) {
+      if (error instanceof FeeBillingError) return NextResponse.json({ error: error.message }, { status: error.status });
       if (error instanceof Error && error.message === "INVOICE_NOT_FOUND")
         return NextResponse.json(
           { error: "Invoice not found" },

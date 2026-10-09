@@ -9,26 +9,21 @@
     "start:server-only": "node scripts/prepare-standalone.mjs && node --env-file=.env scripts/standalone-server.cjs",
     "lint": "eslint",
     "lint:tenant": "node scripts/audit-tenant-scope.mjs",
-    "k6:tokens": "node --env-file=.env --import tsx scripts/prepare-k6-tokens.local.ts",
-    "k6:verify": "node --experimental-vm-modules k6/verify.mjs",
-    "k6:smoke": "node k6/run.mjs smoke",
-    "k6:load": "node k6/run.mjs load",
-    "k6:stress": "node k6/run.mjs stress",
-    "k6:spike": "node k6/run.mjs spike",
     "verify:admissions": "tsx scripts/verify-admissions.ts",
     "verify:admission-campuses": "node --import tsx scripts/verify-admission-campus.tsx",
     "verify:campuses": "node --import tsx scripts/verify-campus-workspaces.ts",
-    "verify:payments": "node --import tsx --test scripts/verify-payment-gateways.ts scripts/verify-easypaisa.mjs",
-    "seed:admissions": "tsx scripts/seed-admission-applications.ts",
-    "verify:backups": "node --env-file=.env --import tsx scripts/verify-institution-backups.ts",
     "verify:restores": "node --import tsx --test scripts/verify-institution-restores.ts",
-    "verify:refresh-tokens": "node --env-file=.env --import tsx scripts/verify-refresh-token-rotation.ts",
-    "verify:parent-assessments": "node --env-file=.env scripts/verify-parent-assessment-workflows.mjs",
-    "verify:security": "npm run lint:tenant && node --env-file=.env --import tsx scripts/verify-security-guards.ts",
-    "migrate:backup-layout": "node --env-file=.env --import tsx scripts/migrate-backup-layout.ts --apply",
     "db:migrate:production": "node --env-file=.env scripts/migrate-production.mjs --apply",
     "verify:cache-policy": "node --import tsx scripts/verify-cache-policy.ts",
-    "verify:roles": "node --import tsx scripts/verify-role-boundaries.ts"
+    "verify:roles": "node --import tsx scripts/verify-role-boundaries.ts",
+    "verify:local": "node scripts/verify-local.mjs",
+    "verify:billing": "node --import tsx scripts/verify-fee-billing.ts",
+    "release:preflight": "node --env-file=.env --env-file=deployment/release.env scripts/release-preflight.mjs",
+    "verify:billing-ui": "node scripts/verify-billing-ui.cjs",
+    "verify:forms": "node --import tsx scripts/verify-form-validation.ts",
+    "verify:forms-ui": "node scripts/verify-form-validation-ui.cjs",
+    "verify:request-costs": "node scripts/verify-request-costs.cjs",
+    "verify:request-costs-ui": "node scripts/verify-request-costs-ui.cjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1121.0",
@@ -55,7 +50,7 @@
     "@types/papaparse": "^5.5.2",
     "@uiw/react-md-editor": "^4.1.1",
     "@zip.js/zip.js": "2.23.0",
-    "adm-zip": "^0.6.0",
+    "adm-zip": "^0.6.1",
     "archiver": "^8.0.0",
     "archiver-zip-encrypted": "^2.0.0",
     "autoprefixer": "^10.5.2",
@@ -70,8 +65,8 @@
     "ioredis": "^5.11.1",
     "jose": "^6.2.3",
     "lucide-react": "^1.23.0",
-    "next": "16.3.2",
-    "nodemailer": "^9.0.3",
+    "next": "16.3.8",
+    "nodemailer": "^10.0.16",
     "papaparse": "^5.5.4",
     "pg": "^8.22.0",
     "pg-query-stream": "^4.17.0",
@@ -102,9 +97,13 @@
     "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
-    "eslint-config-next": "16.3.2",
-    "gh-pages": "^6.3.0",
+    "eslint-config-next": "16.3.8",
     "tsx": "^4.23.0",
     "typescript": "^5"
+  },
+  "overrides": {
+    "@tailwindcss/typography": {
+      "postcss-selector-parser": "7.1.6"
+    }
   }
 }

@@ -1,3 +1,4 @@
+import { validationError } from '@/lib/validation-errors';
 import { NextRequest, NextResponse } from 'next/server';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Request body must be valid JSON' }, { status: 400 });
   }
   const parsed = admissionApplicantChangePasswordSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid password' }, { status: 400 });
+  if (!parsed.success) return NextResponse.json(validationError(parsed.error), { status: 400 });
 
   const [account] = await db.select().from(admissionApplicantAccounts).where(and(
     eq(admissionApplicantAccounts.id, session.applicantId),

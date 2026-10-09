@@ -1,3 +1,5 @@
+import { actionFeedback } from '@/lib/action-feedback';
+import { ActionForm } from '@/components/ui/action-form';
 import { db } from "@/db";
 import { institutionAdmins } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -20,16 +22,15 @@ export default async function InstitutionAdminsPage() {
 
   async function deleteAdmin(formData: FormData) {
     "use server";
+    return actionFeedback(async () => {
     const adminId = parseInt(formData.get("adminId") as string, 10);
     await deleteInstitutionAdminAction(adminId);
+
+    });
   }
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-display font-bold text-brand-950">Institution Admins</h1>
-        <p className="text-stone-500 mt-1">Manage secondary administrators for {session.campusName}. Their access is limited to this campus, except for creating/deleting admins, deleting the campus account, and payment gateway configuration.</p>
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-4">
@@ -62,13 +63,13 @@ export default async function InstitutionAdminsPage() {
                           </p>
                         </div>
                       </div>
-                      {session.role === "INSTITUTION" && !session.campusReadOnly && <form action={deleteAdmin} className="self-end sm:self-auto">
+                      {session.role === "INSTITUTION" && !session.campusReadOnly && <ActionForm action={deleteAdmin} className="self-end sm:self-auto">
                         <input type="hidden" name="adminId" value={admin.id} />
                         <SubmitButton variant="ghost" size="sm" className="text-danger hover:text-danger hover:bg-danger/10" loadingText="Removing...">
                           <Trash2 className="w-4 h-4 mr-2" />
                           Remove
                         </SubmitButton>
-                      </form>}
+                      </ActionForm>}
                     </li>
                   ))}
                 </ul>

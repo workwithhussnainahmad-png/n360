@@ -1,8 +1,9 @@
+import { validationError } from '@/lib/validation-errors';
 import { AdmissionCampusError, admissionOfferingOwners, listAdmissionCampuses, selectAdmissionCampus, requireOpenAdmissionCampus, type AdmissionCampus } from "@/lib/admission-campus";
 import { admissionCalendarDateSql } from '@/lib/admission-calendar';
 import crypto from 'crypto';
 import { after, NextRequest, NextResponse } from 'next/server';
-import { and, asc, desc, eq, ne, or, sql, inArray, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, ne, or, sql, inArray, isNull, isNotNull, type SQL } from 'drizzle-orm';
 import { db } from '@/db';
 import { admissionApplicantAccounts, admissionApplicationEvents, admissionApplications, admissionCycles, admissionOfferings, institutions } from '@/db/schema';
 import { hashPassword } from '@/lib/argon2-pool';
@@ -29,8 +30,15 @@ export const GET = requireRole(['INSTITUTION', 'INSTITUTION_ADMIN'], async (req:
   const status = applicationStatuses.find((item) => item === requestedStatus);
   const offeringOwners = await admissionOfferingOwners(institutionId);
   const includeMeta = req.nextUrl.searchParams.get('meta') === '1';
+  const history = req.nextUrl.searchParams.get('history') === '1';
+  if (history) {
+    const [cycle] = await db.select({ id: admissionCycles.id }).from(admissionCycles).where(and(eq(admissionCycles.id, cycleId || 0), inArray(admissionCycles.institutionId, offeringOwners), isNotNull(admissionCycles.archivedAt))).limit(1);
+    if (!cycle) return NextResponse.json({ error: 'Archived admission cycle not found' }, { status: 404 });
+  }
   // Enrolled applicants belong in Students, not in the operational admission queue.
-  const conditions: SQL[] = [eq(admissionApplications.institutionId, institutionId), ne(admissionApplications.status, 'ENROLLED')];
+  const activeCycle = sql`EXISTS (SELECT 1 FROM ${admissionCycles} WHERE ${admissionCycles.id} = ${admissionApplications.cycleId} AND ${admissionCycles.archivedAt} IS NULL)`;
+  const conditions: SQL[] = [eq(admissionApplications.institutionId, institutionId)];
+  if (!history) conditions.push(ne(admissionApplications.status, 'ENROLLED'), activeCycle);
   if (status) conditions.push(eq(admissionApplications.status, status));
   if (Number.isInteger(cycleId) && cycleId > 0) conditions.push(eq(admissionApplications.cycleId, cycleId));
   if (search) {
@@ -64,7 +72,7 @@ export const GET = requireRole(['INSTITUTION', 'INSTITUTION_ADMIN'], async (req:
     db.select({ count: sql<number>`count(*)::int` }).from(admissionApplications).where(where),
     includeMeta
       ? db.select({ status: admissionApplications.status, count: sql<number>`count(*)::int` }).from(admissionApplications)
-        .where(and(eq(admissionApplications.institutionId, institutionId), ne(admissionApplications.status, 'ENROLLED'))).groupBy(admissionApplications.status)
+        .where(and(eq(admissionApplications.institutionId, institutionId), ne(admissionApplications.status, 'ENROLLED'), activeCycle)).groupBy(admissionApplications.status)
       : Promise.resolve([]),
     includeMeta ? Promise.all([
       db.select({
@@ -74,9 +82,9 @@ export const GET = requireRole(['INSTITUTION', 'INSTITUTION_ADMIN'], async (req:
         enrolled: sql<number>`count(${admissionApplications.id}) filter (where ${admissionApplications.status} = 'ENROLLED')::int`,
       }).from(admissionOfferings)
         .leftJoin(admissionApplications, and(eq(admissionApplications.offeringId, admissionOfferings.id), eq(admissionApplications.institutionId, institutionId)))
-        .where(inArray(admissionOfferings.institutionId, offeringOwners)).groupBy(admissionOfferings.id).orderBy(asc(admissionOfferings.title)),
+        .where(and(inArray(admissionOfferings.institutionId, offeringOwners), sql`EXISTS (SELECT 1 FROM ${admissionCycles} WHERE ${admissionCycles.id} = ${admissionOfferings.cycleId} AND ${admissionCycles.archivedAt} IS NULL)`)).groupBy(admissionOfferings.id).orderBy(asc(admissionOfferings.title)),
       db.select({ id: admissionCycles.id, name: admissionCycles.name, academicYear: admissionCycles.academicYear, status: admissionCycles.status }).from(admissionCycles)
-        .where(inArray(admissionCycles.institutionId, offeringOwners)).orderBy(desc(admissionCycles.createdAt)),
+        .where(and(inArray(admissionCycles.institutionId, offeringOwners), isNull(admissionCycles.archivedAt))).orderBy(desc(admissionCycles.createdAt)),
     ]) : Promise.resolve(null),
   ]);
   const total = totalRow?.count || 0;
@@ -92,7 +100,7 @@ export const POST = requireRole(['INSTITUTION', 'INSTITUTION_ADMIN'], async (req
   let body: unknown;
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Request body must be valid JSON' }, { status: 400 }); }
   const parsed = publicAdmissionApplicationSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid application information' }, { status: 400 });
+  if (!parsed.success) return NextResponse.json(validationError(parsed.error), { status: 400 });
   if (parsed.data.dateOfBirth > new Date().toISOString().slice(0, 10)) return NextResponse.json({ error: 'Date of birth cannot be in the future' }, { status: 400 });
 
   const owners = await admissionOfferingOwners(institutionId);

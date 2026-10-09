@@ -1,3 +1,5 @@
+import { actionFeedback } from '@/lib/action-feedback';
+import { ActionForm } from '@/components/ui/action-form';
 import { db } from "@/db";
 import { employees } from "@/db/schema";
 import { desc } from "drizzle-orm";
@@ -17,28 +19,26 @@ export default async function SAEmployeesPage() {
 
   async function createEmployee(formData: FormData) {
     "use server";
+    return actionFeedback(async () => {
     await createEmployeeAction(formData);
     redirect("/sa/employees");
+
+    });
   }
 
   async function toggleStatus(formData: FormData) {
     "use server";
+    return actionFeedback(async () => {
     const id = parseInt(formData.get("id") as string, 10);
     const disabled = formData.get("disabled") === "true";
     await toggleEmployeeStatusAction(id, disabled);
     redirect("/sa/employees");
+
+    });
   }
-
-
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-brand-950">Employees</h1>
-          <p className="text-stone-500 mt-1">Manage system employees who handle institution validations.</p>
-        </div>
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
@@ -88,18 +88,18 @@ export default async function SAEmployeesPage() {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
-                            <form action={toggleStatus}>
+                            <ActionForm action={toggleStatus}>
                               <input type="hidden" name="id" value={emp.id} />
                               <input type="hidden" name="disabled" value={(emp.deletedAt !== null).toString()} />
-                              <SubmitButton 
-                                variant="outline" 
+                              <SubmitButton
+                                variant="outline"
                                 size="sm"
                                 className={emp.deletedAt === null ? "text-danger hover:text-danger hover:bg-danger/10" : "text-success hover:text-success hover:bg-success/10"}
                                 loadingText={emp.deletedAt === null ? 'Disabling...' : 'Enabling...'}
                               >
                                 {emp.deletedAt === null ? 'Disable' : 'Enable'}
                               </SubmitButton>
-                            </form>
+                            </ActionForm>
                           </div>
                         </td>
                       </tr>
@@ -120,7 +120,7 @@ export default async function SAEmployeesPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
-              <form action={createEmployee} className="space-y-4">
+              <ActionForm action={createEmployee} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-stone-700 mb-1">Full Name</label>
                   <input
@@ -156,7 +156,7 @@ export default async function SAEmployeesPage() {
                 >
                   Create Employee
                 </SubmitButton>
-              </form>
+              </ActionForm>
             </CardContent>
           </Card>
         </div>

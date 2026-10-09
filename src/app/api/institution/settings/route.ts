@@ -1,3 +1,5 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
+import { validationError } from '@/lib/validation-errors';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { institutions } from "@/db/schema";
@@ -16,7 +18,7 @@ export const PATCH = requireRole(['INSTITUTION', 'INSTITUTION_ADMIN'], async (re
   const body = await readJsonBody(req, 4096);
   if (!body.ok) return NextResponse.json({ error: body.error }, { status: body.status });
   const parsed = campusIdentitySchema.safeParse(body.data);
-  if (!parsed.success) return NextResponse.json({ error: 'Enter a registration number of up to 100 characters' }, { status: 400 });
+  if (!parsed.success) return NextResponse.json(validationError(parsed.error), { status: 400 });
   await db.update(institutions).set(parsed.data).where(eq(institutions.id, institutionId));
   return NextResponse.json({ success: true });
 });
@@ -64,6 +66,9 @@ export const POST = requireRole(["INSTITUTION"], async (req: NextRequest, { sess
 
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   } catch (error: unknown) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to update settings" },
       { status: 500 },

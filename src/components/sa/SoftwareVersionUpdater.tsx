@@ -1,7 +1,8 @@
 "use client";
+import { runAction } from '@/lib/run-action';
 
 import { useState } from "react";
-import { updateSoftwareVersionAction } from "@/app/actions/sa-actions";
+import { updateSoftwareVersionWithFeedback as updateSoftwareVersionAction } from '@/app/actions/feedback-actions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ export function SoftwareVersionUpdater({ currentVersion }: { currentVersion: str
   async function handleUpdate() {
     setIsPending(true);
     try {
-      await updateSoftwareVersionAction(version);
+      await runAction(updateSoftwareVersionAction, version);
       toast({ title: "Success", description: "Software version updated." });
     } catch (error) {
       toast({

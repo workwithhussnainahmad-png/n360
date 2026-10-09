@@ -2,9 +2,9 @@ import { sql } from "drizzle-orm";
 import { db } from "@/db";
 
 /** Allocates a permanent per-institution, per-admission-year sequence safely. */
-export async function allocateAdmissionSequences(institutionId: number, admissionYear: number, count = 1) {
+export async function allocateAdmissionSequences(institutionId: number, admissionYear: number, count = 1, client: Pick<typeof db, "execute"> = db) {
   if (!Number.isInteger(count) || count < 1) throw new Error("Invalid admission sequence count");
-  const result = await db.execute(sql`
+  const result = await client.execute(sql`
     INSERT INTO student_admission_counters (institution_id, admission_year, next_sequence)
     VALUES (${institutionId}, ${admissionYear}, ${count + 1})
     ON CONFLICT (institution_id, admission_year)

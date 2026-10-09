@@ -1,4 +1,6 @@
 "use client";
+import { responseErrorMessage, apiErrorMessage } from '@/lib/validation-errors';
+
 
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -87,7 +89,7 @@ export default function FeaturedInstitutionsClient({
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim()) { toast({ title: 'Check institution name', description: 'Institution name is required.', variant: 'destructive' }); return; }
 
     setIsSubmitting(true);
     try {
@@ -97,14 +99,14 @@ export default function FeaturedInstitutionsClient({
         body: JSON.stringify({ name, logoKey: logoKey || undefined }),
       });
 
-      if (!res.ok) throw new Error("Failed to add");
+      if (!res.ok) throw new Error(await responseErrorMessage(res));
       
       toast({ title: "Success", description: "Added featured institution" });
       setName("");
       setLogoKey("");
       fetchInstitutions();
-    } catch {
-      toast({ title: "Error", description: "Failed to add", variant: "destructive" });
+    } catch (formError) {
+      toast({ title: "Error", description: apiErrorMessage(formError), variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -113,12 +115,12 @@ export default function FeaturedInstitutionsClient({
   const handleDelete = async (id: number) => {
     try {
       const res = await fetch(`/api/admin/featured-institutions?id=${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete");
+      if (!res.ok) throw new Error(await responseErrorMessage(res));
       
       toast({ title: "Success", description: "Removed featured institution" });
       fetchInstitutions();
-    } catch {
-      toast({ title: "Error", description: "Failed to delete", variant: "destructive" });
+    } catch (formError) {
+      toast({ title: "Error", description: apiErrorMessage(formError), variant: "destructive" });
     }
   };
 
@@ -162,7 +164,7 @@ export default function FeaturedInstitutionsClient({
               )}
             </div>
           </div>
-          <Button type="submit" disabled={isSubmitting || !name.trim() || isUploadingImage} className="bg-brand-600 hover:bg-brand-700">
+          <Button type="submit" disabled={isSubmitting || isUploadingImage} className="bg-brand-600 hover:bg-brand-700">
             {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
             Add
           </Button>

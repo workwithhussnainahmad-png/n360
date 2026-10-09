@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { marks, tests, subjects, onlineTests } from "@/db/schema";
@@ -110,6 +111,9 @@ export const GET = requireRole(["STUDENT"], async (req: NextRequest, { session }
       : null;
     return NextResponse.json({ marks: pageRows.map((mark) => ({ ...mark, isOnline: !!mark.isOnline })), page: { limit: limitValue, nextCursor } });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error fetching marks:", error);
     return NextResponse.json({ error: "Failed to fetch marks" }, { status: 500 });
   }

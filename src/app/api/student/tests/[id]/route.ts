@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { onlineTestQuestions, onlineTestSubmissions, onlineTests, students, subjects, tests } from "@/db/schema";
@@ -85,6 +86,9 @@ export const GET = requireRole(["STUDENT"], async (req: NextRequest, { session, 
       } : null,
     });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error fetching online test:", error);
     return NextResponse.json({ error: "Failed to fetch test details" }, { status: 500 });
   }

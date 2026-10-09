@@ -1,3 +1,4 @@
+import { validationError } from '@/lib/validation-errors';
 import { NextRequest, NextResponse } from 'next/server';
 import { changeInstitutionStatus } from "@/lib/institution-status";
 import { db } from '@/db';
@@ -17,7 +18,7 @@ export const POST = requireRole(['SUPER_ADMIN', 'EMPLOYEE'], async (req: NextReq
   const body = await req.json();
   const parsed = reviewInstitutionSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error }, { status: 400 });
+    return NextResponse.json(validationError(parsed.error), { status: 400 });
   }
 
   const { status, rejectionReason } = parsed.data;

@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { and, count, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -52,6 +53,9 @@ export const POST = requireRole(["INSTITUTION"], async (req: NextRequest, { sess
 
     return NextResponse.json({ success: true, id: inserted.id });
   } catch (error: any) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     if (error instanceof Error && /already in use|maximum of/.test(error.message)) return NextResponse.json({ error: error.message }, { status: 409 });
     if (typeof error === "object" && error && "code" in error && error.code === "23505") {
       return NextResponse.json({ error: "An admin with this email already exists" }, { status: 409 });

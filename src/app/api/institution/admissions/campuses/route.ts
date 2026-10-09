@@ -1,5 +1,6 @@
+import { validationError } from '@/lib/validation-errors';
 import { NextRequest, NextResponse } from 'next/server';
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { admissionCycleCampuses, admissionCycles } from '@/db/schema';
 import { admissionOfferingOwners, listAdmissionCampuses } from '@/lib/admission-campus';
@@ -20,7 +21,7 @@ export const GET = requireRole(['INSTITUTION', 'INSTITUTION_ADMIN'], async (_req
     isOpen: sql<boolean>`coalesce(${admissionCycleCampuses.isOpen}, false)`,
     cycleAccepting: sql<boolean>`${admissionCycles.status} = 'OPEN' AND (${admissionCycles.opensOn} IS NULL OR ${admissionCycles.opensOn} <= ${today}) AND (${admissionCycles.closesOn} IS NULL OR ${admissionCycles.closesOn} >= ${today})`,
   }).from(admissionCycles).leftJoin(admissionCycleCampuses, and(eq(admissionCycleCampuses.cycleId, admissionCycles.id), eq(admissionCycleCampuses.campusId, campus.id), eq(admissionCycleCampuses.institutionId, institutionId)))
-    .where(inArray(admissionCycles.institutionId, owners)).orderBy(desc(admissionCycles.createdAt));
+    .where(and(inArray(admissionCycles.institutionId, owners), isNull(admissionCycles.archivedAt))).orderBy(desc(admissionCycles.createdAt));
   return NextResponse.json({ campus: { id: campus.id, name: campus.name }, cycles }, { headers: { 'Cache-Control': 'no-store' } });
 });
 
@@ -29,12 +30,12 @@ export const POST = requireRole(['INSTITUTION', 'INSTITUTION_ADMIN'], async (req
   let body: unknown;
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
   const parsed = campusAdmissionAvailabilitySchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: 'Select a valid cycle and campus availability' }, { status: 400 });
+  if (!parsed.success) return NextResponse.json(validationError(parsed.error), { status: 400 });
   const owners = await admissionOfferingOwners(institutionId);
   const changed = await db.transaction(async tx => {
     // Public submissions hold SHARE on the same cycle until their insert commits.
     const [cycle] = await tx.select({ id: admissionCycles.id }).from(admissionCycles)
-      .where(and(eq(admissionCycles.id, parsed.data.cycleId), inArray(admissionCycles.institutionId, owners))).for('update').limit(1);
+      .where(and(eq(admissionCycles.id, parsed.data.cycleId), inArray(admissionCycles.institutionId, owners), isNull(admissionCycles.archivedAt))).for('update').limit(1);
     if (!cycle) return false;
     const campus = (await listAdmissionCampuses(institutionId, tx)).find(item => item.institutionId === institutionId);
     if (!campus) return false;

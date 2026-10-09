@@ -1,3 +1,4 @@
+import { validationError } from '@/lib/validation-errors';
 import { NextRequest, NextResponse } from "next/server";
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
@@ -28,7 +29,7 @@ export const POST = requireRole(["STAFF"], async (req: NextRequest, { session, p
   const course = await ownedCourse(id, institutionId, session.userId);
   if (!course) return NextResponse.json({ error: "Course not found" }, { status: 404 });
   const parsed = lectureSchema.safeParse(await req.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || "Invalid lecture" }, { status: 400 });
+  if (!parsed.success) return NextResponse.json(validationError(parsed.error), { status: 400 });
   if (parsed.data.sequence > course.lectureCount) return NextResponse.json({ error: `This course has ${course.lectureCount} lecture slots` }, { status: 400 });
   const [lecture] = await db.insert(courseLectures).values({ courseId: id, ...parsed.data }).onConflictDoUpdate({ target: [courseLectures.courseId, courseLectures.sequence], set: { title: parsed.data.title, description: parsed.data.description, videoUrl: parsed.data.videoUrl, updatedAt: new Date() } }).returning();
   return NextResponse.json({ lecture });

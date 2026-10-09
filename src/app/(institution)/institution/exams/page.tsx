@@ -1,3 +1,5 @@
+import { actionFeedback } from '@/lib/action-feedback';
+import { ActionForm } from '@/components/ui/action-form';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { InstitutionExamForm } from "@/components/exams/InstitutionExamForm";
@@ -110,10 +112,6 @@ export default async function InstitutionExamsPage() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-display font-bold text-brand-950">Exam Management</h1>
-        <p className="text-stone-500 mt-1">Create institution exams for classes. Monthly, Mid, and Final exams are scheduled here without questions or MCQs.</p>
-      </div>
 
       <ExamsPageTabs
         classes={allClasses}
@@ -191,7 +189,7 @@ export default async function InstitutionExamsPage() {
                                 <InstitutionExamForm
                                   classes={allClasses.map((classRow) => ({ id: classRow.id, name: classRow.name }))}
                                   subjects={allSubjects.map((subject) => ({ id: subject.id, name: subject.name }))}
-                                  action={updateInstitutionExamAction}
+                                  action={async (formData: FormData) => { "use server"; return actionFeedback(() => updateInstitutionExamAction(formData)); }}
                                   submitLabel="Update Exam Dates"
                                   hiddenFields={{ examIds: group.examIds.join(",") }}
                                   initialValues={{
@@ -205,13 +203,13 @@ export default async function InstitutionExamsPage() {
                                 />
                               </div>
                             </details>
-                            <form action={deleteInstitutionExamAction}>
+                            <ActionForm action={async (formData: FormData) => { "use server"; return actionFeedback(() => deleteInstitutionExamAction(formData)); }}>
                               <input type="hidden" name="examIds" value={group.examIds.join(",")} />
                               <SubmitButton variant="outline" className="gap-2 border-danger/30 text-danger hover:bg-danger/10">
                                 <Trash2 className="h-3.5 w-3.5" />
                                 Delete exam
                               </SubmitButton>
-                            </form>
+                            </ActionForm>
                           </div>
                         </div>
                       );

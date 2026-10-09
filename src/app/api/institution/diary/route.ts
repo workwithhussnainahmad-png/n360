@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { diaries, subjects, staff } from "@/db/schema";
@@ -38,6 +39,9 @@ export const GET = requireRole(["INSTITUTION", "INSTITUTION_ADMIN"], async (req:
 
     return NextResponse.json(entries);
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error fetching institution diaries:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

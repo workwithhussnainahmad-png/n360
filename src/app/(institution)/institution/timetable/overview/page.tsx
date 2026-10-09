@@ -25,7 +25,7 @@ function formatDays(days: number[]) {
   const sorted = [...new Set(days)].sort((a, b) => a - b);
   if (sorted.length === 6 && sorted[0] === 1 && sorted[5] === 6) return ""; // All days Mon-Sat
   if (sorted.length === 7 && sorted[0] === 1 && sorted[6] === 7) return ""; // All week
-  
+
   let isConsecutive = true;
   for (let i = 1; i < sorted.length; i++) {
     if (sorted[i] !== sorted[i - 1] + 1) isConsecutive = false;
@@ -127,18 +127,18 @@ export default async function InstitutionTimetableOverviewPage() {
     if (!cellMap.has(row.classId)) cellMap.set(row.classId, new Map());
     const classSlots = cellMap.get(row.classId)!;
     if (!classSlots.has(slotKey)) classSlots.set(slotKey, []);
-    
+
     const existingGroups = classSlots.get(slotKey)!;
     const secName = row.sectionName === WHOLE_CLASS_SECTION_NAME ? null : row.sectionName;
-    
+
     // Find if we already have a group for this exact subject/teacher/section/isBreak
-    let group = existingGroups.find(g => 
+    const group = existingGroups.find(g =>
       g.subjectName === row.subjectName && 
       g.teacherName === row.teacherName && 
       g.sectionName === secName && 
       g.isBreak === row.isBreak
     );
-    
+
     if (group) {
       if (!group.days.includes(row.dayOfWeek)) {
         group.days.push(row.dayOfWeek);
@@ -156,7 +156,7 @@ export default async function InstitutionTimetableOverviewPage() {
 
   return (
     <div className="space-y-6 animate-fade-in print-document">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between print:hidden">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-end print:hidden">
         <div>
           <Link
             href="/institution/timetable"
@@ -166,9 +166,7 @@ export default async function InstitutionTimetableOverviewPage() {
             Back to timetable manager
           </Link>
           <div className="flex items-center gap-4">
-            <h1 className="text-3xl font-display font-bold text-brand-950">
-              Institution Timetable Overview
-            </h1>
+
             <PrintButton />
           </div>
           <p className="mt-1 text-stone-500">

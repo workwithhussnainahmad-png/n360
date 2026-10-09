@@ -1,4 +1,6 @@
 "use client";
+import { responseErrorMessage } from '@/lib/validation-errors';
+
 import { useEffect, useState } from "react";
 
 export type PublicPayment = {
@@ -21,7 +23,7 @@ export function PaymentHistory({ invoiceId, applicationId, studentId }: { invoic
   useEffect(() => {
     const controller = new AbortController();
     fetch(url, { cache: "no-store", signal: controller.signal }).then(async (response) => {
-      if (!response.ok) throw new Error("Could not load payment history");
+      if (!response.ok) throw new Error(await responseErrorMessage(response));
       const data = await response.json(); setPayments(data.payments); setNext(data.next);
     }).catch(() => { if (!controller.signal.aborted) setError("Could not load payment history"); });
     return () => controller.abort();

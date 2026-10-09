@@ -1,3 +1,5 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
+import { validationError } from '@/lib/validation-errors';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { students, classes, sections, campuses } from "@/db/schema";
@@ -37,6 +39,9 @@ export const GET = requireRole(["STUDENT"], async (req: NextRequest, { session }
       .where(eq(sections.institutionId, session.institutionId));
     return NextResponse.json({ profile, classes: allClasses, sections: allSections });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error fetching profile:", error);
     return NextResponse.json({ error: "Failed to fetch profile" }, { status: 500 });
   }
@@ -51,7 +56,7 @@ export const PATCH = requireRole(["STUDENT"], async (req: NextRequest, { session
   const parsed = updateStudentProfileSchema.safeParse(body);
 
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error }, { status: 400 });
+    return NextResponse.json(validationError(parsed.error), { status: 400 });
   }
 
   await db.update(students)

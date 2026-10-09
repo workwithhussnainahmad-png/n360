@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { db } from "@/db";
@@ -130,6 +131,9 @@ export const GET = requireRole(["STAFF"], async (req: NextRequest, { session }) 
 
     return NextResponse.json(cachedData);
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error fetching staff attendance overview:", error);
     return NextResponse.json({ error: "Failed to fetch attendance" }, { status: 500 });
   }
@@ -147,7 +151,7 @@ export const POST = requireRole(["STAFF"], async (req: NextRequest, { session })
     };
 
     if (!sectionId || !date || !records || !Array.isArray(records)) {
-      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+      return NextResponse.json({ error: !sectionId ? 'Class section is required.' : !date ? 'Attendance date is required.' : 'Select valid student attendance records.' }, { status: 400 });
     }
 
     // Authorization: only the class incharge can mark attendance
@@ -192,6 +196,9 @@ export const POST = requireRole(["STAFF"], async (req: NextRequest, { session })
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error submitting attendance:", error);
     return NextResponse.json({ error: "Failed to submit attendance" }, { status: 500 });
   }

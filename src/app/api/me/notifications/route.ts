@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { notifications } from "@/db/schema";
@@ -70,6 +71,9 @@ export const GET = requireRole(["STUDENT", "STAFF", "INSTITUTION", "INSTITUTION_
 
     return new NextResponse(payload, { headers: { "Content-Type": "application/json" } });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error fetching notifications:", error);
     return NextResponse.json({ error: "Failed to fetch notifications" }, { status: 500 });
   }
@@ -82,7 +86,7 @@ export const PATCH = requireRole(["STUDENT", "STAFF", "INSTITUTION", "INSTITUTIO
     const { notificationIds } = body as { notificationIds: number[] };
 
     if (!Array.isArray(notificationIds) || notificationIds.length === 0) {
-      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+      return NextResponse.json({ error: 'Select at least one notification to mark as read.' }, { status: 400 });
     }
 
     await db.update(notifications)
@@ -100,6 +104,9 @@ export const PATCH = requireRole(["STUDENT", "STAFF", "INSTITUTION", "INSTITUTIO
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error marking notifications as read:", error);
     return NextResponse.json({ error: "Failed to update notifications" }, { status: 500 });
   }

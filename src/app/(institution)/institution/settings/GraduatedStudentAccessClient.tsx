@@ -1,7 +1,8 @@
 "use client";
+import { runAction } from '@/lib/run-action';
 
 import { useTransition } from "react";
-import { updateGraduatedStudentAccessAction } from "@/app/actions/institution-actions";
+import { updateGraduatedStudentAccessWithFeedback as updateGraduatedStudentAccessAction } from '@/app/actions/feedback-actions';
 import { useToast } from "@/components/ui/toaster";
 
 export function GraduatedStudentAccessClient({ allowGraduatedStudentAccess }: { allowGraduatedStudentAccess: boolean }) {
@@ -11,7 +12,7 @@ export function GraduatedStudentAccessClient({ allowGraduatedStudentAccess }: { 
   const handleToggle = (checked: boolean) => {
     startTransition(async () => {
       try {
-        await updateGraduatedStudentAccessAction(checked);
+        await runAction(updateGraduatedStudentAccessAction, checked);
         toast({ title: "Settings Updated", description: "Graduated student access settings saved.", variant: "success" });
       } catch (err: unknown) {
         const description = err instanceof Error ? err.message : "Could not save setting.";

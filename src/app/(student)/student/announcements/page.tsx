@@ -29,10 +29,6 @@ export default async function StudentAnnouncementsPage({ searchParams }: { searc
 
   return (
     <div className="space-y-6 animate-fade-in pb-20 lg:pb-0">
-      <div>
-        <h1 className="font-display text-3xl font-bold text-brand-950">Announcements</h1>
-        <p className="text-stone-500 mt-1 text-sm lg:text-base">Latest notices shared with your class, section, or campus.</p>
-      </div>
 
       {announcements.length === 0 ? (
         <EmptyState

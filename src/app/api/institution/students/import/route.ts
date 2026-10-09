@@ -1,6 +1,9 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
+import { parseStudentCsv, studentImportRollErrors, type ImportRoll } from "@/lib/student-import-csv";
 import { after, NextRequest, NextResponse } from "next/server";
+import { validationError } from '@/lib/validation-errors';
 import { hashPassword as hash } from "@/lib/argon2-pool";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { campuses, classes, institutions, sections, students } from "@/db/schema";
 import { logAudit } from "@/lib/audit";
@@ -17,6 +20,7 @@ const WHOLE_CLASS_SECTION_NAME = "Whole Class";
 const MAX_IMPORT_ROWS = 500;
 
 type CsvRow = Record<string, string>;
+type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type PreparedStudentRow = Omit<typeof students.$inferInsert, "admissionSequence" | "loginRollNumber"> & {
   admissionSequence?: number;
   loginRollNumber?: string;
@@ -35,48 +39,8 @@ function csvValue(row: CsvRow, ...keys: string[]) {
   return "";
 }
 
-function parseCsvLine(line: string) {
-  const values: string[] = [];
-  let current = "";
-  let inQuotes = false;
-
-  for (let index = 0; index < line.length; index += 1) {
-    const char = line[index];
-    const next = line[index + 1];
-
-    if (char === "\"" && inQuotes && next === "\"") {
-      current += "\"";
-      index += 1;
-    } else if (char === "\"") {
-      inQuotes = !inQuotes;
-    } else if (char === "," && !inQuotes) {
-      values.push(current.trim());
-      current = "";
-    } else {
-      current += char;
-    }
-  }
-
-  values.push(current.trim());
-  return values;
-}
-
-function parseCsv(text: string) {
-  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim());
-  if (lines.length < 2) return [];
-
-  const headers = parseCsvLine(lines[0]).map((header) => normalize(header));
-  return lines.slice(1).map((line) => {
-    const values = parseCsvLine(line);
-    return headers.reduce<CsvRow>((row, header, index) => {
-      row[header] = values[index]?.trim() || "";
-      return row;
-    }, {});
-  });
-}
-
-async function getOrCreateWholeClassSection(institutionId: number, classId: number) {
-  const [existingSection] = await db.select({
+async function getOrCreateWholeClassSection(tx: Transaction, institutionId: number, classId: number) {
+  const [existingSection] = await tx.select({
     id: sections.id,
     classId: sections.classId,
     name: sections.name,
@@ -91,7 +55,7 @@ async function getOrCreateWholeClassSection(institutionId: number, classId: numb
 
   if (existingSection) return existingSection;
 
-  const [createdSection] = await db.insert(sections).values({
+  const [createdSection] = await tx.insert(sections).values({
     institutionId,
     classId,
     name: WHOLE_CLASS_SECTION_NAME,
@@ -120,7 +84,8 @@ export const POST = requireRole(["INSTITUTION", "INSTITUTION_ADMIN"], async (req
       return NextResponse.json({ error: "Upload a CSV file." }, { status: 400 });
     }
 
-    const rows = parseCsv(await file.text());
+    const { rows, errors: csvErrors } = parseStudentCsv(await file.text());
+    if (csvErrors.length) return NextResponse.json({ error: "Fix the CSV format and try again.", errors: csvErrors }, { status: 400 });
     if (rows.length === 0) {
       return NextResponse.json({ error: "CSV file has no student rows." }, { status: 400 });
     }
@@ -159,10 +124,9 @@ export const POST = requireRole(["INSTITUTION", "INSTITUTION_ADMIN"], async (req
     const errors: string[] = [];
     const preparedRows: PreparedStudentRow[] = [];
     const initialPassword = "1234567890";
-    const passwordHash = await hash(initialPassword);
+    const rollRows: ImportRoll[] = [];
 
-    for (const [index, row] of rows.entries()) {
-      const rowNumber = index + 2;
+    for (const { rowNumber, values: row } of rows) {
       const campusInput = csvValue(row, "campusId", "campus");
       const classInput = csvValue(row, "classId", "class", "className");
       const sectionInput = csvValue(row, "sectionId", "section", "sectionName");
@@ -195,19 +159,19 @@ export const POST = requireRole(["INSTITUTION", "INSTITUTION_ADMIN"], async (req
       });
 
       if (!parsed.success) {
-        errors.push(`Row ${rowNumber}: required fields are missing or invalid.`);
+        errors.push(`Row ${rowNumber}: ${validationError(parsed.error).error}`);
         continue;
       }
 
-      const finalSection = sectionObj ?? await getOrCreateWholeClassSection(tenantId, classObj.id);
+      rollRows.push({ rowNumber, classId: classObj.id, classRollNumber: parsed.data.classRollNumber });
       preparedRows.push({
         institutionId: tenantId,
         campusId: parsed.data.campusId,
         name: `${parsed.data.firstName} ${parsed.data.lastName}`.trim(),
         gender: parsed.data.gender,
-        passwordHash,
+        passwordHash: "",
         classId: parsed.data.classId,
-        sectionId: finalSection.id,
+        sectionId: sectionObj?.id ?? 0,
         yearOfJoining: parsed.data.yearOfJoining,
         classRollNumber: parsed.data.classRollNumber,
         phone: parsed.data.phone,
@@ -221,29 +185,49 @@ export const POST = requireRole(["INSTITUTION", "INSTITUTION_ADMIN"], async (req
       return NextResponse.json({ error: "Import failed. Fix the listed rows and try again.", errors }, { status: 400 });
     }
 
+    const findConflicts = async (client: Pick<typeof db, "select">) => {
+      const stored = await client.select({ classId: students.classId, classRollNumber: students.classRollNumber }).from(students)
+        .where(and(eq(students.institutionId, tenantId), inArray(students.classId, [...new Set(rollRows.map(row => row.classId))])));
+      return studentImportRollErrors(rollRows, stored);
+    };
+    const previewErrors = await findConflicts(db);
+    if (previewErrors.length) return NextResponse.json({ error: "Fix the conflicting student rows and try again.", errors: previewErrors }, { status: 409 });
+    const passwordHash = await hash(initialPassword);
     const loginInstitution = await resolveStudentLoginInstitution(inst);
-    const rowsByYear = new Map<number, PreparedStudentRow[]>();
-    for (const row of preparedRows) rowsByYear.set(row.yearOfJoining, [...(rowsByYear.get(row.yearOfJoining) || []), row]);
-    for (const [year, yearRows] of rowsByYear) {
-      const sequences = await allocateAdmissionSequences(tenantId, year, yearRows.length);
-      for (const [index, row] of yearRows.entries()) {
-        row.admissionSequence = sequences[index];
-        row.loginRollNumber = generateStudentLoginRollNumber({ institution: loginInstitution, yearOfJoining: year, admissionSequence: sequences[index] });
-      }
+    let inserted: Array<{ id: number }>;
+    try {
+      inserted = await db.transaction(async (tx) => {
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(36073, ${tenantId})`);
+        const conflicts = await findConflicts(tx);
+        if (conflicts.length) throw Object.assign(new Error("IMPORT_CONFLICT"), { rowErrors: conflicts });
+        const wholeClassByClass = new Map<number, number>();
+        const rowsByYear = new Map<number, PreparedStudentRow[]>();
+        for (const row of preparedRows) {
+          row.passwordHash = passwordHash;
+          if (!row.sectionId) {
+            row.sectionId = wholeClassByClass.get(row.classId) ?? (await getOrCreateWholeClassSection(tx, tenantId, row.classId)).id;
+            wholeClassByClass.set(row.classId, row.sectionId);
+          }
+          rowsByYear.set(row.yearOfJoining, [...(rowsByYear.get(row.yearOfJoining) || []), row]);
+        }
+        for (const [year, yearRows] of rowsByYear) {
+          const sequences = await allocateAdmissionSequences(tenantId, year, yearRows.length, tx);
+          for (const [index, row] of yearRows.entries()) {
+            row.admissionSequence = sequences[index];
+            row.loginRollNumber = generateStudentLoginRollNumber({ institution: loginInstitution, yearOfJoining: year, admissionSequence: sequences[index] });
+          }
+        }
+        return tx.insert(students).values(preparedRows.map(row => {
+          if (!row.admissionSequence || !row.loginRollNumber) throw new Error("Student admission sequence allocation failed.");
+          return { ...row, admissionSequence: row.admissionSequence, loginRollNumber: row.loginRollNumber };
+        })).returning({ id: students.id });
+      });
+    } catch (error) {
+      if (error && typeof error === "object" && "rowErrors" in error) return NextResponse.json({ error: "Fix the conflicting student rows and try again.", errors: error.rowErrors }, { status: 409 });
+      const conflicts = await findConflicts(db);
+      if (conflicts.length) return NextResponse.json({ error: "Fix the conflicting student rows and try again.", errors: conflicts }, { status: 409 });
+      throw error;
     }
-
-    const insertRows: Array<typeof students.$inferInsert> = preparedRows.map((row) => {
-      if (!row.admissionSequence || !row.loginRollNumber) {
-        throw new Error("Student admission sequence allocation failed.");
-      }
-      return {
-        ...row,
-        admissionSequence: row.admissionSequence,
-        loginRollNumber: row.loginRollNumber,
-      };
-    });
-
-    const inserted = await db.insert(students).values(insertRows).returning({ id: students.id });
 
     await invalidateInstitutionRosterCaches(tenantId);
 
@@ -268,6 +252,9 @@ export const POST = requireRole(["INSTITUTION", "INSTITUTION_ADMIN"], async (req
       initialPassword,
     }, { status: 201 });
   } catch (err: unknown) {
+    const publicInputError = inputErrorResponse(err);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     if (typeof err === "object" && err && "code" in err && err.code === "23505") {
       return NextResponse.json({ error: "One or more students already exist with the same login ID or class roll number." }, { status: 409 });
     }

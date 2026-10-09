@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { attendances, sections } from "@/db/schema";
@@ -92,6 +93,9 @@ export const GET = requireRole(["STUDENT"], async (req: NextRequest, { session }
       : null;
     return NextResponse.json({ attendance: page, page: { limit: limitValue, nextCursor } });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error fetching attendance:", error);
     return NextResponse.json({ error: "Failed to fetch attendance" }, { status: 500 });
   }

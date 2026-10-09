@@ -1,5 +1,8 @@
 "use client";
+import { responseErrorMessage } from '@/lib/validation-errors';
 
+
+import { useAbortableReads } from "@/lib/use-abortable-reads";
 import { useState, useEffect, useCallback } from "react";
 import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +24,8 @@ type AttendanceRecord = {
 };
 
 export function StaffAttendanceClient({ staffMembers }: { staffMembers: StaffMember[] }) {
+  const reads = useAbortableReads();
+  const [readyDate, setReadyDate] = useState("");
   const [date, setDate] = useState<string>(() => format(new Date(), "yyyy-MM-dd"));
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,11 +34,14 @@ export function StaffAttendanceClient({ staffMembers }: { staffMembers: StaffMem
   const { toast } = useToast();
 
   const fetchAttendance = useCallback(async (selectedDate: string) => {
+    const signal = reads.begin("attendance");
+    setReadyDate("");
     setLoading(true);
     try {
-      const res = await fetch(`/api/institution/staff-attendance?date=${selectedDate}`);
-      if (!res.ok) throw new Error("Failed to load attendance");
+      const res = await fetch(`/api/institution/staff-attendance?date=${selectedDate}`, { signal });
+      if (!res.ok) throw new Error(await responseErrorMessage(res));
       const data = await res.json();
+      if (signal.aborted) return;
       
       const attMap: Record<string, AttendanceRecord["status"]> = {};
       data.records.forEach((record: any) => {
@@ -41,16 +49,19 @@ export function StaffAttendanceClient({ staffMembers }: { staffMembers: StaffMem
       });
       
       setAttendance(attMap);
+      setReadyDate(selectedDate);
     } catch (err: any) {
+      if (signal.aborted) return;
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
-      setLoading(false);
+      if (!signal.aborted) setLoading(false);
     }
-  }, [toast]);
+  }, [toast, reads]);
 
   useEffect(() => {
-    fetchAttendance(date);
-  }, [date, fetchAttendance]);
+    if (date) void fetchAttendance(date);
+    return () => reads.cancel("attendance");
+  }, [date, fetchAttendance, reads]);
 
   const handleStatusChange = (staffId: number, status: AttendanceRecord["status"]) => {
     setAttendance((prev) => ({ ...prev, [staffId]: status }));
@@ -65,6 +76,7 @@ export function StaffAttendanceClient({ staffMembers }: { staffMembers: StaffMem
   };
 
   const handleSave = async () => {
+    if (readyDate !== date || loading) { toast({ title: "Wait for attendance to load", variant: "destructive" }); return; }
     setSaving(true);
     try {
       const records = Object.entries(attendance).map(([staffId, status]) => ({
@@ -78,7 +90,7 @@ export function StaffAttendanceClient({ staffMembers }: { staffMembers: StaffMem
         body: JSON.stringify({ date, records }),
       });
 
-      if (!res.ok) throw new Error("Failed to save attendance");
+      if (!res.ok) throw new Error(await responseErrorMessage(res));
 
       toast({ title: "Success", description: "Attendance saved successfully" });
     } catch (err: any) {
@@ -101,6 +113,7 @@ export function StaffAttendanceClient({ staffMembers }: { staffMembers: StaffMem
             <Input
               id="date"
               type="date"
+              disabled={saving}
               value={date}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDate(e.target.value)}
               className="w-40"
@@ -123,10 +136,10 @@ export function StaffAttendanceClient({ staffMembers }: { staffMembers: StaffMem
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-end">
-          <Button variant="outline" onClick={() => handleMarkAll("PRESENT")} size="sm" className="h-9">
+          <Button variant="outline" disabled={saving || loading || readyDate !== date} onClick={() => handleMarkAll("PRESENT")} size="sm" className="h-9">
             Mark All Present
           </Button>
-          <Button onClick={handleSave} disabled={saving || loading} className="h-9">
+          <Button onClick={handleSave} disabled={saving || loading || readyDate !== date} className="h-9">
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
             Save
           </Button>
@@ -156,7 +169,7 @@ export function StaffAttendanceClient({ staffMembers }: { staffMembers: StaffMem
                       {staff.name}
                     </td>
                     <td className="px-6 py-4">
-                      <Select
+                      <Select disabled={saving || loading || readyDate !== date}
                         value={attendance[staff.id] || "PRESENT"}
                         onValueChange={(val: any) => handleStatusChange(staff.id, val)}
                       >

@@ -18,7 +18,7 @@ export function DownloadAppUploader({
 
   async function saveLink(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!url) return;
+    if (!url.trim()) { setError('Download URL is required.'); return; }
 
     setIsSaving(true);
     setMessage(null);
@@ -48,6 +48,8 @@ export function DownloadAppUploader({
       </div>
       <input
         type="url"
+        name="downloadUrl"
+        aria-label="Download URL"
         placeholder="https://github.com/..."
         value={url}
         onChange={(event) => setUrl(event.target.value)}
@@ -57,7 +59,7 @@ export function DownloadAppUploader({
       {message && <p className="text-sm font-medium text-success">{message}</p>}
       {error && <p className="text-sm font-medium text-danger">{error}</p>}
       <div className="flex flex-wrap gap-3">
-        <Button type="submit" disabled={!url || isSaving}>
+        <Button type="submit" disabled={isSaving}>
           <LinkIcon className="mr-2 h-4 w-4" />
           {isSaving ? "Saving…" : "Save link"}
         </Button>

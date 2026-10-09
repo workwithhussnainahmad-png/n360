@@ -1,4 +1,6 @@
 "use client";
+import { responseErrorMessage, apiErrorMessage } from '@/lib/validation-errors';
+
 
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
@@ -101,7 +103,7 @@ export default function PagesClient({
       }
 
       if (!res.ok) {
-        throw new Error("Failed to save");
+        throw new Error(await responseErrorMessage(res));
       }
 
       toast({
@@ -112,7 +114,7 @@ export default function PagesClient({
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to save the page.",
+        description: apiErrorMessage(error),
         variant: "destructive",
       });
     } finally {

@@ -1372,24 +1372,6 @@ async function ApplicantPortalPage({
                               </div>
                             </div>
 
-                            {feePayment.bankName && (
-                              <div className="rounded-md border border-slate-200 bg-slate-50 p-4 text-xs">
-                                <p className="font-bold text-slate-800">Bank Deposit / Transfer Details:</p>
-                                <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-600">
-                                  <div>
-                                    <span className="text-slate-400">Bank Name:</span>{" "}
-                                    <strong className="font-semibold text-slate-800 break-words">{feePayment.bankName}</strong>
-                                  </div>
-                                  <div>
-                                    <span className="text-slate-400">Account / IBAN:</span>{" "}
-                                    <span className="font-mono font-semibold text-slate-800 break-all">
-                                      {feePayment.accountNumber || "N/A"}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-
                             {feePayment.instructions && (
                               <div className="rounded-md border border-slate-200 bg-slate-50/70 p-4 text-xs text-slate-600">
                                 <p className="font-bold text-slate-800 mb-1">Payment Instructions:</p>
@@ -1408,12 +1390,11 @@ async function ApplicantPortalPage({
                               (feePayment.status === "PENDING" || feePayment.status === "REJECTED") && (
                                 <div className="border-t border-slate-100 pt-4">
                                   <p className="text-xs font-bold text-slate-800 mb-2">
-                                    Complete Online Fee Payment:
+                                    Submit Payment for Verification:
                                   </p>
                                   <ApplicantFeePayment
                                     applicationId={application.id}
-                                    accentColor={tenant.accentColor}
-                                    gateways={[]}
+                                    amount={feePayment.amount}
                                   />
                                 </div>
                               )}

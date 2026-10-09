@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
-import { admissionDocumentRequests, admissionFeePayments } from '@/db/schema';
+import { admissionDocumentRequests, admissionFeePayments, admissionFeeProofs } from '@/db/schema';
 import { decodeAdmissionFileAsset, hasExactFolderPrefix } from '@/lib/admission-files';
 import cloudinary from '@/lib/cloudinary';
 import { getTenantContext, requireRole } from '@/lib/rbac';
@@ -13,7 +13,7 @@ export const GET = requireRole(['INSTITUTION', 'INSTITUTION_ADMIN'], async (
 ) => {
   const { kind, id: rawId } = await params;
   const id = Number(rawId);
-  if (!Number.isInteger(id) || id <= 0 || !['document', 'fee'].includes(kind)) {
+  if (!Number.isInteger(id) || id <= 0 || !['document', 'fee', 'fee-proof'].includes(kind)) {
     return NextResponse.json({ error: 'Invalid admissions file' }, { status: 400 });
   }
 
@@ -23,6 +23,8 @@ export const GET = requireRole(['INSTITUTION', 'INSTITUTION_ADMIN'], async (
       .from(admissionDocumentRequests)
       .where(and(eq(admissionDocumentRequests.id, id), eq(admissionDocumentRequests.institutionId, institutionId)))
       .limit(1)
+    : kind === 'fee-proof' ? await db.select({ applicationId: admissionFeeProofs.applicationId, fileKey: admissionFeeProofs.proofFileKey }).from(admissionFeeProofs)
+      .where(and(eq(admissionFeeProofs.id, id), eq(admissionFeeProofs.institutionId, institutionId))).limit(1)
     : await db.select({ applicationId: admissionFeePayments.applicationId, fileKey: admissionFeePayments.proofFileKey })
       .from(admissionFeePayments)
       .where(and(eq(admissionFeePayments.id, id), eq(admissionFeePayments.institutionId, institutionId)))

@@ -1,5 +1,7 @@
 "use client";
 
+import { showError } from "@/lib/show-error";
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -92,7 +94,7 @@ export function PublishResultsForm({
       link.click();
       document.body.removeChild(link);
     } catch (err: any) {
-      alert(err.message);
+      showError(err.message);
     } finally {
       setIsDownloadingTemplate(false);
     }

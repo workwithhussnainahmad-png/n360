@@ -29,7 +29,7 @@
 
 import "dotenv/config";
 import { writeFile, unlink, mkdir, readFile } from "node:fs/promises";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { createDecipheriv, scryptSync } from "node:crypto";
 import { dirname, resolve } from "node:path";
 import { statSync } from "node:fs";
@@ -159,7 +159,7 @@ async function main(): Promise<void> {
     // Step 3: Verify the dump catalog (non-destructive).
     console.log("[restore] Verifying dump catalog...");
     try {
-      execSync(`pg_restore --list "${outputPath}"`, { stdio: "ignore" });
+      execFileSync("pg_restore", ["--list", outputPath], { stdio: "ignore" });
       console.log("[restore] Dump catalog OK — pg_restore --list succeeded");
     } catch {
       console.warn("[restore] pg_restore --list failed — pg_restore may not be installed or the dump may be corrupt");

@@ -12,6 +12,7 @@ const scopedTables = [
   "admissionDocumentRequests",
   "admissionEnrollments",
   "admissionFeePayments",
+  "admissionFeeProofs",
   "admissionOfferings",
   "announcements",
   "assignments",

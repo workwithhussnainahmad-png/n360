@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -43,6 +44,9 @@ export const POST = requireRole(["SUPER_ADMIN", "EMPLOYEE"], async (req: NextReq
 
     return NextResponse.json({ message: "App download link updated successfully." });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Android app link update failed", error);
     return NextResponse.json({ error: "Could not update the app download link." }, { status: 500 });
   }

@@ -11,11 +11,10 @@ import { getSession } from "@/lib/auth";
 import { GraduatedStudentAccessClient } from "./GraduatedStudentAccessClient";
 import { InstitutionLogoUploader } from "./InstitutionLogoUploader";
 import { InstitutionSignatureUploader } from "./InstitutionSignatureUploader";
-import { EasypaisaGatewaySettings } from "@/components/EasypaisaGatewaySettings";
-import { JazzCashGatewaySettings } from "@/components/JazzCashGatewaySettings";
-import { HBLPayGatewaySettings } from "@/components/HBLPayGatewaySettings";
 import { GoogleDriveBackupSettings } from "./GoogleDriveBackupSettings";
 import { CampusIdentityEditor } from './CampusIdentityEditor';
+
+import { PaymentAccountsSettings } from "@/components/PaymentAccountsSettings";
 
 const settingsLinkClass = "block rounded-md border border-border p-4 text-left transition-colors hover:bg-stone-50";
 
@@ -30,11 +29,6 @@ export default async function InstitutionSettingsPage() {
 
   return (
     <div className="animate-fade-in space-y-8">
-      <div>
-        <h1 className="font-display text-3xl font-bold text-brand-950">Settings</h1>
-        <p className="mt-1 text-stone-500">Manage your institution profile, services, data, and security preferences.</p>
-      </div>
-
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="lg:col-span-2">
           <CardHeader className="border-b border-border bg-stone-50/50">
@@ -64,17 +58,18 @@ export default async function InstitutionSettingsPage() {
         </Card>
 
         {session.role === "INSTITUTION" && (
-        <Card className="lg:col-span-2">
-          <CardHeader className="border-b border-border bg-stone-50/50">
-            <CardTitle className="flex items-center gap-2 text-lg"><CreditCard className="h-5 w-5 text-brand-600" />Payment Gateways</CardTitle>
-          </CardHeader>
-          <CardContent className="p-5 sm:p-6 pt-6 sm:pt-8">
-            <p className="text-sm leading-6 text-stone-500 mb-5">Configure payment gateways to accept online fees from students.</p>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <EasypaisaGatewaySettings />
-              <JazzCashGatewaySettings />
-              <HBLPayGatewaySettings />
+        <Card className="overflow-hidden lg:col-span-2">
+          <CardHeader className="border-b border-border bg-stone-50/50 p-5 sm:p-6">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-brand-100 bg-white"><CreditCard className="h-5 w-5 text-brand-700" /></span>
+              <div>
+                <CardTitle className="text-lg">Payment Gateways</CardTitle>
+                <p className="mt-1 text-sm leading-6 text-stone-500">Manage the bank and wallet accounts used to collect your institution&apos;s fees.</p>
+              </div>
             </div>
+          </CardHeader>
+          <CardContent className="p-5 sm:p-6">
+            <PaymentAccountsSettings />
           </CardContent>
         </Card>
         )}
@@ -126,7 +121,7 @@ export default async function InstitutionSettingsPage() {
           </CardContent>
         </Card>)}
 
-        {session.role === "INSTITUTION" && (<Card>
+        {session.role === "INSTITUTION" && (<Card className="self-start">
           <CardHeader className="border-b border-border bg-stone-50/50"><CardTitle className="flex items-center gap-2 text-lg"><HardDrive className="h-5 w-5 text-brand-600" />Google Drive Backup</CardTitle></CardHeader>
           <CardContent className="p-5 sm:p-6 pt-6 sm:pt-8">
             <GoogleDriveBackupSettings />

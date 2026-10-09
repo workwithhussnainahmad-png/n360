@@ -1,108 +1,118 @@
 "use client";
+import { responseErrorMessage } from '@/lib/validation-errors';
 
-import { useState, useEffect } from "react";
-import { Loader2, BookOpen, CalendarDays } from "lucide-react";
+
+import { useEffect, useState } from "react";
+import { BookOpen, CalendarDays, ChevronLeft, ChevronRight, Loader2, AlertCircle } from "lucide-react";
+import styles from "./diary.module.css";
 
 type DiaryEntry = {
   id: number;
-  subjectId: number;
   subjectName: string | null;
   staffName: string | null;
   content: string;
 };
 
+type DiaryResult = { key: string; entries: DiaryEntry[]; error: boolean };
+
+function localDate(value = new Date()) {
+  return [value.getFullYear(), String(value.getMonth() + 1).padStart(2, "0"), String(value.getDate()).padStart(2, "0")].join("-");
+}
+
 export default function StudentDiaryPage() {
-  const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [entries, setEntries] = useState<DiaryEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(true);
+  const [date, setDate] = useState(() => localDate());
+  const [retry, setRetry] = useState(0);
+  const [result, setResult] = useState<DiaryResult | null>(null);
+  const requestKey = date + ":" + retry;
+  const loading = result?.key !== requestKey;
+  const entries = loading ? [] : result?.entries ?? [];
+  const error = !loading && result?.error;
+  const selectedDay = new Date(date + "T00:00:00");
+  const dateLabel = selectedDay.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  const weekday = selectedDay.toLocaleDateString("en-GB", { weekday: "long" });
 
   useEffect(() => {
-    handleSearch();
-  }, [date]); // Re-fetch when date changes
-
-  const handleSearch = async () => {
-    setIsLoading(true);
-    setHasSearched(true);
-    try {
-      const res = await fetch(`/api/student/diary?date=${date}`);
-      if (res.ok) {
-        const data = await res.json();
-        setEntries(data);
-      } else {
-        setEntries([]);
+    const controller = new AbortController();
+    async function loadDiary() {
+      try {
+        const response = await fetch("/api/student/diary?date=" + encodeURIComponent(date), { signal: controller.signal });
+        if (!response.ok) throw new Error(await responseErrorMessage(response));
+        const data: DiaryEntry[] = await response.json();
+        if (!controller.signal.aborted) setResult({ key: requestKey, entries: data, error: false });
+      } catch {
+        if (!controller.signal.aborted) setResult({ key: requestKey, entries: [], error: true });
       }
-    } catch (error) {
-      console.error("Failed to fetch diary entries:", error);
-      setEntries([]);
-    } finally {
-      setIsLoading(false);
     }
-  };
+    void loadDiary();
+    return () => controller.abort();
+  }, [date, requestKey]);
+
+  function moveDay(offset: number) {
+    const next = new Date(date + "T00:00:00");
+    next.setDate(next.getDate() + offset);
+    setDate(localDate(next));
+  }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="flex items-center font-display text-3xl font-bold text-brand-950">
-            <BookOpen className="w-6 h-6 mr-3 text-brand-600" />
-            My Daily Diary
-          </h1>
-          <p className="mt-1 text-stone-500">Check your daily homework and classwork updates.</p>
-        </div>
-        
-        <div className="flex items-center space-x-3 bg-white p-2 rounded-xl border border-stone-200 shadow-sm">
-          <CalendarDays className="w-5 h-5 text-stone-400 ml-2" />
-          <input
-            type="date"
-            className="bg-transparent border-none focus:ring-0 text-sm font-medium text-stone-700 w-[140px]"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
-        </div>
-      </div>
-
-      {isLoading && (
-        <div className="flex items-center justify-center p-6 sm:p-12">
-          <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
-        </div>
-      )}
-
-      {hasSearched && !isLoading && entries.length === 0 && (
-        <div className="text-center py-16 bg-white rounded-2xl border border-stone-200 border-dashed shadow-sm">
-          <div className="bg-brand-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-            <BookOpen className="w-8 h-8 text-brand-500" />
+    <div className={styles.page}>
+      <section className={styles.toolbar} aria-label="Diary date">
+        <div className={styles.day}>
+          <span className={styles.calendarIcon}><CalendarDays size={20} aria-hidden="true" /></span>
+          <div>
+            <span className={styles.weekday}>{weekday}</span>
+            <span className={styles.dateTitle}>{dateLabel}</span>
           </div>
-          <h3 className="text-xl font-medium text-stone-900 mb-1">No Diary Today</h3>
-          <p className="text-stone-500 max-w-sm mx-auto">You have no homework or classwork recorded for {new Date(date).toLocaleDateString()}. Enjoy your day!</p>
         </div>
-      )}
+        <div className={styles.controls}>
+          <button type="button" className={styles.today} onClick={() => setDate(localDate())}>Today</button>
+          <div className={styles.datePicker}>
+            <button type="button" aria-label="Previous day" onClick={() => moveDay(-1)}><ChevronLeft size={16} /></button>
+            <input aria-label="Select diary date" type="date" value={date} onChange={(event) => { if (event.target.value) setDate(event.target.value); }} />
+            <button type="button" aria-label="Next day" onClick={() => moveDay(1)}><ChevronRight size={16} /></button>
+          </div>
+        </div>
+      </section>
 
-      {entries.length > 0 && !isLoading && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {entries.map((entry) => (
-            <div key={entry.id} className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden hover:shadow-md transition-shadow relative">
-              <div className="absolute top-0 left-0 w-1 h-full bg-brand-500"></div>
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4 pb-4 border-b border-stone-100">
-                  <div className="flex items-center space-x-3">
-                    <div className="h-10 w-10 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 font-bold text-sm">
-                      {(entry.subjectName || "Sub").substring(0, 2).toUpperCase()}
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-stone-900">{entry.subjectName || `Subject #${entry.subjectId}`}</h4>
-                      <p className="text-xs text-stone-500">Teacher: {entry.staffName || "Unknown"}</p>
-                    </div>
+      <section className={styles.panel} aria-label="Diary entries" aria-busy={loading}>
+        <div className={styles.panelHeading}>
+          <h2>Classwork & homework</h2>
+          {!loading && !error && <span className={styles.count}>{entries.length} {entries.length === 1 ? "entry" : "entries"}</span>}
+        </div>
+        {loading ? (
+          <div className={styles.empty} role="status">
+            <Loader2 size={24} className="animate-spin" aria-hidden="true" />
+            <p>Loading your diary...</p>
+          </div>
+        ) : error ? (
+          <div className={styles.empty} role="alert">
+            <span className={styles.emptyIcon}><AlertCircle size={25} aria-hidden="true" /></span>
+            <h3>Unable to load your diary</h3>
+            <p>Please try again to see entries for this date.</p>
+            <button className={styles.today} type="button" onClick={() => setRetry((value) => value + 1)}>Try again</button>
+          </div>
+        ) : entries.length === 0 ? (
+          <div className={styles.empty} role="status">
+            <span className={styles.emptyIcon}><BookOpen size={26} aria-hidden="true" /></span>
+            <h3>No entries for this date</h3>
+            <p>No classwork or homework has been posted for {dateLabel}. Choose another date to view earlier entries.</p>
+          </div>
+        ) : (
+          <div className={styles.entries}>
+            {entries.map((entry) => (
+              <article key={entry.id} className={styles.entry}>
+                <div className={styles.entryHeading}>
+                  <span className={styles.subjectIcon}><BookOpen size={18} aria-hidden="true" /></span>
+                  <div>
+                    <h3>{entry.subjectName || "General"}</h3>
+                    <p>{entry.staffName || "Teacher"}</p>
                   </div>
                 </div>
-                <div className="text-stone-700 whitespace-pre-wrap text-sm leading-relaxed">
-                  {entry.content}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+                <div className={styles.content}>{entry.content}</div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

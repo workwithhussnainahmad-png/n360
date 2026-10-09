@@ -1,8 +1,9 @@
 "use client";
+import { ActionForm } from '@/components/ui/action-form';
 
 import { useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { createOnlineTestAction } from "@/app/actions/online-test-actions";
+import { createOnlineTestWithFeedback as createOnlineTestAction } from '@/app/actions/feedback-actions';
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Button } from "@/components/ui/button";
 import { formatClassSection } from "@/lib/class-section-label";
@@ -31,7 +32,7 @@ export function OnlineTestBuilder({ sections, subjects }: { sections: SectionOpt
   );
 
   return (
-    <form action={createOnlineTestAction} className="space-y-5">
+    <ActionForm action={createOnlineTestAction} className="space-y-5">
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium text-stone-700">Class / Section</label>
@@ -142,6 +143,6 @@ export function OnlineTestBuilder({ sections, subjects }: { sections: SectionOpt
       </div>
 
       <SubmitButton className="w-full">Host Test</SubmitButton>
-    </form>
+    </ActionForm>
   );
 }

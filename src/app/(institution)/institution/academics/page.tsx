@@ -1,3 +1,5 @@
+import { actionFeedback } from '@/lib/action-feedback';
+import { ActionForm } from '@/components/ui/action-form';
 import { db } from "@/db";
 import { subjects, classes, sections } from "@/db/schema";
 import { and, eq, desc } from "drizzle-orm";
@@ -9,6 +11,7 @@ import { createSubjectAction, createClassAction } from "@/app/actions/institutio
 import { SubmitButton } from "@/components/ui/submit-button";
 import { AddSectionForm } from "./AddSectionForm";
 import { displaySectionName } from "@/lib/class-section-label";
+import { DeleteAcademicButton } from "./DeleteAcademicButton";
 
 export default async function InstitutionAcademicsPage() {
   const session = await getSession();
@@ -47,22 +50,22 @@ export default async function InstitutionAcademicsPage() {
 
   async function createSubject(formData: FormData) {
     "use server";
+    return actionFeedback(async () => {
     await createSubjectAction(formData);
+
+    });
   }
 
   async function createClass(formData: FormData) {
     "use server";
+    return actionFeedback(async () => {
     await createClassAction(formData);
+
+    });
   }
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-brand-950">Academics Setup</h1>
-          <p className="text-stone-500 mt-1">Configure subjects, classes, and academic structure.</p>
-        </div>
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Subjects List */}
@@ -80,12 +83,13 @@ export default async function InstitutionAcademicsPage() {
                   <tr>
                     <th className="px-6 py-4 font-medium">Subject Name</th>
                     <th className="px-6 py-4 font-medium">Subject Code</th>
+                    <th className="px-6 py-4 font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {allSubjects.length === 0 && (
                     <tr>
-                      <td colSpan={2} className="px-6 py-4 sm:py-8 text-center text-stone-500">
+                      <td colSpan={3} className="px-6 py-4 sm:py-8 text-center text-stone-500">
                         No subjects added yet.
                       </td>
                     </tr>
@@ -94,6 +98,7 @@ export default async function InstitutionAcademicsPage() {
                     <tr key={sub.id} className="hover:bg-stone-50/50 transition-colors">
                       <td className="px-6 py-4 font-semibold text-brand-950">{sub.name}</td>
                       <td className="px-6 py-4 text-stone-600 font-mono">{sub.code || "N/A"}</td>
+                      <td className="px-6 py-4"><DeleteAcademicButton kind="subject" id={sub.id} name={sub.name} /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -111,7 +116,7 @@ export default async function InstitutionAcademicsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            <form action={createSubject} className="space-y-4 pt-2">
+            <ActionForm action={createSubject} className="space-y-4 pt-2">
               <div>
                 <label className="mb-2 block text-sm font-medium text-stone-700">Subject Name or Names</label>
                 <input
@@ -137,7 +142,7 @@ export default async function InstitutionAcademicsPage() {
               >
                 Create Subject
               </SubmitButton>
-            </form>
+            </ActionForm>
           </CardContent>
         </Card>
       </div>
@@ -158,12 +163,13 @@ export default async function InstitutionAcademicsPage() {
                   <tr>
                     <th className="px-6 py-4 font-medium">Class</th>
                     <th className="px-6 py-4 font-medium">Sections</th>
+                    <th className="px-6 py-4 font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {allClasses.length === 0 && (
                     <tr>
-                      <td colSpan={2} className="px-6 py-4 sm:py-8 text-center text-stone-500">
+                      <td colSpan={3} className="px-6 py-4 sm:py-8 text-center text-stone-500">
                         No classes added yet.
                       </td>
                     </tr>
@@ -177,12 +183,14 @@ export default async function InstitutionAcademicsPage() {
                         <td className="px-6 py-4">
                           <div className="flex flex-wrap gap-2">
                             {visibleSections.map(s => (
-                              <span key={s.section.id} className="px-2 py-1 bg-brand-100 text-brand-800 text-xs rounded-md font-medium">
+                              <div key={s.section.id} className="flex items-center gap-1 px-2 py-1 bg-brand-100 text-brand-800 text-xs rounded-md font-medium">
                                 {displaySectionName(s.section.name)}
-                              </span>
+                                <DeleteAcademicButton kind="section" id={s.section.id} name={`${cls.name} / ${s.section.name}`} />
+                              </div>
                             ))}
                           </div>
                         </td>
+                        <td className="px-6 py-4"><DeleteAcademicButton kind="class" id={cls.id} name={cls.name} /></td>
                       </tr>
                     );
                   })}
@@ -202,7 +210,7 @@ export default async function InstitutionAcademicsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
-              <form action={createClass} className="space-y-4 pt-2">
+              <ActionForm action={createClass} className="space-y-4 pt-2">
                 <div>
                   <label className="mb-2 block text-sm font-medium text-stone-700">Class Name</label>
                   <input
@@ -217,7 +225,7 @@ export default async function InstitutionAcademicsPage() {
                 <SubmitButton className="w-full bg-brand-800 text-white rounded-md py-2 text-sm font-medium hover:bg-brand-900 transition-colors">
                   Create Class
                 </SubmitButton>
-              </form>
+              </ActionForm>
             </CardContent>
           </Card>
 

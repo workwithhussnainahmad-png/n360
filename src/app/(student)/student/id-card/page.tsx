@@ -4,7 +4,9 @@ import { getSession } from "@/lib/auth";
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { StudentIdCardClient } from "./StudentIdCardClient";
-import { CreditCard } from "lucide-react";
+import Link from "next/link";
+import { QrCapacityError, studentIdCardQr } from "@/lib/student-id-card-qr";
+import { headers } from "next/headers";
 
 export default async function StudentIdCardPage() {
   const session = await getSession();
@@ -23,6 +25,7 @@ export default async function StudentIdCardPage() {
       className: classes.name,
       sectionName: sections.name,
       institutionId: students.institutionId,
+      createdAt: students.createdAt,
     })
     .from(students)
     .innerJoin(classes, eq(students.classId, classes.id))
@@ -43,21 +46,19 @@ export default async function StudentIdCardPage() {
     .limit(1);
 
   if (!inst) redirect("/student/dashboard");
+  const requestHeaders = await headers();
+
+  let verificationQr: string;
+  try { verificationQr = await studentIdCardQr(row, requestHeaders.get("host")); }
+  catch (error) {
+    if (error instanceof QrCapacityError) return <p role="alert">{error.message} <Link href="/student/id-card" prefetch={false} className="underline">Try again</Link></p>;
+    throw error;
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-100 text-brand-700">
-          <CreditCard className="h-5 w-5" />
-        </div>
-        <div>
-          <h1 className="font-display text-3xl font-bold text-brand-950">My ID Card</h1>
-          <p className="mt-1 text-sm text-stone-500">Your official student identity card. Print or save as needed.</p>
-        </div>
-      </div>
-
       <div className="flex justify-center py-4">
-        <StudentIdCardClient student={row} institution={inst} />
+        <StudentIdCardClient student={row} institution={inst} verificationQr={verificationQr} />
       </div>
     </div>
   );

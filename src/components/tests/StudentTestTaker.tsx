@@ -1,8 +1,10 @@
 "use client";
 
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Clock, ShieldAlert } from "lucide-react";
-import { submitOnlineTestAction } from "@/app/actions/online-test-actions";
+import { submitOnlineTestWithFeedback as submitOnlineTestAction } from '@/app/actions/feedback-actions';
+import { ActionForm } from '@/components/ui/action-form';
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -208,7 +210,7 @@ export function StudentTestTaker({
   }
 
   return (
-    <form action={submitOnlineTestAction} onSubmit={() => setStarted(false)} className="space-y-5">
+    <ActionForm action={submitOnlineTestAction} onSubmit={() => setStarted(false)} onFailure={() => { if (!failed && !isReviewing) setStarted(true); }} className="space-y-5">
       <input type="hidden" name="onlineTestId" value={onlineTestId} />
       <div className="sticky top-0 z-10 flex flex-col gap-3 rounded-md border border-border bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -241,7 +243,7 @@ export function StudentTestTaker({
                   const isSelected = isReviewing ? String(answers[question.id]) === String(optionIndex) : false;
                   const isCorrect = isReviewing && question.correctOptionIndex === optionIndex;
                   const isWrong = isReviewing && isSelected && question.correctOptionIndex !== optionIndex;
-                  
+
                   let bgClass = "hover:bg-stone-50";
                   let borderClass = "border-border";
                   if (isCorrect) {
@@ -270,6 +272,6 @@ export function StudentTestTaker({
       </div>
 
       {!isReviewing && <SubmitButton className="w-full">Submit Test</SubmitButton>}
-    </form>
+    </ActionForm>
   );
 }

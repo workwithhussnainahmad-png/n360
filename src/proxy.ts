@@ -57,6 +57,12 @@ export async function proxy(request: NextRequest) {
     return applyCorsHeaders(request, NextResponse.next(forwarded));
   }
 
+  // Public QR verification must stay reachable on portal/tenant hosts and for
+  // accounts awaiting a password change; no session lookup is needed here.
+  if (request.nextUrl.pathname === '/verify/student') {
+    return NextResponse.next(forwarded);
+  }
+
   const session = await getSessionEdge(request.cookies);
   const path = request.nextUrl.pathname;
   const hostname = (request.headers.get('host') || '').split(':')[0].toLowerCase();

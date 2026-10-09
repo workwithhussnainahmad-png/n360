@@ -1,3 +1,5 @@
+import { actionFeedback } from '@/lib/action-feedback';
+import { ActionForm } from '@/components/ui/action-form';
 import { db } from "@/db";
 import { announcements, campuses, classes, sections } from "@/db/schema";
 import { count, desc, eq } from "drizzle-orm";
@@ -50,22 +52,22 @@ export default async function InstitutionAnnouncementsPage({ searchParams }: { s
 
   async function createAnnouncement(formData: FormData) {
     "use server";
+    return actionFeedback(async () => {
     await createAnnouncementAction(formData);
+
+    });
   }
 
   async function deleteAnnouncement(formData: FormData) {
     "use server";
+    return actionFeedback(async () => {
     await deleteAnnouncementAction(formData);
+
+    });
   }
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-brand-950">Announcements</h1>
-          <p className="text-stone-500 mt-1">Broadcast messages to staff and students.</p>
-        </div>
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
@@ -111,7 +113,7 @@ export default async function InstitutionAnnouncementsPage({ searchParams }: { s
                           <LocalDateTime value={ann.createdAt.toISOString()} compact />
                         </td>
                         <td className="px-6 py-4">
-                          <form action={deleteAnnouncement} className="flex justify-end">
+                          <ActionForm action={deleteAnnouncement} className="flex justify-end">
                             <input type="hidden" name="announcementId" value={ann.id} />
                             <button
                               type="submit"
@@ -120,7 +122,7 @@ export default async function InstitutionAnnouncementsPage({ searchParams }: { s
                               <Trash2 className="h-3.5 w-3.5" />
                               Delete
                             </button>
-                          </form>
+                          </ActionForm>
                         </td>
                       </tr>
                     ))}
@@ -133,7 +135,7 @@ export default async function InstitutionAnnouncementsPage({ searchParams }: { s
         </div>
 
         <div>
-          <AnnouncementFormClient 
+          <AnnouncementFormClient
             campuses={allCampuses}
             classes={allClasses}
             sections={allSections}

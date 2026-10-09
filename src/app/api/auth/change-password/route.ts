@@ -1,3 +1,4 @@
+import { validationError } from '@/lib/validation-errors';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { employees, institutions, parentAccounts, staff, students } from '@/db/schema';
@@ -94,7 +95,7 @@ export const POST = requireRole(['INSTITUTION', 'EMPLOYEE', 'STAFF', 'STUDENT', 
   }
   const parsed = changePasswordSchema.safeParse(bodyResult.data);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error }, { status: 400 });
+    return NextResponse.json(validationError(parsed.error), { status: 400 });
   }
 
   const { currentPassword, newPassword, returnTokens } = parsed.data;

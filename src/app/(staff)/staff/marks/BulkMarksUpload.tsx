@@ -1,8 +1,9 @@
 "use client";
+import { ActionForm } from '@/components/ui/action-form';
 
 import { useState } from "react";
 import { Download, Send, Upload } from "lucide-react";
-import { publishStaffAssessmentResultsAction, uploadMarksCsvAction } from "@/app/actions/assessment-actions";
+import { publishStaffAssessmentResultsWithFeedback as publishStaffAssessmentResultsAction, uploadMarksCsvWithFeedback as uploadMarksCsvAction } from '@/app/actions/feedback-actions';
 import { SubmitButton } from "@/components/ui/submit-button";
 import { formatClassSection } from "@/lib/class-section-label";
 
@@ -48,7 +49,7 @@ export function BulkMarksUpload({
         <Download className="mr-2 h-4 w-4" /> Download prefilled template
       </a>
 
-      <form action={uploadMarksCsvAction} className="flex flex-col gap-2 sm:flex-row">
+      <ActionForm action={uploadMarksCsvAction} className="flex flex-col gap-2 sm:flex-row">
         <input type="hidden" name="testId" value={testId} />
         <input type="hidden" name="sectionId" value={sectionId} />
         <input type="file" name="csv" accept=".csv,text/csv" required className="block w-full text-sm text-stone-600 file:mr-3 file:rounded-md file:border-0 file:bg-brand-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-brand-800" />
@@ -56,15 +57,15 @@ export function BulkMarksUpload({
           <input name="overwrite" type="checkbox" className="h-4 w-4" /> Replace saved marks
         </label>
         <SubmitButton className="shrink-0"><Upload className="mr-2 h-4 w-4" /> Upload results</SubmitButton>
-      </form>
+      </ActionForm>
 
       {canPublish && (
-        <form action={publishStaffAssessmentResultsAction} className="flex items-center justify-between gap-3 border-t border-border pt-3">
+        <ActionForm action={publishStaffAssessmentResultsAction} className="flex items-center justify-between gap-3 border-t border-border pt-3">
           <input type="hidden" name="testId" value={testId} />
           <input type="hidden" name="sectionId" value={sectionId} />
           <p className="text-xs text-stone-600">{published ? "Results are visible to students and parents." : "Results remain private until every student is marked and you publish."}</p>
           <SubmitButton disabled={published} className="shrink-0"><Send className="mr-2 h-4 w-4" /> {published ? "Published" : "Publish results"}</SubmitButton>
-        </form>
+        </ActionForm>
       )}
     </div>
   );

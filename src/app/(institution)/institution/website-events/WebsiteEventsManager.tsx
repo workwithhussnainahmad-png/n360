@@ -1,5 +1,7 @@
 'use client';
 
+import { showError } from "@/lib/show-error";
+
 import type { CSSProperties } from 'react';
 import { useState, useCallback } from 'react';
 import Image from 'next/image';
@@ -40,7 +42,7 @@ export function WebsiteEventsManager({ institutionName, publicBaseUrl, publicSit
   const [slugTouched, setSlugTouched] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
-  
+
   // Editor state
   const [activeTab, setActiveTab] = useState<'basics' | 'blocks'>('blocks');
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
@@ -49,15 +51,15 @@ export function WebsiteEventsManager({ institutionName, publicBaseUrl, publicSit
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
   const edit = useCallback((event: EventRecord) => { setDraft({ id: event.id, title: event.title, slug: event.slug, summary: event.summary || '', coverImageUrl: event.coverImageUrl || '', eventDate: event.eventDate || '', venue: event.venue || '', blocks: event.blocks || [], status: event.status, visibilityDuration: event.visibilityDuration }); setSlugTouched(true); setMessage(''); setActiveTab('basics'); setSelectedBlockId(null); }, []);
-  
+
   const updateBlock = useCallback((updated: PublicEventBlock) => { 
     setDraft((current) => current ? ({ ...current, blocks: current.blocks.map((item) => item.id === updated.id ? updated : item) }) : current); 
   }, []);
-  
+
   const removeBlock = useCallback((id: string) => {
     setDraft((current) => current ? ({ ...current, blocks: current.blocks.filter(b => b.id !== id) }) : current);
   }, []);
-  
+
   const handleEditBlock = useCallback((id: string) => {
     setSelectedBlockId(id); setActiveTab('blocks');
   }, []);
@@ -94,9 +96,9 @@ export function WebsiteEventsManager({ institutionName, publicBaseUrl, publicSit
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to save event'); } finally { setSaving(false); }
   }
 
-  async function removeEvent(event: EventRecord) { if (!window.confirm(`Delete “${event.title}”? This cannot be undone.`)) return; const response = await fetch(`/api/institution/public-events/${event.id}`, { method: 'DELETE' }); const data = await response.json(); if (!response.ok) return window.alert(data.error || 'Unable to delete event'); setEvents((current) => current.filter((item) => item.id !== event.id)); }
+  async function removeEvent(event: EventRecord) { if (!window.confirm(`Delete “${event.title}”? This cannot be undone.`)) return; const response = await fetch(`/api/institution/public-events/${event.id}`, { method: 'DELETE' }); const data = await response.json(); if (!response.ok) return showError(data.error || 'Unable to delete event'); setEvents((current) => current.filter((item) => item.id !== event.id)); }
 
-  if (!draft) return <div className="space-y-7 animate-fade-in"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-600">Public website</p><h1 className="mt-2 font-display text-3xl font-bold text-brand-950">Events</h1><p className="mt-1 text-stone-500">Create visual event pages for {institutionName}. Published events appear automatically on the website.</p></div><Button onClick={() => { setDraft(emptyDraft()); setSlugTouched(false); setActiveTab('basics'); }}><Plus className="mr-2 h-4 w-4" />Create event</Button></div>
+  if (!draft) return <div className="space-y-7 animate-fade-in"><div className="flex flex-col justify-end gap-4 sm:flex-row sm:items-end"><Button onClick={() => { setDraft(emptyDraft()); setSlugTouched(false); setActiveTab('basics'); }}><Plus className="mr-2 h-4 w-4" />Create event</Button></div>
     {!publicBaseUrl && <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">A public subdomain must be assigned before events can be published.</div>}
     <div className="grid gap-4">{events.length === 0 && <div className="rounded-xl border border-dashed border-stone-300 bg-white p-10 text-center"><CalendarDays className="mx-auto h-8 w-8 text-stone-400" /><h2 className="mt-4 font-display text-xl font-semibold">No events yet</h2><p className="mt-2 text-sm text-stone-500">Create a draft, design its page, and publish it when ready.</p></div>}{events.map((event) => { const expired = Boolean(event.expiresAt && new Date(event.expiresAt) <= new Date()); const live = event.status === 'PUBLISHED' && !expired; return <article key={event.id} className="grid gap-4 rounded-xl border border-stone-200 bg-white p-5 md:grid-cols-[1fr_auto] md:items-center"><div><div className="flex flex-wrap items-center gap-2"><h2 className="font-display text-xl font-semibold text-brand-950">{event.title}</h2><span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${live ? 'bg-emerald-50 text-emerald-700' : expired ? 'bg-amber-50 text-amber-700' : 'bg-stone-100 text-stone-600'}`}>{live ? 'Live' : expired ? 'Expired' : 'Draft'}</span></div><p className="mt-2 text-sm text-stone-500">/{event.slug} · Visible for {PUBLIC_EVENT_DURATION_LABELS[event.visibilityDuration]}{event.expiresAt ? ` · Expires ${new Date(event.expiresAt).toLocaleString()}` : ''}</p></div><div className="flex flex-wrap gap-2">{live && publicBaseUrl && <a href={`${publicBaseUrl}/event/${event.slug}`} target="_blank" rel="noopener noreferrer"><Button type="button" variant="outline"><ExternalLink className="mr-2 h-4 w-4" />View</Button></a>}<Button type="button" variant="outline" onClick={() => edit(event)}>Edit</Button><Button type="button" variant="outline" onClick={() => void removeEvent(event)}><Trash2 className="h-4 w-4" /></Button></div></article>; })}</div>
   </div>;
@@ -167,7 +169,7 @@ export function WebsiteEventsManager({ institutionName, publicBaseUrl, publicSit
               <Button type="button" variant="outline" className="opacity-0 group-hover:opacity-100 transition-opacity translate-y-4 group-hover:translate-y-0" onClick={() => { setActiveTab('basics'); setSelectedBlockId(null); }}><ImageIcon className="mr-2 h-4 w-4" /> Change Cover Image</Button>
             </div>
           </div>
-          
+
           <div className="bg-[var(--site-accent)] p-8 md:p-12 text-white relative group cursor-pointer" onClick={() => { setActiveTab('basics'); setSelectedBlockId(null); }}>
             <div className="absolute inset-0 border-2 border-transparent group-hover:border-white/20 transition-colors" />
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/55">Event / {institutionName}</p>

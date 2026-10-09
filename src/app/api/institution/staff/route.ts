@@ -1,3 +1,5 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
+import { validationError } from '@/lib/validation-errors';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { staff, staffTeachableSubjects, institutions, campuses, subjects, institutionCustomRoles } from '@/db/schema';
@@ -57,7 +59,7 @@ export const POST = requireRole(['INSTITUTION', 'INSTITUTION_ADMIN'], async (req
   const parsed = createStaffSchema.safeParse(body);
   
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error }, { status: 400 });
+    return NextResponse.json(validationError(parsed.error), { status: 400 });
   }
 
   const { name, phone, subjectIds, campusId: requestedCampusId, customRoleId } = parsed.data;
@@ -155,6 +157,9 @@ export const POST = requireRole(['INSTITUTION', 'INSTITUTION_ADMIN'], async (req
       credentials: { email: generatedEmail, initialPassword } 
     }, { status: 201 });
   } catch (err) {
+    const publicInputError = inputErrorResponse(err);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error(err);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

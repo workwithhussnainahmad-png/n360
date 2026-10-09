@@ -1,4 +1,6 @@
 "use client";
+import { responseErrorMessage, apiErrorMessage } from '@/lib/validation-errors';
+
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -37,13 +39,13 @@ export function PlatformReviewForm({
       });
 
       if (!res.ok) {
-        throw new Error("Failed to submit review");
+        throw new Error(await responseErrorMessage(res));
       }
 
       toast({ title: "Success", description: "Review submitted successfully!", variant: "success" });
       router.refresh(); // Refresh to update server components (moves it to settings or updates it)
     } catch (error) {
-      toast({ title: "Error", description: "Could not submit review.", variant: "destructive" });
+      toast({ title: "Error", description: apiErrorMessage(error), variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -81,7 +83,7 @@ export function PlatformReviewForm({
         />
         <p className="text-xs text-stone-500 mt-1">Minimum 10 characters.</p>
       </div>
-      <Button type="submit" disabled={isSubmitting || content.length < 10} className="bg-brand-600 hover:bg-brand-700">
+      <Button type="submit" disabled={isSubmitting} className="bg-brand-600 hover:bg-brand-700">
         {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
         {isUpdate ? "Update Review" : "Submit Review"}
       </Button>

@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { db } from "@/db";
 import {
   batchExams, batchExamSubjects, batchExamResults,
@@ -68,6 +69,9 @@ export const GET = requireRole(["INSTITUTION", "INSTITUTION_ADMIN"], async (req:
 
     return NextResponse.json({ batches: result });
   } catch (error: any) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Batch exams list error:", error);
     return NextResponse.json({ error: error.message || "Failed to list batch exams" }, { status: 500 });
   }
@@ -253,6 +257,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Batch exam upload error:", error);
     return NextResponse.json({ error: error.message || "Failed to upload" }, { status: 500 });
   }

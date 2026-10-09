@@ -1,0 +1,35 @@
+# Compose >= 2.24.4. Supply deployment/release.env (ignored) with image digests.
+# Keep docker-compose.yml's environment, health checks and persistent volumes.
+services:
+  app:
+    build: !reset null
+    image: ${APP_IMAGE:?Set APP_IMAGE to a tested ARM64 image digest}
+    platform: linux/arm64
+  app2:
+    build: !reset null
+    image: ${APP_IMAGE:?Set APP_IMAGE to the same digest for both replicas}
+    platform: linux/arm64
+  migrate:
+    build: !reset null
+    image: ${MIGRATOR_IMAGE:?Set MIGRATOR_IMAGE for this release}
+    platform: linux/arm64
+  push-receipt-worker:
+    build: !reset null
+    image: ${WORKER_IMAGE:?Set WORKER_IMAGE for this release}
+    platform: linux/arm64
+  institution-restore-worker:
+    build: !reset null
+    image: ${WORKER_IMAGE:?Use the same worker artifact}
+    platform: linux/arm64
+  postgres-backup:
+    build: !reset null
+    image: ${BACKUP_IMAGE:?Set BACKUP_IMAGE for this release}
+    platform: linux/arm64
+  postgres:
+    image: ${POSTGRES_IMAGE:?Pin the tested PostgreSQL image digest}
+  pgbouncer:
+    image: ${PGBOUNCER_IMAGE:?Pin a tested PgBouncer image digest}
+  valkey:
+    image: ${VALKEY_IMAGE:?Pin the tested Valkey image digest}
+  caddy:
+    image: ${CADDY_IMAGE:?Pin the tested Caddy image digest}

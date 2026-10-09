@@ -1,12 +1,14 @@
 "use client";
 
-import { PaymentHistory } from "@/components/PaymentHistory";
+import { ManualPaymentForm } from "@/components/ManualPaymentForm";
+import type { StudentFeeAccount, StudentFeeDetails } from "@/lib/student-fees";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toaster";
+import { useAbortableReads } from "@/lib/use-abortable-reads";
 import { api } from "@/lib/api-client";
 import {
   Banknote,
@@ -20,103 +22,78 @@ import {
 type Invoice = {
   id: number;
   billingMonth: string;
+  billingKind?: "MONTHLY" | "ONE_TIME";
+  billingLabel?: string | null;
   dueDate: string;
   status: "DUE" | "PARTIAL" | "PAID" | "VOID";
   totalAmount: number;
   paidAmount: number;
 };
-type Item = {
-  id: number;
-  invoiceId: number;
-  label: string;
-  type: "FEE" | "DISCOUNT" | "CHARGE" | "LATE_FEE";
-  amount: number;
-};
-type Payment = {
-  id: number;
-  invoiceId: number;
-  receiptNumber: string;
-  amount: number;
-  method: string;
-  receivedAt: string;
-};
-type Submission = {
-  id: number;
-  invoiceId: number;
-  status: "SUBMITTED" | "VERIFIED" | "REJECTED";
-  reviewerNote: string | null;
-};
-type Response = {
-  invoices: Invoice[];
-  items: Item[];
-  payments: Payment[];
-  submissions: Submission[];
-  gateways: string[];
-  summary: { billed: number; paid: number; balance: number };
-};
 const money = (value: number) =>
   `PKR ${Number(value || 0).toLocaleString("en-PK")}`;
 
-export function StudentFeesClient() {
+export function StudentFeesClient({ studentId, initialData }: { studentId?: number; initialData?: StudentFeeAccount }) {
+  const endpoint = `/api/student/fees${studentId ? `?studentId=${studentId}` : ""}`;
+  const reads = useAbortableReads();
   const { toast } = useToast();
-  const [data, setData] = useState<Response | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<StudentFeeAccount | null>(initialData ?? null);
+  const [loading, setLoading] = useState(!initialData);
   const [openId, setOpenId] = useState<number | null>(null);
   const [paying, setPaying] = useState<Invoice | null>(null);
-  const [busy, setBusy] = useState(false);
-  const load = useCallback(async () => {
+  const [activePage, setActivePage] = useState(1);
+  const [paidPage, setPaidPage] = useState(1);
+  const [details, setDetails] = useState<Record<number, StudentFeeDetails>>({});
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState("");
+  const detailRequest = useRef<AbortController | null>(null);
+  const seeded = useRef(initialData ? `${endpoint}:1:1` : null);
+  const load = useCallback(async (parentSignal?: AbortSignal) => {
+    const signal = reads.begin("account", parentSignal);
+    setLoading(true);
     try {
-      setData(await api.get<Response>("/api/student/fees"));
+      const separator = endpoint.includes('?') ? '&' : '?';
+      const result = await api.get<StudentFeeAccount>(endpoint + separator + new URLSearchParams({ activePage: String(activePage), paidPage: String(paidPage) }), { signal });
+      if (!signal?.aborted) setData(result);
     } catch (error) {
-      toast({
-        title: "Could not load fees",
-        description: error instanceof Error ? error.message : "Try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+      if (signal?.aborted) return;
+      toast({ title: "Could not load fees", description: error instanceof Error ? error.message : "Try again.", variant: "destructive" });
+    } finally { if (!signal?.aborted) setLoading(false); }
+  }, [toast, endpoint, activePage, paidPage, reads]);
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void load();
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [load]);
-
-  async function payWithGateway(gateway: string) {
-    if (!paying) return;
-    setBusy(true);
+    if (seeded.current === `${endpoint}:${activePage}:${paidPage}`) return;
+    seeded.current = null;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => void load(controller.signal), 0);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [load, endpoint, activePage, paidPage]);
+  useEffect(() => () => detailRequest.current?.abort(), []);
+  async function loadDetails(id: number, page = 1) {
+    detailRequest.current?.abort();
+    const controller = new AbortController();
+    detailRequest.current = controller;
+    setDetailLoading(true); setDetailError("");
     try {
-      const { redirectUrl, payload, checkoutUrl } = await api.post<{ redirectUrl: string; payload: Record<string, string>; checkoutUrl?: string }>(
-        "/api/student/fees/pay",
-        { invoiceId: paying.id, gateway }
-      );
-
-      if (checkoutUrl) { window.location.assign(checkoutUrl); return; }
-      const form = document.createElement("form");
-      form.method = "POST";
-      form.action = redirectUrl;
-      form.style.display = "none";
-
-      for (const [key, value] of Object.entries(payload)) {
-        const input = document.createElement("input");
-        input.type = "hidden";
-        input.name = key;
-        input.value = value;
-        form.appendChild(input);
-      }
-
-      document.body.appendChild(form);
-      form.submit();
-    } catch (error) {
-      toast({
-        title: "Payment initialization failed",
-        description: error instanceof Error ? error.message : "Try again.",
-        variant: "destructive",
+      const separator = endpoint.includes('?') ? '&' : '?';
+      const result = await api.get<StudentFeeDetails>(endpoint + separator + new URLSearchParams({ invoiceId: String(id), page: String(page) }), { signal: controller.signal });
+      if (!controller.signal.aborted) setDetails(current => {
+        const next = { ...current, [id]: page === 1 ? result : { ...result, items: [...current[id].items, ...result.items], payments: [...current[id].payments, ...result.payments] } };
+        while (Object.keys(next).length > 10) delete next[Number(Object.keys(next).find(key => Number(key) !== id))];
+        return next;
       });
-      setBusy(false);
-    }
+    } catch (error) { if (!controller.signal.aborted) setDetailError(error instanceof Error ? error.message : "Could not load challan details."); }
+    finally { if (!controller.signal.aborted) setDetailLoading(false); }
+  }
+  function toggleDetails(id: number) {
+    detailRequest.current?.abort(); setDetailLoading(false); setDetailError("");
+    setOpenId(current => current === id ? null : id);
+    if (openId !== id && !details[id]) void loadDetails(id);
+  }
+  function pager(paging: StudentFeeAccount['activePagination'], setPage: (page: number) => void) {
+    return <nav aria-label="Challan pagination" className="flex flex-wrap justify-between gap-3 p-4 text-sm">
+      <span>Page {paging.page} of {paging.pages} ? {paging.total} challans</span>
+      <div className="flex gap-2"><Button variant="outline" size="sm" disabled={loading || paging.page <= 1} onClick={() => setPage(paging.page - 1)}>Previous</Button>
+        <Button variant="outline" size="sm" disabled={loading || paging.page >= paging.pages} onClick={() => setPage(paging.page + 1)}>Next</Button></div>
+    </nav>;
   }
 
   if (loading)
@@ -125,15 +102,16 @@ export function StudentFeesClient() {
         Loading fee account…
       </p>
     );
-  if (!data?.invoices.length)
+  if (data && !data.activePagination.total && !data.paidPagination.total)
     return (
-      <><PaymentHistory /><Card>
+      <><Card>
         <CardContent className="p-10 text-center">
           <WalletCards className="mx-auto h-10 w-10 text-stone-300" />
           <h2 className="mt-3 font-semibold">No fee challans issued yet</h2>
         </CardContent>
       </Card></>
     );
+  if (!data) return <Button onClick={() => void load()}>Retry loading fees</Button>;
   const feeData = data;
   const active = feeData.invoices.filter(
     (invoice) => !["PAID", "VOID"].includes(invoice.status),
@@ -158,10 +136,11 @@ export function StudentFeesClient() {
               <button
                 type="button"
                 className="flex flex-1 items-center justify-between gap-4 text-left"
-                onClick={() => setOpenId(expanded ? null : invoice.id)}
+                onClick={() => toggleDetails(invoice.id)}
               >
                 <div>
                   <p className="font-semibold text-brand-950">
+                    {invoice.billingKind === "ONE_TIME" && <span className="mb-1 block break-words">{invoice.billingLabel || "One-time charge"}</span>}
                     {new Date(
                       `${invoice.billingMonth}-01T00:00:00`,
                     ).toLocaleDateString("en-PK", {
@@ -200,11 +179,14 @@ export function StudentFeesClient() {
             )}
             {expanded && (
               <div className="mt-4 grid gap-5 border-t pt-4 lg:grid-cols-2">
+                {detailLoading && <p role="status">Loading challan details?</p>}
+                {detailError && <div role="alert">{detailError} <Button onClick={() => void loadDetails(invoice.id)}>Retry</Button></div>}
+                {details[invoice.id]?.hasMore && <Button disabled={detailLoading} onClick={() => void loadDetails(invoice.id, details[invoice.id].page + 1)}>More items & receipts</Button>}
                 <div>
                   <h3 className="text-xs font-bold uppercase text-stone-500">
                     Challan
                   </h3>
-                  {feeData.items
+                  {(details[invoice.id]?.items ?? [])
                     .filter((item) => item.invoiceId === invoice.id)
                     .map((item) => (
                       <div
@@ -227,7 +209,7 @@ export function StudentFeesClient() {
                   <h3 className="text-xs font-bold uppercase text-stone-500">
                     Receipts
                   </h3>
-                  {feeData.payments
+                  {(details[invoice.id]?.payments ?? [])
                     .filter((item) => item.invoiceId === invoice.id)
                     .map((receipt) => (
                       <div
@@ -268,7 +250,7 @@ export function StudentFeesClient() {
 
   return (
     <div className="space-y-6">
-      <PaymentHistory />
+
       <div className="grid gap-4 sm:grid-cols-3">
         {[
           {
@@ -287,16 +269,16 @@ export function StudentFeesClient() {
             Icon: WalletCards,
           },
         ].map(({ label, value, Icon }) => (
-          <Card key={label} className="overflow-hidden rounded-xl border border-stone-200 bg-gradient-to-b from-white to-stone-50/50 shadow-sm transition-shadow hover:shadow-md">
+          <Card key={label} className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-wider text-white/70">{label}</p>
-                <div className="rounded-lg bg-brand-50/80 p-2.5 ring-1 ring-brand-100/50">
+                <p className="text-xs font-semibold uppercase tracking-wider text-stone-600">{label}</p>
+                <div className="rounded-lg bg-stone-100 p-2.5">
                   <Icon className="h-4 w-4 text-brand-700" />
                 </div>
               </div>
               <div className="mt-5">
-                <p className="text-3xl font-bold tracking-tight text-white">{money(value)}</p>
+                <p className="text-2xl font-bold tabular-nums tracking-tight text-brand-950 sm:text-3xl">{money(value)}</p>
               </div>
             </CardContent>
           </Card>
@@ -307,12 +289,14 @@ export function StudentFeesClient() {
           <CardTitle>Active challans</CardTitle>
         </CardHeader>
         <CardContent className="divide-y p-0">{rows(active)}</CardContent>
+        {pager(feeData.activePagination, setActivePage)}
       </Card>
       <Card>
         <CardHeader className="border-b border-border bg-stone-50/70">
           <CardTitle>Paid challans & receipts</CardTitle>
         </CardHeader>
         <CardContent className="divide-y p-0">{rows(paid, true)}</CardContent>
+        {pager(feeData.paidPagination, setPaidPage)}
       </Card>
       {paying && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-950/55 p-4 backdrop-blur-sm">
@@ -333,41 +317,7 @@ export function StudentFeesClient() {
               </Button>
             </CardHeader>
             <CardContent className="p-6 pt-7 text-left">
-              <div className="grid gap-4 sm:grid-cols-2 mt-4">
-                {feeData.gateways.includes("easypaisa") && (
-                  <Button
-                    className="w-full h-14 text-base font-medium shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
-                    onClick={() => payWithGateway("easypaisa")}
-                    disabled={busy}
-                  >
-                    Pay with Easypaisa
-                  </Button>
-                )}
-                {feeData.gateways.includes("jazzcash") && (
-                  <Button
-                    className="w-full h-14 text-base font-medium shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
-                    onClick={() => payWithGateway("jazzcash")}
-                    disabled={busy}
-                  >
-                    Pay with JazzCash
-                  </Button>
-                )}
-                {feeData.gateways.includes("hblpay") && (
-                  <Button
-                    className="w-full h-14 text-base font-medium shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
-                    onClick={() => payWithGateway("hblpay")}
-                    disabled={busy}
-                  >
-                    Pay with HBL Pay
-                  </Button>
-                )}
-              </div>
-              {!feeData.gateways.length && (
-                <p className="rounded-md bg-amber-50 p-3 text-sm text-amber-800">
-                  Contact the accounts office; online payment details are not
-                  configured.
-                </p>
-              )}
+              <ManualPaymentForm endpoint={endpoint} invoiceId={paying.id} amount={paying.totalAmount - paying.paidAmount} allowPartial paymentAccounts={feeData.paymentAccounts} onSubmitted={() => { setPaying(null); setDetails({}); void load(); }} />
             </CardContent>
           </Card>
         </div>

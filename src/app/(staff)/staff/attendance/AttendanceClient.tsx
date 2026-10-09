@@ -1,4 +1,7 @@
 "use client";
+import { responseErrorMessage } from '@/lib/validation-errors';
+
+import { runAction } from '@/lib/run-action';
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -6,7 +9,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Check, X, Clock, HelpCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
-import { submitAttendanceAction } from "@/app/actions/staff-actions";
+import { submitAttendanceWithFeedback as submitAttendanceAction } from '@/app/actions/feedback-actions';
 
 const STATUS_STATES = [
   { value: "PRESENT", label: "P", color: "bg-success text-white border-success", icon: Check },
@@ -69,7 +72,7 @@ export function AttendanceClient({
     setIsLoadingSection(true);
     try {
       const res = await fetch(`/api/staff/attendance?view=mark&sectionId=${id}`);
-      if (!res.ok) throw new Error("Failed to load section roster");
+      if (!res.ok) throw new Error(await responseErrorMessage(res));
       const data = await res.json();
       const sectionStudents: AttendanceStudent[] = data.students || [];
       setStudentsBySection((prev) => ({ ...prev, [id]: sectionStudents }));
@@ -97,7 +100,7 @@ export function AttendanceClient({
     setIsSubmitting(true);
     try {
       const records = students.map(s => ({ studentId: s.id, status: s.status as "PRESENT" | "ABSENT" | "LATE" | "LEAVE" }));
-      await submitAttendanceAction(selectedSectionId, new Date(), records);
+      await runAction(submitAttendanceAction, selectedSectionId, new Date(), records);
       toast({ title: "Success", description: "Attendance submitted successfully", variant: "success" });
       setMarkedSections((current) => ({ ...current, [selectedSectionId]: true }));
     } catch (error: unknown) {
@@ -112,11 +115,8 @@ export function AttendanceClient({
 
   return (
     <div className="space-y-6 animate-fade-in pb-24 lg:pb-0">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="font-display text-3xl font-bold text-brand-950">Mark Attendance</h1>
-          <p className="text-stone-500 mt-1 text-sm lg:text-base">Select attendance status for each student</p>
-        </div>
+      <div className="flex flex-col sm:flex-row justify-end items-start sm:items-center gap-4">
+
         <div className="flex items-center gap-2 w-full sm:w-auto">
           {assignedSections.length <= 1 ? (
             <div className="h-10 w-full sm:w-auto rounded-md border border-border bg-surface px-4 py-2 text-sm font-medium flex items-center min-w-[150px] shadow-sm text-brand-900">
@@ -210,7 +210,7 @@ export function AttendanceClient({
                 <span className="text-stone-500">Absent</span>
                 <span className="font-semibold text-danger">{students.length - presentCount}</span>
               </div>
-              
+
               <div className="pt-4 border-t border-border space-y-2">
                 <p className="text-xs font-medium text-stone-500 mb-2 uppercase tracking-wider">Legend</p>
                 {STATUS_STATES.map(s => (

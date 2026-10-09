@@ -1,3 +1,4 @@
+import { ARCHIVED_ADMISSION_MESSAGE, isArchivedAdmissionError } from "./admission-archive-error";
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest, getLightSessionFromRequest, getWarmSessionFromRequest, UserRole, JWTPayload } from './auth';
 import { DEFAULT_MAX_BODY_BYTES, bodyTooLargeResponse, exceedsDeclaredBodyLimit } from './http';
@@ -6,6 +7,7 @@ import { measurePerformancePhase } from './performance';
 import { withApiPolicy } from './api-policy';
 import { stripSessionHeaders } from './session-header';
 import { applyCorsHeaders } from './cors';
+import { inputErrorResponse } from './input-error-response';
 import type { NativeJsonResponse } from './native-json-response';
 import { campusMutationBlocked, CAMPUS_READ_ONLY_ERROR } from './campus-view';
 import { authorizeSecurityPermission, type SecurityPermission } from './security-permissions';
@@ -108,6 +110,10 @@ export function requireRole(
       const enhancedContext = { ...context, session };
       return await measurePerformancePhase('handler', async () => handler(req, enhancedContext as any));
     } catch (err) {
+      const inputError = inputErrorResponse(err);
+      if (inputError) return NextResponse.json(inputError.body, { status: inputError.status });
+      if (err instanceof SyntaxError && /JSON/i.test(err.message)) return NextResponse.json({ error: 'The request could not be read. Please check the entered values and try again.' }, { status: 400 });
+      if (isArchivedAdmissionError(err)) return NextResponse.json({ error: ARCHIVED_ADMISSION_MESSAGE }, { status: 409 });
       console.error('RBAC Error:', err);
       return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }

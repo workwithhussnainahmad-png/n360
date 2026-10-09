@@ -202,6 +202,8 @@ const deleteAdmissionCycleSchema = z
   .strict();
 
 export const admissionConfigurationActionSchema = z.union([
+  z.object({ action: z.literal("archiveCycle"), cycleId: z.number().int().positive() }).strict(),
+  z.object({ action: z.literal("restoreCycle"), cycleId: z.number().int().positive() }).strict(),
   createAdmissionCycleSchema,
   updateAdmissionCycleSchema,
   createAdmissionOfferingSchema,

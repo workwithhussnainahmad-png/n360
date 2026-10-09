@@ -51,9 +51,9 @@ async function load(entry: string) {
     });
     builder.onLoad({ filter: /.*/, namespace: 'fixture' }, (args) => ({ contents: mocks[args.path], loader: 'js', resolveDir: process.cwd() }));
   } }] });
-  const module = { exports: {} as Record<string, any> };
-  new Function('require', 'module', 'exports', result.outputFiles[0].text)(createRequire(path.resolve('package.json')), module, module.exports);
-  return module.exports;
+  const loadedModule = { exports: {} as Record<string, any> };
+  new Function('require', 'module', 'exports', result.outputFiles[0].text)(createRequire(path.resolve('package.json')), loadedModule, loadedModule.exports);
+  return loadedModule.exports;
 }
 const evidence: string[] = [];
 process.env.NEXT_PUBLIC_APP_DOMAIN='nisaab360.app';

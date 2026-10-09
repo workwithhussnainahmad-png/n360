@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { db } from "@/db";
@@ -120,6 +121,9 @@ export const POST = requireRole(["STAFF"], async (req: NextRequest, { session, p
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error saving manual marks:", error);
     return NextResponse.json({ error: "Failed to save marks" }, { status: 500 });
   }

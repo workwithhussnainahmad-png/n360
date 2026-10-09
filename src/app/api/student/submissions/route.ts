@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { saveStudentSubmission } from "@/app/actions/assessment-actions";
 import { db } from "@/db";
@@ -126,6 +127,9 @@ export const GET = requireRole(["STUDENT"], async (req: NextRequest, { session }
         : null,
     });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error fetching submissions:", error);
     return NextResponse.json({ error: "Failed to fetch submissions" }, { status: 500 });
   }

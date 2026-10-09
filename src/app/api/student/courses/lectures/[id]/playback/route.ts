@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import crypto from "node:crypto";
@@ -191,6 +192,9 @@ export const GET = requireRole(
         { headers: { "Cache-Control": "private, no-store" } },
       );
     } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
       return NextResponse.json(
         {
           error:

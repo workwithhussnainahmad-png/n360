@@ -28,6 +28,12 @@
 *.crt
 *.p12
 *.pfx
+*.p8
+*.jks
+*.keystore
+id_rsa
+id_ecdsa
+id_ed25519
 *.bak
 *.backup
 *.tmp
@@ -43,6 +49,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+*.env
 !.env.example
 .env*.local
 google_drive_setup_guide.md
@@ -52,7 +59,7 @@ google_drive_setup_guide.md
 *.sqlite
 *.sqlite3
 
-# local-only operational database scripts
+# Local-only root repair/database scripts
 /check*.js
 /check*.ts
 /fix*.js
@@ -66,26 +73,40 @@ google_drive_setup_guide.md
 /clear_*.js
 /clear_*.ts
 /clear_*.mjs
-/scripts/wipe.ts
-/scripts/wipe-database.ts
-/scripts/wipe*.ts
-/scripts/clear-assignments.ts
-/scripts/create-super-admin.ts
-/scripts/create-sa.ts
-/scripts/apply-online-tests-schema.mjs
-/scripts/*.local.*
-/scripts/migrate*.ts
-/scripts/migrate*.mjs
+# Scripts are local-only unless explicitly needed by runtime, release or checks.
+# Docker has a smaller build-input list; keep public package.json commands valid.
+/scripts/**
+!/scripts/audit-tenant-scope.mjs
+!/scripts/build.mjs
+!/scripts/build-release.mjs
+!/scripts/email-outbox-worker.ts
+!/scripts/hot-lane-request.cjs
+!/scripts/institution-restore-worker.ts
 !/scripts/migrate-production.mjs
-/scripts/apply-*.ts
-# Never publish seed / fake-data / local flood helpers (wrong hands can spam DB)
-/scripts/seed*.ts
-/scripts/seed*.mjs
-/scripts/seed*.js
-/scripts/login-smoke-test.ts
-/scripts/login-candidate-integration.ts
-/scripts/run-login-candidate-docker-test.ts
-/scripts/verify-parent-assessment-workflows.mjs
+!/scripts/prepare-standalone.mjs
+!/scripts/push-receipt-worker.ts
+!/scripts/release-preflight.mjs
+!/scripts/restore-central-drive-backup.ts
+!/scripts/start-local.mjs
+!/scripts/verify-admission-campus.tsx
+!/scripts/verify-admissions.ts
+!/scripts/verify-billing-ui.cjs
+!/scripts/verify-cache-policy.ts
+!/scripts/verify-campus-workspaces.ts
+!/scripts/verify-employee-permissions.mjs
+!/scripts/verify-fee-billing.ts
+!/scripts/verify-first-login.ts
+!/scripts/verify-form-validation.ts
+!/scripts/verify-form-validation-ui.cjs
+!/scripts/verify-institution-admin-permissions.mjs
+!/scripts/verify-institution-restores.ts
+!/scripts/verify-local.mjs
+!/scripts/verify-qr-key-rotation.ts
+!/scripts/verify-request-costs.cjs
+!/scripts/verify-request-costs-ui.cjs
+!/scripts/verify-role-boundaries.ts
+!/scripts/verify-serialized-lane.ts
+!/scripts/standalone-server.cjs
 /seed-admin.ts
 /seed-data.ts
 /seed-sa.ts
@@ -126,6 +147,8 @@ instituion_settings.png
 
 # local backups and scratchpads
 /k6/
+/Caddyfile.k6
+/docker-compose.k6.yml
 /fix-log.md
 /SMOKE_TEST.md
 /CLOUDFLARE.md
@@ -171,12 +194,34 @@ scripts/reset-parent-password.ts
 /fixsfromcluade.md
 /docs/*-20??-??-??/
 /docs/performance-experiments/
+/docs/performance-diagnostic-evidence/
+/docs/performance-discrepancy-investigation.md
+/docs/performance-experiment-results.md
+/docs/server-performance-diagnostic-report.md
+/docs/queue-cost-optimization.md
+/docs/easypaisa-integration-findings.md
+/docs/payment-gateway-production-audit.md
+# Superseded deployment instructions; deployment/README.md is maintained.
+/deploy_guide.md
 /docs/*-probe.json
 /docs/performance-*.json
 
 # Local authentication and credential files
+.npmrc
+.netrc
+_netrc
+.aws/
+.ssh/
+.gnupg/
+.kube/
 *.local.*
 credentials.json
 credentials-*.json
 service-account*.json
 service_account*.json
+client_secret*.json
+tokens.json
+tokens-*.json
+users.csv
+/deployment/release.env
+/deployment/releases/

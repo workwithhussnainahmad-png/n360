@@ -9,7 +9,11 @@ const source = readFileSync('scripts/standalone-server.cjs', 'utf8');
 const adapter = source.slice(source.indexOf('async function handleLane('), source.indexOf('async function loadLane('));
 assert.ok(adapter.length > 0);
 const settings = { env: { HOT_PATH_JSON_BODY: '1' } };
-const handle = runInNewContext(`(${adapter})`, { NextRequest, Response, Headers, Buffer, process: settings, console });
+const handle = runInNewContext(`(${adapter})`, {
+  NextRequest, Response, Headers, Buffer, process: settings, console,
+  NATIVE_WARM_ENABLED: false, LIGHT_REQUEST_ENABLED: false,
+  createHotLaneRequest: (req: {url:string}) => new NextRequest("http://localhost" + req.url),
+});
 async function send(response: Response) {
   const result = { status: 0, headers: {} as Record<string, string | string[]>, body: null as string | Buffer | null };
   await handle({ headers: { host: 'localhost' }, url: '/api/student/dashboard' }, {

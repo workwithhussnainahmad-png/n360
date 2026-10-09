@@ -1,3 +1,5 @@
+import { actionFeedback } from '@/lib/action-feedback';
+import { ActionForm } from '@/components/ui/action-form';
 import Link from "next/link";
 import { db } from "@/db";
 import { tickets, staff, students } from "@/db/schema";
@@ -63,23 +65,25 @@ export default async function InstitutionHelpdeskPage({ searchParams }: { search
 
   async function handleStatusChange(formData: FormData) {
     "use server";
+    return actionFeedback(async () => {
     const ticketId = parseInt(formData.get("ticketId") as string, 10);
     const status = formData.get("status") as "WORKING" | "RESOLVED";
     await updateTicketStatusAction(ticketId, status);
+
+    });
   }
 
   async function handleForward(formData: FormData) {
     "use server";
+    return actionFeedback(async () => {
     const ticketId = parseInt(formData.get("ticketId") as string, 10);
     await forwardTicketAction(ticketId);
+
+    });
   }
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-display font-bold text-brand-950">Helpdesk Tickets</h1>
-        <p className="text-stone-500 mt-1">Manage support requests from your students and staff.</p>
-      </div>
 
       <Card>
         <CardHeader className="border-b border-border bg-stone-50/50">
@@ -119,7 +123,7 @@ export default async function InstitutionHelpdeskPage({ searchParams }: { search
           ) : (
             <ul className="divide-y divide-border">
               {allTickets.map((ticket) => {
-                const creatorName = ticket.creatorRole === "STAFF" 
+                const creatorName = ticket.creatorRole === "STAFF"
                   ? staffMap.get(ticket.creatorId) || "Unknown Staff"
                   : studentMap.get(ticket.creatorId) || "Unknown Student";
 
@@ -144,27 +148,27 @@ export default async function InstitutionHelpdeskPage({ searchParams }: { search
                         {ticket.status !== 'RESOLVED' && (
                           <>
                             {ticket.status === 'OPEN' && (
-                              <form action={handleStatusChange}>
+                              <ActionForm action={handleStatusChange}>
                                 <input type="hidden" name="ticketId" value={ticket.id} />
                                 <input type="hidden" name="status" value="WORKING" />
                                 <SubmitButton className="w-full bg-yellow-600 hover:bg-yellow-700 text-white" size="sm">
                                   <PlayCircle className="w-4 h-4 mr-2" /> Mark Working
                                 </SubmitButton>
-                              </form>
+                              </ActionForm>
                             )}
-                            <form action={handleStatusChange}>
+                            <ActionForm action={handleStatusChange}>
                               <input type="hidden" name="ticketId" value={ticket.id} />
                               <input type="hidden" name="status" value="RESOLVED" />
                               <SubmitButton className="w-full bg-green-600 hover:bg-green-700 text-white" size="sm">
                                 <CheckCircle2 className="w-4 h-4 mr-2" /> Mark Resolved
                               </SubmitButton>
-                            </form>
-                            <form action={handleForward}>
+                            </ActionForm>
+                            <ActionForm action={handleForward}>
                               <input type="hidden" name="ticketId" value={ticket.id} />
                               <SubmitButton className="w-full" variant="outline" size="sm">
                                 <Send className="w-4 h-4 mr-2" /> Forward to Platform
                               </SubmitButton>
-                            </form>
+                            </ActionForm>
                           </>
                         )}
                       </div>

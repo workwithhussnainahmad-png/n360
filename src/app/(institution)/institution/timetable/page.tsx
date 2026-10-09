@@ -1,6 +1,8 @@
+import { getInstitutionAcademicsData } from "@/lib/institution-academics-data";
+import { getCachedOrFetch } from "@/lib/redis";
 import { db } from "@/db";
 import { classes, sections, staffAssignments, subjects, staff } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -34,15 +36,14 @@ export default async function InstitutionTimetablePage({ searchParams }: { searc
   const institutionId = session.institutionId || session.userId;
   const params = await searchParams;
 
-  const [allSections, allSubjects, allStaff, allClasses] = await Promise.all([
-    db.select({
-      section: sections,
-      className: classes.name,
-    }).from(sections).innerJoin(classes, eq(sections.classId, classes.id)).where(eq(sections.institutionId, institutionId)),
-    db.select().from(subjects).where(eq(subjects.institutionId, institutionId)),
-    db.select().from(staff).where(eq(staff.institutionId, institutionId)),
-    db.select().from(classes).where(eq(classes.institutionId, institutionId)),
+  const [academics, allStaff] = await Promise.all([
+    getInstitutionAcademicsData(institutionId),
+    getCachedOrFetch(`cache:staff-options:${institutionId}:timetable`, 30, () => db.select({ id: staff.id, name: staff.name }).from(staff)
+      .where(and(eq(staff.institutionId, institutionId), isNull(staff.deletedAt), eq(staff.isActive, true))).orderBy(staff.name)),
   ]);
+  const allSections = academics.sections.map(section => ({ section }));
+  const allSubjects = academics.subjects;
+  const allClasses = academics.classes;
   const sectionsByClass = new Map<number, typeof allSections>();
   for (const section of allSections) {
     const classSections = sectionsByClass.get(section.section.classId) || [];
@@ -118,11 +119,8 @@ export default async function InstitutionTimetablePage({ searchParams }: { searc
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-brand-950">Timetable Manager</h1>
-          <p className="text-stone-500 mt-1">Assign teachers, subjects, and timeslots for classes.</p>
-        </div>
+      <div className="flex flex-col sm:flex-row justify-end items-start sm:items-center gap-4">
+
         <div className="flex flex-wrap items-center gap-3">
           <Link
             href="/institution/timetable/overview"

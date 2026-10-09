@@ -1,3 +1,4 @@
+import { validationError } from '@/lib/validation-errors';
 import { isMainCampusWebsite } from '@/lib/public-website-access';
 import { desc, eq } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
@@ -23,7 +24,7 @@ export const POST = requireRole(['INSTITUTION', 'INSTITUTION_ADMIN'], async (req
   const body = await readJsonBody(req, 256 * 1024);
   if (!body.ok) return NextResponse.json({ error: body.error }, { status: body.status });
   const parsed = createPublicEventSchema.safeParse(body.data);
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid event' }, { status: 400 });
+  if (!parsed.success) return NextResponse.json(validationError(parsed.error), { status: 400 });
 
   if (parsed.data.action === 'PUBLISH') {
     const [institution] = await db.select({ status: institutions.status, publicSlug: institutions.publicSlug, publicSiteEnabled: institutions.publicSiteEnabled }).from(institutions).where(eq(institutions.id, institutionId)).limit(1);

@@ -1,4 +1,5 @@
 "use client";
+import { ActionForm } from '@/components/ui/action-form';
 
 import { useState } from "react";
 import { Plus } from "lucide-react";
@@ -19,14 +20,14 @@ export function AnnouncementFormClient({
   campuses: CampusOption[];
   classes: ClassOption[];
   sections: SectionOption[];
-  action: (formData: FormData) => Promise<void>;
+  action: (formData: FormData) => Promise<unknown>;
 }) {
   const [targetType, setTargetType] = useState<string>("ALL");
   const [selectedCampusId, setSelectedCampusId] = useState<string>("");
   const [selectedClassId, setSelectedClassId] = useState<string>("");
   const [selectedSectionId, setSelectedSectionId] = useState<string>("");
 
-  const filteredSections = selectedClassId 
+  const filteredSections = selectedClassId
     ? sections.filter(s => s.classId === parseInt(selectedClassId) && displaySectionName(s.name))
     : [];
 
@@ -39,7 +40,7 @@ export function AnnouncementFormClient({
         </CardTitle>
       </CardHeader>
       <CardContent className="p-6">
-        <form action={action} className="space-y-4 pt-2">
+        <ActionForm action={action} className="space-y-4 pt-2">
           <div>
             <label className="mb-2 block text-sm font-medium text-stone-700">Message Title</label>
             <input
@@ -91,9 +92,9 @@ export function AnnouncementFormClient({
           {(targetType === "CLASS" || targetType === "SECTION") && (
             <div>
               <label className="block text-sm font-medium text-stone-700 mb-1">Select Class</label>
-              <select 
-                name="targetClassId" 
-                required 
+              <select
+                name="targetClassId"
+                required
                 value={selectedClassId}
                 onChange={(e) => {
                   setSelectedClassId(e.target.value);
@@ -138,7 +139,7 @@ export function AnnouncementFormClient({
           >
             Send Announcement
           </SubmitButton>
-        </form>
+        </ActionForm>
       </CardContent>
     </Card>
   );

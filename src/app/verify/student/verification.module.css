@@ -1,0 +1,39 @@
+
+.page { flex: 1; display: flex; align-items: center; justify-content: center; padding: 32px 16px; min-height: 85svh; min-width: 0; }
+.card { width: 100%; max-width: 600px; min-width: 0; border: 1px solid var(--border, #ded8cc); border-radius: 10px; overflow: hidden; background: var(--surface, #faf9f6); }
+.brand { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 18px 24px; border-bottom: 1px solid var(--border, #ded8cc); font-size: 14px; font-weight: 700; }
+.brand span { font-size: 11px; color: #827c72; font-weight: 400; }
+.body { display: grid; gap: 24px; padding: 24px; min-width: 0; }
+.page h1 { margin: 0; font-size: 18px; font-weight: 600; line-height: 1.5; }
+.page p { margin: 0; font-size: 12px; line-height: 1.8; color: #827c72; }
+.resultHeading { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.success { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex-shrink: 0; border-radius: 10px; color: #6c841e; background: #f0f3e6; }
+.failed { color: #b4473b; }
+.identity { border-block: 1px solid var(--border, #ded8cc); padding-block: 24px; display: flex; align-items: center; gap: 20px; min-width: 0; }
+.identity img, .photoPlaceholder { width: 80px; height: 96px; flex-shrink: 0; object-fit: cover; border: 1px solid var(--border, #ded8cc); border-radius: 6px; }
+.photoPlaceholder { display: flex; align-items: center; justify-content: center; color: #939687; background: #f0f3e6; }
+.identityText { min-width: 0; display: grid; gap: 6px; overflow-wrap: anywhere; }
+.page .identity h2 { margin: 0; font-size: 18px; font-weight: 600; line-height: 1.5; }
+.badge { color: #6f745f; font-size: 11px; line-height: 1.8; }
+.details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 24px; margin: 0; }
+.details div { min-width: 0; overflow-wrap: anywhere; }
+.details dt { font-size: 11px; line-height: 1.6; color: #827c72; margin-bottom: 4px; }
+.details dd { margin: 0; font-size: 13px; font-weight: 500; line-height: 1.7; }
+.academicStatus { text-transform: capitalize; }
+.message { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px 0; min-height: 220px; text-align: center; }
+.page .message p { text-align: center; max-width: 340px; overflow-wrap: anywhere; }
+.message button { min-height: 40px; padding: 10px 16px; border-radius: 5px; background: #344025; color: white; font-size: 12px; cursor: pointer; }
+.page button:focus-visible { outline: 2px solid #819e32; outline-offset: 3px; }
+.card footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 16px 24px; border-top: 1px solid var(--border, #ded8cc); font-size: 11px; color: #827c72; line-height: 1.7; }
+.card footer button { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 10px; border: 1px solid var(--border, #ded8cc); border-radius: 5px; font-size: 11px; color: #344025; cursor: pointer; }
+.card footer button:hover { background: #f0f3e6; }
+@media (max-width: 480px) {
+ .page { padding: 20px 12px; align-items: flex-start; }
+ .brand, .card footer { padding: 16px 18px; }
+ .body { padding: 20px 18px; gap: 20px; }
+ .identity { gap: 14px; padding-block: 20px; }
+ .identity img, .photoPlaceholder { width: 64px; height: 80px; }
+ .page .identity h2 { font-size: 16px; }
+ .details { gap: 16px; }
+}
+@media (max-width: 340px) { .identity { flex-direction: column; align-items: flex-start; } .details { grid-template-columns: minmax(0, 1fr); } }

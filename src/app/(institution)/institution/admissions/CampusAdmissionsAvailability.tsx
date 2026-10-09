@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -9,7 +9,7 @@ type CampusIntake = {
   cycles: Array<{ id: number; name: string; academicYear: string; isOpen: boolean; cycleAccepting: boolean }>;
 };
 
-export function CampusAdmissionsAvailability({ refreshKey }: { refreshKey: string }) {
+export function CampusAdmissionsAvailability({ refreshKey, headerActions }: { refreshKey: string; headerActions?: ReactNode }) {
   const [data, setData] = useState<CampusIntake | null>(null);
   const [busy, setBusy] = useState<number | null>(null);
   const [error, setError] = useState("");
@@ -41,7 +41,10 @@ export function CampusAdmissionsAvailability({ refreshKey }: { refreshKey: strin
 
   return (
     <Card>
-      <CardHeader><CardTitle>Campus admissions{data?.campus ? ` — ${data.campus.name}` : ""}</CardTitle></CardHeader>
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 space-y-0">
+        <CardTitle>Campus admissions{data?.campus ? ` — ${data.campus.name}` : ""}</CardTitle>
+        {headerActions}
+      </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-stone-600">Choose which cycles accept new applications for this campus. Closing intake keeps existing applications available for review and enrollment.</p>
         {error && <p role="alert" className="text-sm text-red-700">{error}</p>}

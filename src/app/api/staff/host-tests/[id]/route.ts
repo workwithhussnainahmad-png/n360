@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { onlineTests, tests } from "@/db/schema";
@@ -28,6 +29,9 @@ export const DELETE = requireRole(["STAFF"], async (req: NextRequest, { session,
 
     return NextResponse.json({ success: true, message: "Test deleted successfully" });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error deleting hosted test:", error);
     return NextResponse.json({ error: "Failed to delete test" }, { status: 500 });
   }
@@ -71,6 +75,9 @@ export const PATCH = requireRole(["STAFF"], async (req: NextRequest, { session, 
 
     return NextResponse.json({ success: true, message: "Test updated successfully" });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error updating hosted test:", error);
     return NextResponse.json({ error: "Failed to update test" }, { status: 500 });
   }

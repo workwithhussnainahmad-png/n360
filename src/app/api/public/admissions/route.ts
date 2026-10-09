@@ -1,3 +1,4 @@
+import { validationError } from '@/lib/validation-errors';
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { and, eq, sql } from 'drizzle-orm';
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest) {
 
   const parsed = publicAdmissionApplicationSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid application information' }, { status: 400 });
+    return NextResponse.json(validationError(parsed.error), { status: 400 });
   }
   if (parsed.data.dateOfBirth > admissionCalendarDate()) {
     return NextResponse.json({ error: 'Date of birth cannot be in the future' }, { status: 400 });

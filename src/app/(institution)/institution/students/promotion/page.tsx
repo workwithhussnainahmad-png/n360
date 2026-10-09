@@ -57,11 +57,8 @@ export default function PromotionPage() {
 
   return (
     <div className="max-w-6xl space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-brand-950">Auto Promotion</h1>
-          <p className="mt-1 text-stone-500">Review teacher-published promotion results before making them official.</p>
-        </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-end">
+
         <Button variant="outline" onClick={load} disabled={loading}>
           {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
           {loaded ? "Refresh" : "Load promotion results"}

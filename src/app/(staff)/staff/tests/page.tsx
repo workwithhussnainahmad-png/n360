@@ -38,11 +38,6 @@ export default async function StaffTestsPage() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div className="border-b border-border pb-6">
-        <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">Teacher hosted tests</p>
-        <h1 className="mt-2 text-3xl font-display font-bold text-brand-950">Host Test</h1>
-        <p className="mt-1 text-stone-500">Create MCQ-only or Mix tests for your assigned classes and subjects.</p>
-      </div>
 
       <div className="grid gap-6 xl:grid-cols-[520px_1fr]">
         <Card className="h-fit">

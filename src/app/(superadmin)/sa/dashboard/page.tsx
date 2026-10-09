@@ -70,10 +70,6 @@ export default async function SuperAdminDashboard() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-display font-bold text-brand-950">Platform Overview</h1>
-        <p className="text-stone-500 mt-1">Monitor all institutions and employees.</p>
-      </div>
 
       <MobileAppVersionUpdater currentVersion={currentAppVersion} />
       {isRoot && <PublicSiteDomainUpdater currentDomain={publicSiteBaseDomain} />}

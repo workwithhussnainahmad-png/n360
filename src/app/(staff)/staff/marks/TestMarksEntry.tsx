@@ -1,9 +1,13 @@
 "use client";
+import { responseErrorMessage } from '@/lib/validation-errors';
 
+import { ActionForm } from '@/components/ui/action-form';
+
+import { useAbortableReads } from "@/lib/use-abortable-reads";
 import { useState } from "react";
 import { Loader2, PenLine } from "lucide-react";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { enterMarksManuallyAction } from "@/app/actions/assessment-actions";
+import { enterMarksManuallyWithFeedback as enterMarksManuallyAction } from '@/app/actions/feedback-actions';
 import { formatClassSection } from "@/lib/class-section-label";
 
 type SectionOption = {
@@ -38,6 +42,7 @@ export function TestMarksEntry({
     : sectionOptions.filter((s) => s.classId === classId);
 
   const [selectedSectionId, setSelectedSectionId] = useState<number | null>(eligibleSections[0]?.sectionId ?? null);
+  const reads = useAbortableReads();
   const [loaded, setLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -45,12 +50,14 @@ export function TestMarksEntry({
   const [existingMarks, setExistingMarks] = useState<Record<number, number>>({});
 
   const loadRoster = async (sectionId: number) => {
+    const signal = reads.begin("details");
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/staff/marks?sectionId=${sectionId}&testId=${testId}`);
-      if (!res.ok) throw new Error("Failed to load roster");
+      const res = await fetch(`/api/staff/marks?sectionId=${sectionId}&testId=${testId}`, { signal });
+      if (!res.ok) throw new Error(await responseErrorMessage(res));
       const data = await res.json();
+      if (signal.aborted) return;
       const rosterRows: { id: number; name: string; rollNumber: string }[] = data.rosters?.[sectionId] || [];
       setRoster(rosterRows);
       const marksMap: Record<number, number> = {};
@@ -61,20 +68,23 @@ export function TestMarksEntry({
       setExistingMarks(marksMap);
       setLoaded(true);
     } catch (err: unknown) {
+      if (signal.aborted) return;
       setError(err instanceof Error ? err.message : "Failed to load roster");
     } finally {
-      setLoading(false);
+      if (!signal.aborted) setLoading(false);
     }
   };
 
   const handleToggle = (e: React.SyntheticEvent<HTMLDetailsElement>) => {
-    if (!e.currentTarget.open || loaded || loading || !selectedSectionId) return;
+    if (!e.currentTarget.open) { reads.cancel("details"); setLoading(false); return; }
+    if ( loaded || loading || !selectedSectionId) return;
     void loadRoster(selectedSectionId);
   };
 
   const handleSectionChange = (sectionId: number) => {
     setSelectedSectionId(sectionId);
     setLoaded(false);
+    setRoster([]); setExistingMarks({});
     void loadRoster(sectionId);
   };
 
@@ -108,7 +118,7 @@ export function TestMarksEntry({
         ) : error ? (
           <p className="text-sm text-danger">{error}</p>
         ) : loaded && selectedSectionId ? (
-          <form action={enterMarksManuallyAction} className="space-y-4">
+          <ActionForm action={enterMarksManuallyAction} className="space-y-4">
             <input type="hidden" name="testId" value={testId} />
             <input type="hidden" name="sectionId" value={selectedSectionId} />
             <input type="hidden" name="totalMarks" value={maxMarks} />
@@ -144,7 +154,7 @@ export function TestMarksEntry({
               <PenLine className="h-4 w-4 mr-2" />
               Save Manual Marks
             </SubmitButton>
-          </form>
+          </ActionForm>
         ) : null}
       </div>
     </details>

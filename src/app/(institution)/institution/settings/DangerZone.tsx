@@ -1,4 +1,6 @@
 "use client";
+import { responseErrorMessage } from '@/lib/validation-errors';
+
 
 import { useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -29,7 +31,7 @@ export function DangerZone() {
       });
 
       if (!res.ok) {
-        throw new Error("Failed to delete account");
+        throw new Error(await responseErrorMessage(res));
       }
 
       // Simulate a small delay for the animation

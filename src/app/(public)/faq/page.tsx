@@ -31,7 +31,7 @@ const FAQ_ITEMS: FaqItemData[] = [
     question: "What is an LMS and what makes Nisaab360 unique for schools in Pakistan?",
     answer: (
       <>
-        A <strong>Learning Management System (LMS)</strong> combined with a School ERP is an integrated digital operating system that unifies school operations, academics, communication, and financial management. <strong>Nisaab360</strong> is uniquely designed ground-up for Pakistani educational environments: featuring native PKR currency handling, local payment gateways (<strong>Easypaisa, JazzCash, and HBL Pay</strong>), Pakistani academic cycle workflows, Matric/Intermediate/Cambridge grading standards, and automated SMS alerts.
+        A <strong>Learning Management System (LMS)</strong> combined with a School ERP is an integrated digital operating system that unifies school operations, academics, communication, and financial management. <strong>Nisaab360</strong> is uniquely designed ground-up for Pakistani educational environments: featuring native PKR currency handling, institution-managed bank and wallet accounts, Pakistani academic cycle workflows, Matric/Intermediate/Cambridge grading standards, and automated SMS alerts.
       </>
     ),
   },
@@ -173,16 +173,10 @@ const FAQ_ITEMS: FaqItemData[] = [
     id: "pakistani-payment-gateways",
     category: "fees",
     categoryLabel: "Fees & Payments",
-    question: "Which Pakistani digital payment gateways does Nisaab360 support?",
+    question: "How do institutions receive fee payments?",
     answer: (
       <>
-        Nisaab360 features native integrations for Pakistan&apos;s leading payment providers:
-        <ul className="mt-1.5 list-disc list-inside space-y-1 text-slate-700">
-          <li><strong>Easypaisa:</strong> Mobile wallet push prompts, OTC tokens, and debit card checkouts.</li>
-          <li><strong>JazzCash:</strong> Mobile account direct debit and voucher checkouts.</li>
-          <li><strong>HBL Pay (Habib Bank Limited):</strong> Direct bank debit and Visa/Mastercard processing.</li>
-          <li><strong>Over-the-Counter Bank Transfer:</strong> Manual challan deposit slip upload with staff review.</li>
-        </ul>
+        Institutions add their bank or wallet name, account number, account name, and an optional QR image. Students, parents, and applicants choose an account, transfer the payment, and submit a payment screenshot and transaction ID for institution review.
       </>
     ),
   },
@@ -190,10 +184,10 @@ const FAQ_ITEMS: FaqItemData[] = [
     id: "automated-reconciliation",
     category: "fees",
     categoryLabel: "Fees & Payments",
-    question: "How does automated fee reconciliation work?",
+    question: "How are submitted payments confirmed?",
     answer: (
       <>
-        When a parent or student pays online via Easypaisa, JazzCash, or HBL Pay, secure webhook APIs notify Nisaab360 in real-time. The system instantly marks the voucher as <code>PAID</code>, logs the gateway transaction ID, generates a digital receipt, and updates accounting ledgers—eliminating manual teller reconciliation delays.
+        Authorized institution staff review the submitted screenshot and transaction ID before confirming a payment. Approval updates the fee balance and creates a receipt. Rejected submissions keep their evidence and review note so the payer can resubmit and staff can review the history.
       </>
     ),
   },
@@ -204,7 +198,7 @@ const FAQ_ITEMS: FaqItemData[] = [
     question: "Can parents view dues and pay fees directly through their mobile phones?",
     answer: (
       <>
-        <strong>Yes.</strong> Parents can log into the Parent Portal or mobile app at any time to inspect current dues, past payment receipts, and breakdown of fee heads. They can either download the printable PDF challan for bank branch deposit or complete online settlement with one click using their mobile wallet.
+        <strong>Yes.</strong> Parents can log into the Parent Portal or mobile app at any time to inspect current dues, past payment receipts, and breakdown of fee heads. They can view institution payment accounts, transfer the fee, and submit a screenshot and transaction ID from their phone for institution verification.
       </>
     ),
   },

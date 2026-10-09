@@ -63,11 +63,8 @@ export default async function InstitutionDashboard() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-        <div>
-        <h1 className="text-3xl font-display font-bold text-brand-950">Institution Dashboard</h1>
-        <p className="text-stone-500 mt-1">Overview of your campus activities and academics.</p>
-        </div>
+      <div className="flex flex-col justify-end gap-4 sm:flex-row sm:items-start">
+
         {session.role === 'INSTITUTION' && homeCampus && session.campusId && <CampusSwitcher campuses={availableCampuses} currentCampusId={session.campusId} homeCampusId={homeCampus.id} />}
       </div>
 

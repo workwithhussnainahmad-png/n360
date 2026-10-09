@@ -1,7 +1,8 @@
 "use client";
+import { runAction } from '@/lib/run-action';
 
 import { useState } from "react";
-import { updateAppVersionAction } from "@/app/actions/sa-actions";
+import { updateAppVersionWithFeedback as updateAppVersionAction } from '@/app/actions/feedback-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ export function MobileAppVersionUpdater({ currentVersion }: { currentVersion: st
   const handleUpdate = async () => {
     setIsPending(true);
     try {
-      await updateAppVersionAction(version);
+      await runAction(updateAppVersionAction, version);
       toast({
         title: "Success",
         description: "Mobile App Version updated.",

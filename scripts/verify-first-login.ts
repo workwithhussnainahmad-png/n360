@@ -124,8 +124,8 @@ async function main() {
     assert.equal((await documentResponse.json()).error, 'Invalid upload action');
     const proofResponse = await proof(applicantRequest('/api/public/admissions/fees/51'), { params: Promise.resolve({ applicationId: '51' }) });
     assert.equal((await proofResponse.json()).error, 'Invalid payment action');
-    const payResponse = await pay(applicantRequest('/api/public/admissions/fees/51/pay'), { params: Promise.resolve({ applicationId: '51' }) });
-    assert.equal((await payResponse.json()).error, 'Invalid payload');
+    const payResponse = await pay(applicantRequest('/api/public/admissions/fees/51/pay'));
+    assert.equal(payResponse.status, 410, 'legacy online checkout is retired');
     const { paymentAccess } = await import('../src/lib/payments/access');
     assert.ok(await paymentAccess(applicantRequest('/api/payments/test')), 'flagged applicant can access receipt scope');
     assert.equal((await document(applicantRequest('/api/public/admissions/documents/71', 'other-school.nisaab360.app'), { params: Promise.resolve({ id: '71' }) })).status, 401);

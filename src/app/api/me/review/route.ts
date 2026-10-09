@@ -1,3 +1,5 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
+import { validationError } from '@/lib/validation-errors';
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { platformReviews } from "@/db/schema";
@@ -31,7 +33,7 @@ export async function POST(req: Request) {
     const result = reviewSchema.safeParse(body);
 
     if (!result.success) {
-      return NextResponse.json({ error: "Invalid data", details: result.error.issues }, { status: 400 });
+      return NextResponse.json(validationError(result.error), { status: 400 });
     }
 
     const { rating, content } = result.data;
@@ -60,6 +62,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ message: "Review saved successfully" });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error saving review:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

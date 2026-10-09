@@ -53,10 +53,6 @@ export default async function EmployeeDashboard() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-display font-bold text-brand-950">Employee Portal</h1>
-        <p className="text-stone-500 mt-1">Review institution applications and manage verifications.</p>
-      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
         <StatCard title="Assigned Verifications" value={overview.pending.toString()} icon={FileCheck} />

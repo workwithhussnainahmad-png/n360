@@ -1,0 +1,61 @@
+name: Verify changes
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: disposable-ci-only
+          POSTGRES_DB: app
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U app" --health-interval 5s --health-timeout 5s --health-retries 10
+      valkey:
+        image: valkey/valkey:8-alpine
+        ports: ['6379:6379']
+    env:
+      DIRECT_URL: postgres://app:disposable-ci-only@127.0.0.1:5432/app
+      DATABASE_URL: postgres://app:disposable-ci-only@127.0.0.1:5432/app
+      REDIS_URL: redis://127.0.0.1:6379
+      JWT_SECRET: disposable-ci-secret-at-least-32-characters
+      CRON_SECRET: disposable-ci-cron-secret-at-least-32-characters
+      NEXT_PUBLIC_APP_DOMAIN: example.test
+      APP_DOMAIN: example.test
+      PUBLIC_SITE_BASE_DOMAIN: example.test
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Reject excluded files and credential material
+        shell: bash
+        run: |
+          excluded="$(git ls-files -ci --exclude-standard)"
+          if [ -n "$excluded" ]; then
+            printf 'Ignored files must not be committed:\n%s\n' "$excluded"
+            exit 1
+          fi
+          matches="$(git grep --cached -I -l -E -- '-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----|\b(AKIA|ASIA)[A-Z0-9]{16}\b|\bgh[pousr]_[A-Za-z0-9]{30,}\b|\bgithub_pat_[A-Za-z0-9_]{40,}\b|\bAIza[A-Za-z0-9_-]{35}\b' -- . || test "$?" -eq 1)"
+          if [ -n "$matches" ]; then
+            printf 'Potential credentials found in files:\n%s\n' "$matches"
+            exit 1
+          fi
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Reject known production dependency vulnerabilities
+        run: npm audit --omit=dev --audit-level=moderate
+      - run: node scripts/migrate-production.mjs --apply
+      - run: npm run verify:local
+      - run: npm run build
+      - run: npm run verify:billing-ui
+      - run: npm run verify:forms-ui

@@ -1,8 +1,10 @@
 "use client";
+import { runAction } from '@/lib/run-action';
+import { ActionForm } from '@/components/ui/action-form';
 
 import { useState } from "react";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { createTimetableAssignmentAction } from "@/app/actions/institution-actions";
+import { createTimetableAssignmentWithFeedback as createTimetableAssignmentAction } from '@/app/actions/feedback-actions';
 import { useToast } from "@/components/ui/toaster";
 import { useRouter } from "next/navigation";
 
@@ -27,9 +29,9 @@ export function AssignmentForm({
   const breakInputId = "isBreak";
 
   return (
-    <form action={async (formData) => { 
+    <ActionForm action={async (formData) => {
       try {
-        await createTimetableAssignmentAction(formData); 
+        await runAction(createTimetableAssignmentAction, formData);
         toast({ title: "Success", description: "Time slot assigned successfully.", variant: "success" });
         router.refresh();
       } catch (err: unknown) {
@@ -40,10 +42,10 @@ export function AssignmentForm({
       <input type="hidden" name="classId" value={classId || ""} />
 
       <div className="flex items-center gap-2 mb-4">
-        <input 
-          type="checkbox" 
+        <input
+          type="checkbox"
           id={breakInputId}
-          name="isBreak" 
+          name="isBreak"
           checked={isBreak}
           onChange={(e) => setIsBreak(e.target.checked)}
           className="rounded border-stone-300 text-brand-600 focus:ring-brand-500"
@@ -103,6 +105,6 @@ export function AssignmentForm({
       <SubmitButton className="w-full mt-4 bg-brand-800 text-white rounded-md py-2 text-sm font-medium hover:bg-brand-900 transition-colors">
         Save {isBreak ? "Break" : "Assignment"}
       </SubmitButton>
-    </form>
+    </ActionForm>
   );
 }

@@ -1,7 +1,9 @@
 "use client";
+import { runAction } from '@/lib/run-action';
+import { ActionForm } from '@/components/ui/action-form';
 
 import { useState } from "react";
-import { deleteOnlineTestAction, updateOnlineTestAction } from "@/app/actions/online-test-actions";
+import { deleteOnlineTestWithFeedback as deleteOnlineTestAction, updateOnlineTestWithFeedback as updateOnlineTestAction } from '@/app/actions/feedback-actions';
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -17,7 +19,7 @@ export function TestActions({ testId, currentTitle, currentDurationMinutes }: { 
     setIsDeleting(true);
     setErrorMsg("");
     try {
-      await deleteOnlineTestAction(testId);
+      await runAction(deleteOnlineTestAction, testId);
       setIsDeleteDialogOpen(false);
     } catch (e: any) {
       setErrorMsg(e.message || "Failed to delete test");
@@ -28,7 +30,7 @@ export function TestActions({ testId, currentTitle, currentDurationMinutes }: { 
   const handleUpdate = async (formData: FormData) => {
     setErrorMsg("");
     try {
-      await updateOnlineTestAction(formData);
+      await runAction(updateOnlineTestAction, formData);
       setIsEditDialogOpen(false);
     } catch (e: any) {
       setErrorMsg(e.message || "Failed to update test");
@@ -48,29 +50,29 @@ export function TestActions({ testId, currentTitle, currentDurationMinutes }: { 
           <DialogHeader>
             <DialogTitle>Edit Test Details</DialogTitle>
           </DialogHeader>
-          <form action={handleUpdate} className="space-y-4 pt-4">
+          <ActionForm action={handleUpdate} className="space-y-4 pt-4">
             <input type="hidden" name="testId" value={testId} />
             {errorMsg && <p className="text-sm text-danger">{errorMsg}</p>}
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-sm font-medium text-stone-700">Test Title</label>
-                <input 
-                  name="title" 
-                  required 
-                  defaultValue={currentTitle} 
-                  className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm" 
+                <input
+                  name="title"
+                  required
+                  defaultValue={currentTitle}
+                  className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm"
                 />
               </div>
               {currentDurationMinutes !== null && (
                 <div>
                   <label className="mb-1 block text-sm font-medium text-stone-700">Duration (Minutes)</label>
-                  <input 
-                    name="durationMinutes" 
-                    type="number" 
-                    min="1" 
-                    required 
-                    defaultValue={currentDurationMinutes} 
-                    className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm" 
+                  <input
+                    name="durationMinutes"
+                    type="number"
+                    min="1"
+                    required
+                    defaultValue={currentDurationMinutes}
+                    className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm"
                   />
                 </div>
               )}
@@ -78,7 +80,7 @@ export function TestActions({ testId, currentTitle, currentDurationMinutes }: { 
             <div className="flex justify-end pt-2">
               <SubmitButton>Save Changes</SubmitButton>
             </div>
-          </form>
+          </ActionForm>
         </DialogContent>
       </Dialog>
 

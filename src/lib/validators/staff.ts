@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const createStaffSchema = z.object({
-  name: z.string().trim().min(1),
+  name: z.string().trim().min(1).max(255),
   phone: z.string().trim().regex(/\d(?:\D*\d){3}/, "Phone number must include at least 4 digits").max(50),
   campusId: z.coerce.number().min(1).optional(),
   customRoleId: z.coerce.number().min(1).nullable().optional(),

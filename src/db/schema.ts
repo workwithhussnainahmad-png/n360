@@ -424,6 +424,7 @@ export const admissionCycles = pgTable(
       .default([])
       .notNull(),
     status: admissionCycleStatusEnum("status").default("DRAFT").notNull(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -736,6 +737,7 @@ export const admissionFeePayments = pgTable(
       .default([])
       .notNull(),
     payerSourceBank: varchar("payer_source_bank", { length: 120 }),
+    paymentAccount: jsonb("payment_account").$type<import("@/lib/payment-account-types").PaymentAccount>(),
     payerReference: varchar("payer_reference", { length: 160 }),
     proofFileKey: varchar("proof_file_key", { length: 500 }),
     status: admissionFeePaymentStatusEnum("status")
@@ -1970,6 +1972,10 @@ export const studentFeeAdjustments = pgTable(
       .$type<"DISCOUNT" | "CHARGE">()
       .notNull(),
     amount: integer("amount").notNull(),
+    frequency: varchar("frequency", { length: 20 }).$type<"ONCE" | "RECURRING">().default("RECURRING").notNull(),
+    startMonth: varchar("start_month", { length: 7 }),
+    endMonth: varchar("end_month", { length: 7 }),
+    consumedInvoiceId: integer("consumed_invoice_id"),
     isActive: boolean("is_active").default(true).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
@@ -1979,6 +1985,14 @@ export const studentFeeAdjustments = pgTable(
     ).on(t.institutionId, t.studentId, t.isActive),
   }),
 );
+
+export const feeBillingBatches = pgTable("fee_billing_batches", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  institutionId: integer("institution_id").notNull().references(() => institutions.id),
+  label: varchar("label", { length: 120 }).notNull(),
+  requestHash: varchar("request_hash", { length: 64 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
 
 export const feeInvoices = pgTable(
   "fee_invoices",
@@ -1991,6 +2005,13 @@ export const feeInvoices = pgTable(
       .notNull()
       .references(() => students.id, { onDelete: "cascade" }),
     billingMonth: varchar("billing_month", { length: 7 }).notNull(),
+    billingKey: varchar("billing_key", { length: 36 }).default("MONTHLY").notNull(),
+    billingKind: varchar("billing_kind", { length: 20 }).$type<"MONTHLY" | "ONE_TIME">().default("MONTHLY").notNull(),
+    billingLabel: varchar("billing_label", { length: 120 }),
+    classIdAtIssue: integer("class_id_at_issue"),
+    classNameAtIssue: varchar("class_name_at_issue", { length: 255 }),
+    sectionIdAtIssue: integer("section_id_at_issue"),
+    sectionNameAtIssue: varchar("section_name_at_issue", { length: 255 }),
     dueDate: date("due_date").notNull(),
     status: varchar("status", { length: 20 })
       .$type<"DUE" | "PARTIAL" | "PAID" | "VOID">()
@@ -2008,8 +2029,8 @@ export const feeInvoices = pgTable(
   },
   (t) => ({
     institutionStudentMonthUnique: unique(
-      "fee_invoices_institution_student_month_unique",
-    ).on(t.institutionId, t.studentId, t.billingMonth),
+      "fee_invoices_institution_student_billing_unique",
+    ).on(t.institutionId, t.studentId, t.billingMonth, t.billingKey),
     institutionMonthStatusIdx: index(
       "fee_invoices_institution_month_status_idx",
     ).on(t.institutionId, t.billingMonth, t.status),
@@ -2133,6 +2154,9 @@ export const feePaymentSubmissions = pgTable(
     amount: integer("amount").notNull(),
     sourceBankName: varchar("source_bank_name", { length: 120 }).notNull(),
     transactionId: varchar("transaction_id", { length: 160 }).notNull(),
+    paymentAccount: jsonb("payment_account").$type<import("@/lib/payment-account-types").PaymentAccount>(),
+    submittedByRole: varchar("submitted_by_role", { length: 20 }),
+    submittedById: integer("submitted_by_id"),
     proofFileKey: varchar("proof_file_key", { length: 500 }).notNull(),
     status: varchar("status", { length: 20 })
       .$type<"SUBMITTED" | "VERIFIED" | "REJECTED">()
@@ -2161,6 +2185,22 @@ export const feePaymentSubmissions = pgTable(
 );
 
 // --- PLATFORM REVIEWS ---
+export const admissionFeeProofs = pgTable("admission_fee_proofs", {
+  id: serial("id").primaryKey(),
+  institutionId: integer("institution_id").notNull().references(() => institutions.id, { onDelete: "cascade" }),
+  applicationId: integer("application_id").notNull().references(() => admissionApplications.id, { onDelete: "cascade" }),
+  paymentId: integer("payment_id").notNull().references(() => admissionFeePayments.id, { onDelete: "cascade" }),
+  paymentAccount: jsonb("payment_account").$type<import("@/lib/payment-account-types").PaymentAccount>(),
+  sourceBankName: varchar("source_bank_name", { length: 120 }).notNull(),
+  transactionId: varchar("transaction_id", { length: 160 }).notNull(),
+  proofFileKey: varchar("proof_file_key", { length: 500 }).notNull(),
+  status: varchar("status", { length: 20 }).$type<"SUBMITTED" | "VERIFIED" | "REJECTED">().default("SUBMITTED").notNull(),
+  reviewerNote: varchar("reviewer_note", { length: 500 }),
+  verifiedBy: integer("verified_by"),
+  verifiedAt: timestamp("verified_at"),
+  submittedAt: timestamp("submitted_at").defaultNow().notNull(),
+}, t => ({ applicationIdx: index("admission_fee_proofs_application_idx").on(t.institutionId, t.applicationId, t.submittedAt) }));
+
 export const platformReviews = pgTable("platform_reviews", {
   id: serial("id").primaryKey(),
   institutionId: integer("institution_id")

@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { assignments, classes, sections, subjects, staffAssignments, submissions, students } from "@/db/schema";
@@ -115,6 +116,9 @@ export const GET = requireRole(["STAFF"], async (req: NextRequest, { session }) 
 
     return NextResponse.json({ error: "Use ?view=metadata or ?sectionId=… to fetch assignments" }, { status: 400 });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error fetching staff assignments:", error);
     return NextResponse.json({ error: "Failed to fetch assignments" }, { status: 500 });
   }
@@ -192,6 +196,9 @@ export const POST = requireRole(["STAFF"], async (req: NextRequest, { session })
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error creating assignment:", error);
     return NextResponse.json({ error: "Failed to create assignment" }, { status: 500 });
   }

@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { marks, onlineTestQuestions, onlineTestSubmissions, onlineTests, students, tests } from "@/db/schema";
@@ -135,6 +136,9 @@ export const POST = requireRole(["STUDENT"], async (req: NextRequest, { session,
 
     return NextResponse.json({ message: "Test submitted successfully", score: mcqScore });
   } catch (error: any) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error submitting online test:", error);
     return NextResponse.json({ error: "Failed to submit test details" }, { status: 500 });
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { PaymentHistory } from "@/components/PaymentHistory";
+import { PaymentProofHistory, type PaymentProofRecord } from "@/components/PaymentProofHistory";
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
@@ -121,6 +121,7 @@ type ApplicationDetail = {
     status: string;
     reviewerNote: string | null;
   } | null;
+  feeProofHistory: PaymentProofRecord[];
   enrollment: {
     id: number;
     studentId: number;
@@ -211,13 +212,16 @@ export function ApplicationsReviewPanel({
   const metadataLoaded = useRef(false);
   const [actionDialog, setActionDialog] = useState<ActionDialog | null>(null);
   const [dialogValue, setDialogValue] = useState("");
+  const [dialogError, setDialogError] = useState('');
 
   function openDialog(dialog: ActionDialog) {
     setDialogValue("");
+    setDialogError('');
     setActionDialog(dialog);
   }
   async function confirmDialog() {
-    if (!actionDialog || (actionDialog.required && !dialogValue.trim())) return;
+    if (!actionDialog) return;
+    if (actionDialog.required && !dialogValue.trim()) { setDialogError(`${actionDialog.label || 'This value'} is required.`); return; }
     const current = actionDialog;
     const result = await current.onConfirm(dialogValue.trim());
     if (result !== null) setActionDialog(null);
@@ -1447,7 +1451,7 @@ export function ApplicationsReviewPanel({
                     </section>
                   </div>
 
-                  <PaymentHistory applicationId={detail.application.id} />
+                  <PaymentProofHistory records={detail.feeProofHistory} fileBase="/api/institution/admissions/files/fee-proof" />
                   {(detail.application.status === "OFFERED" ||
                     detail.application.status === "FEE_PENDING" ||
                     detail.application.status === "FEE_VERIFICATION" ||
@@ -1800,7 +1804,7 @@ export function ApplicationsReviewPanel({
                     maxLength={1000}
                     required={actionDialog.required}
                     value={dialogValue}
-                    onChange={(event) => setDialogValue(event.target.value)}
+                    onChange={(event) => { setDialogValue(event.target.value); setDialogError(''); }}
                     className={`${fieldClass} mt-2 resize-y`}
                     placeholder={
                       actionDialog.required ? "Required" : "Optional"
@@ -1808,6 +1812,7 @@ export function ApplicationsReviewPanel({
                   />
                 </label>
               )}
+              {dialogError && <p role="alert" className="text-sm text-red-700">{dialogError}</p>}
               <DialogFooter className="gap-2 sm:space-x-0">
                 <Button
                   type="button"
@@ -1820,10 +1825,7 @@ export function ApplicationsReviewPanel({
                 <Button
                   type="button"
                   variant={actionDialog.danger ? "danger" : "default"}
-                  disabled={
-                    busy ||
-                    Boolean(actionDialog.required && !dialogValue.trim())
-                  }
+                  disabled={busy}
                   onClick={() => void confirmDialog()}
                 >
                   {busy ? "Saving…" : actionDialog.confirmLabel}

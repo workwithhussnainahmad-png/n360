@@ -1,3 +1,7 @@
+import { positiveInteger } from "@/lib/pagination";
+import { ServerPagination } from "@/components/ui/server-pagination";
+import { actionFeedback } from '@/lib/action-feedback';
+import { ActionForm } from '@/components/ui/action-form';
 import { formatDefaultDate } from "@/lib/date-format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -5,14 +9,15 @@ import { db } from "@/db";
 import { classes, marks, sections, staffAssignments, subjects, tests } from "@/db/schema";
 import { createStaffAssessmentAction } from "@/app/actions/assessment-actions";
 import { getSession } from "@/lib/auth";
-import { and, count, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import { ClipboardList, FileEdit } from "lucide-react";
 import { redirect } from "next/navigation";
 import { TestMarksEntry } from "./TestMarksEntry";
 import { BulkMarksUpload } from "./BulkMarksUpload";
 import { formatClassSection } from "@/lib/class-section-label";
 
-export default async function StaffMarksPage() {
+export default async function StaffMarksPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+  const page = positiveInteger((await searchParams).page);
   const session = await getSession();
   if (!session || session.role !== "STAFF" || !session.institutionId) redirect("/login");
 
@@ -56,9 +61,9 @@ export default async function StaffMarksPage() {
     .where(and(eq(tests.institutionId, session.institutionId), or(
       and(eq(tests.createdByRole, "STAFF"), eq(tests.staffId, session.userId), inArray(tests.sectionId, sectionIds)),
       and(eq(tests.createdByRole, "INSTITUTION"), inArray(tests.classId, classIds), inArray(tests.subjectId, subjectIds), or(inArray(tests.sectionId, sectionIds), isNull(tests.sectionId)))
-    )));
+    ))).orderBy(desc(tests.createdAt), desc(tests.id)).limit(51).offset((page - 1) * 50);
 
-  const eligibleTests = eligibleTestRows;
+  const eligibleTests = eligibleTestRows.slice(0, 50);
   const testIds = eligibleTests.map(({ test }) => test.id);
 
   // Aggregate-only: per-student rosters and existing marks are intentionally not
@@ -77,10 +82,6 @@ export default async function StaffMarksPage() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-display font-bold text-brand-950">Marks Entry</h1>
-        <p className="text-stone-500 mt-1">Create class assessments and upload marks in bulk by roll number.</p>
-      </div>
 
       <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
         <Card>
@@ -91,7 +92,7 @@ export default async function StaffMarksPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            <form action={createStaffAssessmentAction} className="space-y-4 pt-2 text-left">
+            <ActionForm action={async (formData: FormData) => { "use server"; return actionFeedback(() => createStaffAssessmentAction(formData)); }} className="space-y-4 pt-2 text-left">
               <div>
                 <label className="mb-2 block text-sm font-medium text-stone-700">Class / Section</label>
                 <select name="sectionId" required className="w-full rounded-md border border-border px-3 py-2 text-sm bg-surface">
@@ -140,7 +141,7 @@ export default async function StaffMarksPage() {
               </div>
 
               <SubmitButton className="w-full">Create Assessment</SubmitButton>
-            </form>
+            </ActionForm>
           </CardContent>
         </Card>
 
@@ -209,6 +210,7 @@ export default async function StaffMarksPage() {
           Download each assessment&apos;s prefilled roster, enter marks in the Marks Obtained column, save it as CSV, and upload it. Results are checked against the assigned section and remain private until published.
         </CardContent>
       </Card>
+      <ServerPagination page={page} hasMore={eligibleTestRows.length > 50} />
     </div>
   );
 }

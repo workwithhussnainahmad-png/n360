@@ -8,10 +8,7 @@ export async function AppsManagement() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-brand-950">Apps</h1>
-        <p className="mt-1 text-stone-600">Manage the public download links and desktop software version.</p>
-      </div>
+
       <div className="grid gap-6 xl:grid-cols-2">
         <DownloadAppUploader type="app" heading="Mobile App Link" />
         <DownloadAppUploader type="software" heading="Software Link" />

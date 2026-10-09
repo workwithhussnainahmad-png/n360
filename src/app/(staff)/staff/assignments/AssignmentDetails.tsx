@@ -1,5 +1,8 @@
 "use client";
+import { responseErrorMessage } from '@/lib/validation-errors';
 
+
+import { useAbortableReads } from "@/lib/use-abortable-reads";
 import { useState } from "react";
 import { ExternalLink, Loader2 } from "lucide-react";
 
@@ -20,6 +23,7 @@ type PendingStudent = {
 };
 
 export function AssignmentDetails({ assignmentId }: { assignmentId: number }) {
+  const reads = useAbortableReads();
   const [loaded, setLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -27,20 +31,24 @@ export function AssignmentDetails({ assignmentId }: { assignmentId: number }) {
   const [pendingStudents, setPendingStudents] = useState<PendingStudent[]>([]);
 
   const handleToggle = async (e: React.SyntheticEvent<HTMLDetailsElement>) => {
-    if (!e.currentTarget.open || loaded || loading) return;
+    if (!e.currentTarget.open) { reads.cancel("details"); setLoading(false); return; }
+    if ( loaded || loading) return;
+    const signal = reads.begin("details");
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/staff/assignments?assignmentId=${assignmentId}`);
-      if (!res.ok) throw new Error("Failed to load submissions");
+      const res = await fetch(`/api/staff/assignments?assignmentId=${assignmentId}`, { signal });
+      if (!res.ok) throw new Error(await responseErrorMessage(res));
       const data = await res.json();
+      if (signal.aborted) return;
       setSubmittedStudents(data.submittedStudents || []);
       setPendingStudents(data.pendingStudents || []);
       setLoaded(true);
     } catch (err: unknown) {
+      if (signal.aborted) return;
       setError(err instanceof Error ? err.message : "Failed to load submissions");
     } finally {
-      setLoading(false);
+      if (!signal.aborted) setLoading(false);
     }
   };
 

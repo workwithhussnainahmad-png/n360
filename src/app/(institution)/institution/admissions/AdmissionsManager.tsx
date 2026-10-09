@@ -11,11 +11,13 @@ import {
   School,
   Trash2,
   UsersRound,
+  Archive,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { CampusAdmissionsAvailability } from "./CampusAdmissionsAvailability";
+import { ArchivedAdmissionCycles } from "./ArchivedAdmissionCycles";
 
 type Cycle = {
   id: number;
@@ -37,6 +39,7 @@ type Cycle = {
   admissionFeeDueDays: number;
   admissionFeeInstructions: string | null;
   status: "DRAFT" | "OPEN" | "CLOSED";
+  hasApplications: boolean;
 };
 
 type Offering = {
@@ -85,6 +88,8 @@ export function AdmissionsManager({
     text: string;
   } | null>(null);
   const [cyclePendingRemoval, setCyclePendingRemoval] = useState<Cycle | null>(null);
+  const [cyclePendingArchive, setCyclePendingArchive] = useState<Cycle | null>(null);
+  const [archivesOpen, setArchivesOpen] = useState(false);
   const [editingCycle, setEditingCycle] = useState<Cycle | null>(null);
   const [editingOffering, setEditingOffering] = useState<Offering | null>(null);
   const [offeringPendingRemoval, setOfferingPendingRemoval] = useState<Offering | null>(null);
@@ -558,7 +563,19 @@ export function AdmissionsManager({
 
       {mode === "status" && (
         <div className="space-y-4">
-          <CampusAdmissionsAvailability refreshKey={cycles.map(cycle => `${cycle.id}:${cycle.status}`).join(",")} />
+          <Dialog open={archivesOpen} onOpenChange={setArchivesOpen}>
+            <CampusAdmissionsAvailability
+              refreshKey={cycles.map(cycle => `${cycle.id}:${cycle.status}`).join(",")}
+              headerActions={<DialogTrigger asChild><Button type="button" size="sm" variant="outline"><Archive className="mr-2 h-4 w-4" />Archived cycles</Button></DialogTrigger>}
+            />
+            {archivesOpen && <DialogContent className="max-w-5xl">
+              <DialogHeader>
+                <DialogTitle>Archived admission cycles</DialogTitle>
+                <DialogDescription>Browse preserved history or restore a cycle to Open / close.</DialogDescription>
+              </DialogHeader>
+              <ArchivedAdmissionCycles onRestored={() => { void load().catch((error) => setMessage({ kind: "error", text: error.message })); }} />
+            </DialogContent>}
+          </Dialog>
           {cycles.length === 0 && (
             <Card>
               <CardContent className="p-8 text-center text-stone-500">
@@ -635,6 +652,7 @@ export function AdmissionsManager({
                       </div>
                     </div>
                     <div className="flex shrink-0 gap-2">
+                      {(!cycle.hasApplications || cycle.status === "OPEN") && <Button size="sm" variant="outline" className="border-white/25 bg-transparent text-white hover:bg-white/10" disabled={busy} onClick={() => setCyclePendingArchive(cycle)}><Archive className="mr-1.5 h-4 w-4" />Archive</Button>}
                       {cycle.status !== "OPEN" && (
                         <Button
                           size="sm"
@@ -685,10 +703,10 @@ export function AdmissionsManager({
                           variant="outline"
                           className="border-white/25 bg-transparent text-white hover:bg-white/10 hover:text-white"
                           disabled={busy}
-                          onClick={() => setCyclePendingRemoval(cycle)}
+                          onClick={() => cycle.hasApplications ? setCyclePendingArchive(cycle) : setCyclePendingRemoval(cycle)}
                         >
-                          <Trash2 className="mr-1.5 h-4 w-4" />
-                          Remove
+                          {cycle.hasApplications ? <Archive className="mr-1.5 h-4 w-4" /> : <Trash2 className="mr-1.5 h-4 w-4" />}
+                          {cycle.hasApplications ? "Archive" : "Delete empty cycle"}
                         </Button>
                       )}
                     </div>
@@ -930,6 +948,18 @@ export function AdmissionsManager({
             >
               Remove cycle
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={Boolean(cyclePendingArchive)} onOpenChange={(open) => { if (!open && !busy) setCyclePendingArchive(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="pr-8">Archive admission cycle?</DialogTitle>
+            <DialogDescription className="leading-6">{cyclePendingArchive?.name} will move to Archived cycles. Intake will close for every campus. All applications, documents, payments and enrollment history will be preserved. You can restore the cycle later.</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="outline" disabled={busy} onClick={() => setCyclePendingArchive(null)}>Cancel</Button>
+            <Button disabled={busy} onClick={async () => { if (cyclePendingArchive && await send({ action: "archiveCycle", cycleId: cyclePendingArchive.id })) setCyclePendingArchive(null); }}>Archive cycle</Button>
           </div>
         </DialogContent>
       </Dialog>

@@ -1,3 +1,5 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
+import { validationError } from '@/lib/validation-errors';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { tickets, ticketHistory } from "@/db/schema";
@@ -82,6 +84,9 @@ export async function GET(req: NextRequest) {
         : null,
     });
   } catch (err: any) {
+    const publicInputError = inputErrorResponse(err);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
@@ -119,8 +124,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, ticketId: ticket.id });
   } catch (err: any) {
+    const publicInputError = inputErrorResponse(err);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: err.issues[0].message }, { status: 400 });
+      return NextResponse.json(validationError(err), { status: 400 });
     }
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

@@ -1,3 +1,4 @@
+import { validationError } from '@/lib/validation-errors';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireRole } from '@/lib/rbac';
@@ -13,7 +14,7 @@ export const POST = requireRole(['INSTITUTION'], async (req: NextRequest, { sess
     z.object({ campusId: z.number().int().positive() }).strict(),
     z.object({ returnHome: z.literal(true) }).strict(),
   ]).safeParse(body.data);
-  if (!parsed.success) return NextResponse.json({ error: 'Select a valid campus.' }, { status: 400 });
+  if (!parsed.success) return NextResponse.json(validationError(parsed.error), { status: 400 });
   const available = await listInstitutionCampuses(session);
   const selected = available.find((campus) => (
     'returnHome' in parsed.data ? campus.workspaceId === session.homeInstitutionId : campus.id === parsed.data.campusId

@@ -75,11 +75,8 @@ export function StaffRequestsClient({
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-brand-950">Staff Profile Requests</h1>
-          <p className="text-stone-500 mt-1">Review staff requests for name, email, phone, and campus corrections.</p>
-        </div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end">
+
         <div className="rounded-md border border-border bg-stone-50 px-4 py-3 text-sm">
           <span className="font-bold text-brand-950">{pendingCount}</span>
           <span className="ml-1 text-stone-500">pending</span>

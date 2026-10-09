@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import React from "react";
 
 import { Button, ButtonProps } from "@/components/ui/button";
+import { useActionPending } from './action-form';
 
 interface SubmitButtonProps extends ButtonProps {
   children: React.ReactNode;
@@ -17,7 +18,9 @@ export function SubmitButton({
   className,
   ...props 
 }: SubmitButtonProps) {
-  const { pending } = useFormStatus();
+  const formStatus = useFormStatus();
+  const actionPending = useActionPending();
+  const pending = formStatus.pending || actionPending;
 
   return (
     <Button

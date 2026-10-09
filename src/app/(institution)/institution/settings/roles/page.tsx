@@ -61,8 +61,7 @@ export default function RolesPage() {
         <ArrowLeft className="mr-2 h-4 w-4" />
         Back to Settings
       </Link>
-      <h1 className="text-3xl font-display font-bold text-brand-950">Staff Roles</h1>
-      <p className="mt-1 text-stone-500">Create job roles, then select one when adding each staff member.</p>
+
     </div>
     <div className="rounded-xl border border-border bg-white p-6 space-y-5">
       <div><p className="text-sm font-medium text-stone-700">Start with a job role</p><div className="mt-2 flex flex-wrap gap-2">{Object.keys(ROLE_TEMPLATES).map((template) => <button key={template} type="button" className="rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-sm text-brand-800 hover:bg-brand-100" onClick={() => selectTemplate(template as keyof typeof ROLE_TEMPLATES)}>{template}</button>)}</div></div>

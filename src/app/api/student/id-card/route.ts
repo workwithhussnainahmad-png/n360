@@ -3,8 +3,9 @@ import { db } from '@/db';
 import { classes, institutions, sections, students } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { requireRole } from '@/lib/rbac';
+import { QrCapacityError, studentIdCardQr } from '@/lib/student-id-card-qr';
 
-export const GET = requireRole(['STUDENT'], async (_req, { session }) => {
+export const GET = requireRole(['STUDENT'], async (req, { session }) => {
   const studentId = session.userId;
 
   const [row] = await db
@@ -20,6 +21,7 @@ export const GET = requireRole(['STUDENT'], async (_req, { session }) => {
       className: classes.name,
       sectionName: sections.name,
       institutionId: students.institutionId,
+      createdAt: students.createdAt,
     })
     .from(students)
     .innerJoin(classes, eq(students.classId, classes.id))
@@ -41,5 +43,12 @@ export const GET = requireRole(['STUDENT'], async (_req, { session }) => {
 
   if (!inst) return NextResponse.json({ error: 'Institution not found' }, { status: 404 });
 
-  return NextResponse.json({ student: row, institution: inst });
+  const { createdAt, ...student } = row;
+  try {
+    const verificationQr = await studentIdCardQr({ ...row, createdAt }, req.headers.get('host'));
+    return NextResponse.json({ student: { ...student, verificationQr }, institution: inst });
+  } catch (error) {
+    if (error instanceof QrCapacityError) return NextResponse.json({ error: error.message }, { status: 503, headers: { 'Retry-After': '5' } });
+    throw error;
+  }
 });

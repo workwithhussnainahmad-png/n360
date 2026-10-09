@@ -1,7 +1,8 @@
+import { validationError } from '@/lib/validation-errors';
 import { applicantCredentialResetAllowedSql } from "@/lib/admission-campus";
 import { after, NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
-import { and, eq, sql } from "drizzle-orm";
+import { and, isNull, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import {
@@ -130,7 +131,7 @@ function acceptedStep(application: Candidate): NextStep {
       fee: {
         amount: application.admissionFeeAmount,
         dueDate,
-        instructions: application.admissionFeeInstructions || "Choose one of the institution's configured online payment gateways.",
+        instructions: application.admissionFeeInstructions || "Transfer the fee to a configured institution payment account and submit a screenshot and transaction ID.",
         bankName: null,
         accountNumber: null,
         qrUrl: null,
@@ -149,12 +150,13 @@ export const POST = requireRole(["INSTITUTION", "INSTITUTION_ADMIN"], async (req
     return NextResponse.json({ error: "Request body must be valid JSON" }, { status: 400 });
   }
   const parsed = requestSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: "Confirm bulk acceptance before continuing" }, { status: 400 });
+  if (!parsed.success) return NextResponse.json(validationError(parsed.error), { status: 400 });
 
   const institutionId = getTenantContext(session);
   const conditions = [
     eq(admissionApplications.institutionId, institutionId),
     eq(admissionApplications.status, "SUBMITTED"),
+    isNull(admissionCycles.archivedAt),
     ...(parsed.data.cycleId ? [eq(admissionApplications.cycleId, parsed.data.cycleId)] : []),
   ];
   const candidates = await db.select({

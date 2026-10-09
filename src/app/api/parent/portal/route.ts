@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -83,7 +84,7 @@ export const GET = withApiPolicy(async (req: NextRequest) => {
     }
 
     if (section === "fees") {
-      const invoices = await db.select().from(feeInvoices).where(and(eq(feeInvoices.institutionId, institutionId), eq(feeInvoices.studentId, child.id))).orderBy(desc(feeInvoices.billingMonth)).limit(24);
+      const invoices = await db.select().from(feeInvoices).where(and(eq(feeInvoices.institutionId, institutionId), eq(feeInvoices.studentId, child.id))).orderBy(desc(feeInvoices.billingMonth), desc(feeInvoices.createdAt), desc(feeInvoices.id)).limit(24);
       const invoiceIds = invoices.map((row) => row.id);
       const submissions = invoiceIds.length ? await db.select({ id: feePaymentSubmissions.id, invoiceId: feePaymentSubmissions.invoiceId, amount: feePaymentSubmissions.amount, sourceBankName: feePaymentSubmissions.sourceBankName, transactionId: feePaymentSubmissions.transactionId, status: feePaymentSubmissions.status, submittedAt: feePaymentSubmissions.submittedAt }).from(feePaymentSubmissions).where(and(eq(feePaymentSubmissions.institutionId, institutionId), eq(feePaymentSubmissions.studentId, child.id), inArray(feePaymentSubmissions.invoiceId, invoiceIds))).orderBy(desc(feePaymentSubmissions.submittedAt)).limit(30) : [];
       return NextResponse.json({ ...base, invoices, submissions });
@@ -101,6 +102,9 @@ export const GET = withApiPolicy(async (req: NextRequest) => {
     ]);
     return NextResponse.json({ ...base, profile: profile[0] || null, leaves, support });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     if (error instanceof ParentChildAccessError) return NextResponse.json({ error: error.message }, { status: 404 });
     console.error("Parent mobile portal error:", error);
     return NextResponse.json({ error: "Could not load parent portal" }, { status: 500 });

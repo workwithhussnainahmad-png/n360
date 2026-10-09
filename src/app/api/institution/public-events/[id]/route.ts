@@ -1,3 +1,4 @@
+import { validationError } from '@/lib/validation-errors';
 import { isMainCampusWebsite } from '@/lib/public-website-access';
 import { and, eq } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
@@ -35,7 +36,7 @@ export const PATCH = requireRole(['INSTITUTION', 'INSTITUTION_ADMIN'], async (re
   const body = await readJsonBody(req, 256 * 1024);
   if (!body.ok) return NextResponse.json({ error: body.error }, { status: body.status });
   const parsed = updatePublicEventSchema.safeParse(body.data);
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid event' }, { status: 400 });
+  if (!parsed.success) return NextResponse.json(validationError(parsed.error), { status: 400 });
   if (parsed.data.action === 'PUBLISH') {
     const [institution] = await db.select({ status: institutions.status, publicSlug: institutions.publicSlug, publicSiteEnabled: institutions.publicSiteEnabled }).from(institutions).where(eq(institutions.id, institutionId)).limit(1);
     if (!institution || institution.status !== 'APPROVED' || !institution.publicSlug || !institution.publicSiteEnabled) return NextResponse.json({ error: 'Enable the approved public website before publishing events' }, { status: 409 });

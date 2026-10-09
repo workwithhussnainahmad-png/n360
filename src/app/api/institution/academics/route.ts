@@ -1,13 +1,36 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from 'next/server';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { classes, sections, staff, subjects } from '@/db/schema';
 import { getTenantContext, requireRole } from '@/lib/rbac';
 import { getInstitutionAcademicsData, invalidateInstitutionAcademicsCache } from '@/lib/institution-academics-data';
+import { AcademicDeleteError, deleteInstitutionAcademic, type AcademicKind } from '@/lib/delete-institution-academic';
 
 export const GET = requireRole(['INSTITUTION', 'INSTITUTION_ADMIN'], async (_req: NextRequest, { session }) => {
   const institutionId = getTenantContext(session);
   return NextResponse.json(await getInstitutionAcademicsData(institutionId), { headers: { 'Cache-Control': 'no-store' } });
+});
+
+export const DELETE = requireRole(['INSTITUTION', 'INSTITUTION_ADMIN'], async (req: NextRequest, { session }) => {
+  const kind = req.nextUrl.searchParams.get('kind');
+  const id = Number(req.nextUrl.searchParams.get('id'));
+  if (!kind || !['subject', 'class', 'section'].includes(kind) || !Number.isSafeInteger(id) || id <= 0) {
+    return NextResponse.json({ error: 'Select a valid subject, class, or section.' }, { status: 400 });
+  }
+  const institutionId = getTenantContext(session);
+  try {
+    await deleteInstitutionAcademic(institutionId, kind as AcademicKind, id);
+    await invalidateInstitutionAcademicsCache(institutionId);
+    return NextResponse.json({ message: 'Academic item deleted.' });
+  } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
+    if (error instanceof AcademicDeleteError) return NextResponse.json({ error: error.message }, { status: error.status });
+    console.error('Academic deletion failed:', error);
+    return NextResponse.json({ error: 'Could not delete this item. Please try again.' }, { status: 500 });
+  }
 });
 
 export const POST = requireRole(['INSTITUTION', 'INSTITUTION_ADMIN'], async (req: NextRequest, { session }) => {

@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { staff, institutionCustomRoles } from "@/db/schema";
@@ -30,6 +31,9 @@ export const DELETE = requireRole(["INSTITUTION", "INSTITUTION_ADMIN"], async (r
 
     return NextResponse.json({ message: "Staff deleted successfully" });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error deleting staff:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }

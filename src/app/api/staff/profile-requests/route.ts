@@ -1,3 +1,4 @@
+import { validationError } from '@/lib/validation-errors';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { campuses, staff, staffProfileChangeRequests } from "@/db/schema";
@@ -11,7 +12,7 @@ export const POST = requireRole(["STAFF"], async (req: NextRequest, { session })
   const parsed = staffProfileChangeRequestSchema.safeParse(body);
 
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error }, { status: 400 });
+    return NextResponse.json(validationError(parsed.error), { status: 400 });
   }
 
   const [staffRow] = await db.select({

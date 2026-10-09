@@ -1,3 +1,5 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
+import { validationError } from '@/lib/validation-errors';
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { classes, diaries, subjects } from "@/db/schema";
@@ -117,6 +119,9 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ diary: diary ?? null });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error fetching diaries:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
@@ -133,7 +138,7 @@ export async function POST(req: Request) {
     const result = diarySchema.safeParse(body);
 
     if (!result.success) {
-      return NextResponse.json({ error: "Invalid data", details: result.error.issues }, { status: 400 });
+      return NextResponse.json(validationError(result.error), { status: 400 });
     }
 
     if (!session.institutionId) {
@@ -198,6 +203,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json(newDiary);
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error creating diary:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

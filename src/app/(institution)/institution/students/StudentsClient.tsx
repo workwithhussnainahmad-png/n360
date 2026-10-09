@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
@@ -40,9 +40,7 @@ type ImportStudentsResponse = {
   errors?: string[];
 };
 
-type StudentTableRow = StudentRow & {
-  searchString: string;
-};
+type StudentTableRow = StudentRow;
 
 type StudentColumn = {
   header: string;
@@ -61,7 +59,7 @@ export function StudentsClient({
   sections,
   totalCount,
   page,
-  limit
+  limit,
 }: {
   students: StudentRow[];
   classes: { id: number; name: string }[];
@@ -69,6 +67,8 @@ export function StudentsClient({
   totalCount?: number;
   page?: number;
   limit?: number;
+  filterClassId: string;
+  filterSectionId: string;
 }) {
   const { toast } = useToast();
   const router = useRouter();
@@ -79,7 +79,7 @@ export function StudentsClient({
     setStudentsProp(students);
     setRows(students);
   }
-  
+
   // Modals state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
@@ -89,13 +89,9 @@ export function StudentsClient({
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [campuses, setCampuses] = useState<{ id: number; name: string }[] | null>(null);
   const campusesLoading = isCreateOpen && campuses === null;
-  
+
   const [editStudent, setEditStudent] = useState<StudentRow | null>(null);
   const [deleteStudent, setDeleteStudent] = useState<StudentRow | null>(null);
-
-  // Filters state
-  const [filterClassId, setFilterClassId] = useState<string>("");
-  const [filterSectionId, setFilterSectionId] = useState<string>("");
 
   // Create form state
   const [selectedClassId, setSelectedClassId] = useState<string>("");
@@ -103,10 +99,7 @@ export function StudentsClient({
     ? sections.filter(s => s.classId === parseInt(selectedClassId))
     : [];
 
-  const mainFilteredSections = filterClassId 
-    ? sections.filter(s => s.classId === parseInt(filterClassId))
-    : [];
-  const rowsPerPage = filterClassId || filterSectionId ? 30 : 60;
+
 
   useEffect(() => {
     if (!isCreateOpen || campuses !== null) return;
@@ -128,20 +121,7 @@ export function StudentsClient({
     };
   }, [isCreateOpen, campuses, toast]);
 
-  // Prepare table data with combined search field
-  const tableData = useMemo(() => {
-    let filtered = rows;
-    if (filterClassId) {
-      filtered = filtered.filter(s => s.classId === parseInt(filterClassId));
-    }
-    if (filterSectionId) {
-      filtered = filtered.filter(s => s.sectionId === parseInt(filterSectionId));
-    }
-    return filtered.map(s => ({
-      ...s,
-      searchString: `${s.name} ${s.loginRollNumber}`
-    }));
-  }, [rows, filterClassId, filterSectionId]);
+  const tableData = rows;
 
   const columns: StudentColumn[] = [
     { header: "Roll Number", accessorKey: "loginRollNumber" as const, sortable: true },
@@ -185,7 +165,7 @@ export function StudentsClient({
     setIsSubmitting(true);
     const formData = new FormData(e.currentTarget);
     const data = Object.fromEntries(formData);
-    
+
     try {
       const res = await api.post<CreateStudentResponse>("/api/institution/students", data);
       toast({ 
@@ -195,27 +175,7 @@ export function StudentsClient({
       });
       setIsCreateOpen(false);
 
-      const classId = Number(data.classId);
-      const sectionIdRaw = data.sectionId ? Number(data.sectionId) : NaN;
-      const sectionId = Number.isInteger(sectionIdRaw) && sectionIdRaw > 0
-        ? sectionIdRaw
-        : (sections.find((s) => s.classId === classId)?.id ?? 0);
-
-      setRows((current) => [
-        {
-          id: -Date.now(),
-          loginRollNumber: res.credentials?.loginRollNumber || "",
-          name: `${String(data.firstName || "")} ${String(data.lastName || "")}`.trim(),
-          gender: String(data.gender || "MALE"),
-          yearOfJoining: Number(data.yearOfJoining) || new Date().getFullYear(),
-          classId,
-          sectionId,
-          classRollNumber: String(data.classRollNumber || ""),
-          phone: data.phone ? String(data.phone) : null,
-          guardianEmail: data.guardianEmail ? String(data.guardianEmail).trim().toLowerCase() : null,
-        },
-        ...current,
-      ]);
+      router.refresh();
     } catch (err: unknown) {
       toast({ title: "Error", description: errorMessage(err), variant: "destructive" });
     } finally {
@@ -285,23 +245,11 @@ export function StudentsClient({
     setIsSubmitting(true);
     const formData = new FormData(e.currentTarget);
     const data = Object.fromEntries(formData);
-    
+
     try {
       await api.patch(`/api/institution/students/${editStudent.id}`, data);
       toast({ title: "Student Updated", variant: "success" });
-      setRows((current) => current.map((student) => (
-        student.id === editStudent.id
-          ? {
-              ...student,
-              name: String(data.name || student.name),
-              classId: Number(data.classId) || student.classId,
-              sectionId: Number(data.sectionId) || student.sectionId,
-              classRollNumber: String(data.classRollNumber || student.classRollNumber),
-              phone: data.phone !== undefined ? (data.phone ? String(data.phone) : null) : student.phone,
-              guardianEmail: data.guardianEmail !== undefined ? (data.guardianEmail ? String(data.guardianEmail).trim().toLowerCase() : null) : student.guardianEmail,
-            }
-          : student
-      )));
+      router.refresh();
       setEditStudent(null);
     } catch (err: unknown) {
       toast({ title: "Error", description: errorMessage(err), variant: "destructive" });
@@ -315,7 +263,7 @@ export function StudentsClient({
     try {
       await api.delete(`/api/institution/students/${deleteStudent.id}`);
       toast({ title: "Student Deleted", variant: "success" });
-      setRows((current) => current.filter((student) => student.id !== deleteStudent.id));
+      router.refresh();
       setDeleteStudent(null);
     } catch (err: unknown) {
       toast({ title: "Error", description: errorMessage(err), variant: "destructive" });
@@ -324,11 +272,8 @@ export function StudentsClient({
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-brand-950">Students</h1>
-          <p className="text-stone-500 mt-1">Manage all enrolled students across campuses.</p>
-        </div>
+      <div className="flex flex-col sm:flex-row justify-end items-start sm:items-center gap-4">
+
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -348,44 +293,16 @@ export function StudentsClient({
         </div>
       </div>
 
-      <Card className="p-4 flex gap-4 flex-wrap bg-stone-50/50">
-        <div className="space-y-1 flex-1 min-w-[200px]">
-          <label className="text-xs font-medium text-stone-500 uppercase">Filter by Class</label>
-          <select 
-            className="w-full h-10 rounded-md border border-border bg-white px-3 py-2 text-sm focus-ring"
-            value={filterClassId}
-            onChange={(e) => { setFilterClassId(e.target.value); setFilterSectionId(""); }}
-          >
-            <option value="">All Classes</option>
-            {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        </div>
-        <div className="space-y-1 flex-1 min-w-[200px]">
-          <label className="text-xs font-medium text-stone-500 uppercase">Filter by Section</label>
-          <select 
-            className="w-full h-10 rounded-md border border-border bg-white px-3 py-2 text-sm focus-ring"
-            value={filterSectionId}
-            onChange={(e) => setFilterSectionId(e.target.value)}
-            disabled={!filterClassId}
-          >
-            <option value="">All Sections</option>
-            {mainFilteredSections.filter((s) => displaySectionName(s.name)).map(s => <option key={s.id} value={s.id}>{displaySectionName(s.name)}</option>)}
-          </select>
-        </div>
-      </Card>
-
       <Card className="p-0 overflow-hidden">
         <DataTable 
           data={tableData} 
           columns={columns} 
-          searchKey="searchString" 
-          searchPlaceholder="Search students by name or roll number..."
-          pageSize={rowsPerPage}
+          pageSize={Math.max(1, rows.length)}
         />
         {totalCount !== undefined && page !== undefined && limit !== undefined && (
           <div className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-sm text-stone-500">
-              Showing {((page - 1) * limit) + 1} to {Math.min(page * limit, totalCount)} of {totalCount} results
+              Showing {totalCount ? ((page - 1) * limit) + 1 : 0} to {Math.min(page * limit, totalCount)} of {totalCount} results
             </div>
             <div className="flex gap-2 self-stretch sm:self-auto">
               <Button 
@@ -692,7 +609,7 @@ export function StudentsClient({
                 <Input type="email" name="guardianEmail" defaultValue={editStudent.guardianEmail || ''} placeholder="parent@example.com" />
                 <p className="text-xs leading-relaxed text-stone-500">Only the institution can change this. The same email automatically groups siblings under one parent account.</p>
               </div>
-              
+
               <div className="pt-4 flex justify-end">
                 <Button type="submit" disabled={isSubmitting} className="bg-brand-800 hover:bg-brand-900 text-white w-full">
                   {isSubmitting ? "Saving..." : "Save Changes"}

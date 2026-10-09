@@ -1,5 +1,7 @@
 "use server";
 
+import { ActionInputError } from "@/lib/action-input-error";
+
 import { db } from "@/db";
 import { tickets, ticketHistory } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -9,12 +11,12 @@ import { revalidatePath } from "next/cache";
 export async function updateTicketStatusAction(ticketId: number, status: "WORKING" | "RESOLVED") {
   const session = await getSession();
   if (!session || (session.role !== "INSTITUTION" && session.role !== "INSTITUTION_ADMIN")) {
-    throw new Error("Unauthorized");
+    throw new ActionInputError("Unauthorized");
   }
 
   const [ticket] = await db.select().from(tickets).where(eq(tickets.id, ticketId)).limit(1);
   if (!ticket || ticket.institutionId !== session.institutionId && ticket.institutionId !== session.userId) {
-    throw new Error("Ticket not found");
+    throw new ActionInputError("Ticket not found");
   }
   await db.update(tickets)
     .set({
@@ -43,15 +45,15 @@ export async function updateTicketStatusAction(ticketId: number, status: "WORKIN
 export async function forwardTicketAction(ticketId: number) {
   const session = await getSession();
   if (!session || (session.role !== "INSTITUTION" && session.role !== "INSTITUTION_ADMIN")) {
-    throw new Error("Unauthorized");
+    throw new ActionInputError("Unauthorized");
   }
 
   const [ticket] = await db.select().from(tickets).where(eq(tickets.id, ticketId)).limit(1);
   if (!ticket || ticket.institutionId !== session.institutionId && ticket.institutionId !== session.userId) {
-    throw new Error("Ticket not found");
+    throw new ActionInputError("Ticket not found");
   }
   if (ticket.isForwarded) {
-    throw new Error("This ticket has already been forwarded to platform support");
+    throw new ActionInputError("This ticket has already been forwarded to platform support");
   }
 
   await db.update(tickets)

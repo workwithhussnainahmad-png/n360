@@ -85,10 +85,6 @@ export default async function StaffDashboard() {
 
   return (
     <div className="space-y-6 animate-fade-in pb-20 lg:pb-0">
-      <div>
-        <h1 className="font-display text-3xl font-bold text-brand-950">Welcome, {payload.name}</h1>
-        <p className="text-stone-500 mt-1 text-sm lg:text-base">Here is your schedule for today.</p>
-      </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">

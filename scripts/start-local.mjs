@@ -1,6 +1,4 @@
 import { spawn, spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
@@ -19,23 +17,6 @@ function run(command, args, friendlyName) {
     process.exit(1);
   }
 
-  if (result.status !== 0) {
-    console.error(`\n${friendlyName} failed with exit code ${result.status}.`);
-    process.exit(result.status ?? 1);
-  }
-}
-
-function runWithInput(command, args, input, friendlyName) {
-  const result = spawnSync(command, args, {
-    cwd: projectRoot,
-    env: process.env,
-    input,
-    stdio: ["pipe", "inherit", "inherit"],
-  });
-  if (result.error) {
-    console.error(`\nCould not run ${friendlyName}: ${result.error.message}`);
-    process.exit(1);
-  }
   if (result.status !== 0) {
     console.error(`\n${friendlyName} failed with exit code ${result.status}.`);
     process.exit(result.status ?? 1);
@@ -69,43 +50,19 @@ if (process.argv.includes("--deps-only")) {
   process.exit(0);
 }
 
+// Mount current migration source read-only so a cached image cannot miss newly added SQL.
 console.info("Applying pending local database migrations...");
 run(
   "docker",
-  ["compose", "run", "--rm", "migrate"],
+  [
+    "compose", "run", "--rm",
+    "--volume", `${path.join(projectRoot, "drizzle")}:/app/drizzle:ro`,
+    "--volume", `${path.join(projectRoot, "scripts", "migrate-production.mjs")}:/app/scripts/migrate-production.mjs:ro`,
+    "migrate",
+  ],
   "local database migration",
 );
-// The migration image may be cached while local source migrations change. The
-// new institution Google Drive table is idempotent, so apply this local-only
-// supplemental migration through the PostgreSQL container itself. This avoids
-// relying on the Windows-published 5433 port, which is not reachable on every
-// Docker Desktop installation.
-runWithInput(
-  "docker",
-  ["compose", "exec", "-T", "postgres", "psql", "-v", "ON_ERROR_STOP=1", "-U", "app", "-d", "app"],
-  readFileSync(path.join(projectRoot, "drizzle", "0058_institution_google_drive_backups.sql")),
-  "local institution backup migration",
-);
 console.info("Local database migrations are current.");
-runWithInput(
-  "docker",
-  ["compose", "exec", "-T", "postgres", "psql", "-v", "ON_ERROR_STOP=1", "-U", "app", "-d", "app"],
-  readFileSync(path.join(projectRoot, "drizzle", "0061_institution_restore_requests.sql")),
-  "local institution restore migration",
-);
-
-runWithInput("docker", ["compose", "exec", "-T", "postgres", "psql", "-v", "ON_ERROR_STOP=1", "-U", "app", "-d", "app"], readFileSync(path.join(projectRoot, "drizzle", "0062_employee_backup_permissions.sql")), "local employee backup permissions migration");
-runWithInput("docker", ["compose", "exec", "-T", "postgres", "psql", "-v", "ON_ERROR_STOP=1", "-U", "app", "-d", "app"], readFileSync(path.join(projectRoot, "drizzle", "0063_institution_admin_profile_review.sql")), "local institution admin review migration");
-runWithInput("docker", ["compose", "exec", "-T", "postgres", "psql", "-v", "ON_ERROR_STOP=1", "-U", "app", "-d", "app"], readFileSync(path.join(projectRoot, "drizzle", "0064_public_website_themes.sql")), "local public website theme migration");
-runWithInput("docker", ["compose", "exec", "-T", "postgres", "psql", "-v", "ON_ERROR_STOP=1", "-U", "app", "-d", "app"], readFileSync(path.join(projectRoot, "drizzle", "0065_public_website_default_theme.sql")), "local public website default theme migration");
-runWithInput("docker", ["compose", "exec", "-T", "postgres", "psql", "-v", "ON_ERROR_STOP=1", "-U", "app", "-d", "app"], readFileSync(path.join(projectRoot, "drizzle", "0066_campus_workspaces.sql")), "local campus workspace migration");
-runWithInput("docker", ["compose", "exec", "-T", "postgres", "psql", "-v", "ON_ERROR_STOP=1", "-U", "app", "-d", "app"], readFileSync(path.join(projectRoot, "drizzle", "0067_admission_campus_intake.sql")), "local admission campus intake migration");
-const campusAvailabilityMigration = readFileSync(path.join(projectRoot, "drizzle", "0068_admission_campus_availability.sql"));
-const campusAvailabilityHash = createHash("sha256").update(campusAvailabilityMigration).digest("hex");
-runWithInput("docker", ["compose", "exec", "-T", "postgres", "psql", "-1", "-v", "ON_ERROR_STOP=1", "-U", "app", "-d", "app"], `${campusAvailabilityMigration.toString()}\nINSERT INTO nisaab360_supplemental_migrations(name, sha256) VALUES ('0068_admission_campus_availability.sql', '${campusAvailabilityHash}') ON CONFLICT (name) DO NOTHING;`, "local admission campus availability migration");
-const campusIdentityMigration = readFileSync(path.join(projectRoot, "drizzle", "0069_campus_identity.sql"));
-const campusIdentityHash = createHash("sha256").update(campusIdentityMigration).digest("hex");
-runWithInput("docker", ["compose", "exec", "-T", "postgres", "psql", "-1", "-v", "ON_ERROR_STOP=1", "-U", "app", "-d", "app"], `${campusIdentityMigration.toString()}\nINSERT INTO nisaab360_supplemental_migrations(name, sha256) VALUES ('0069_campus_identity.sql', '${campusIdentityHash}') ON CONFLICT (name) DO NOTHING;`, "local campus identity migration");
 run(process.execPath, ["scripts/prepare-standalone.mjs"], "standalone preparation");
 
 const server = spawn(

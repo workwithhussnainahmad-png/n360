@@ -1,3 +1,4 @@
+import { validationError } from '@/lib/validation-errors';
 import { NextRequest, NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 import { requireRole } from '@/lib/rbac';
@@ -18,7 +19,7 @@ export const POST = requireRole(['SUPER_ADMIN', 'EMPLOYEE'], async (req: NextReq
     return NextResponse.json({ success: true, ...result }, { status: 201 });
   } catch (error) {
     if (error instanceof CampusPolicyError) return NextResponse.json({ error: error.message }, { status: error.status });
-    if (error instanceof ZodError) return NextResponse.json({ error: error.issues[0]?.message ?? 'Check campus details.' }, { status: 400 });
+    if (error instanceof ZodError) return NextResponse.json(validationError(error), { status: 400 });
     if (error instanceof Error && /already|cannot|existing records/.test(error.message)) return NextResponse.json({ error: error.message }, { status: 409 });
     throw error;
   }

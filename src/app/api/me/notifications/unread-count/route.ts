@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { notifications } from "@/db/schema";
@@ -39,6 +40,9 @@ export const GET = requireRole(["STUDENT", "STAFF", "INSTITUTION", "INSTITUTION_
 
     return NextResponse.json(payload);
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error fetching unread notification count:", error);
     return NextResponse.json({ error: "Failed to fetch unread count" }, { status: 500 });
   }

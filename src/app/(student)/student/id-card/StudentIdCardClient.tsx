@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { displaySectionName } from "@/lib/class-section-label";
+import { StudentCardQr } from "@/components/StudentCardQr";
 
 const W = 380;
 const H = 240;
@@ -51,6 +52,7 @@ const FLIP_CSS = `
 `;
 
 type Props = {
+  verificationQr: string;
   student: {
     id: number;
     name: string;
@@ -120,7 +122,7 @@ function ContactRow({ Icon, label, value }: { Icon: () => React.ReactNode; label
   );
 }
 
-export function StudentIdCardClient({ student, institution }: Props) {
+export function StudentIdCardClient({ student, institution, verificationQr }: Props) {
   const [flipped, setFlipped] = useState(false);
 
   return (
@@ -195,11 +197,7 @@ export function StudentIdCardClient({ student, institution }: Props) {
                     </>
                   )}
                 </div>
-                <div style={{ display: "flex", gap: 1.5, alignItems: "flex-end", opacity: 0.2 }}>
-                  {[10, 16, 10, 20, 12, 18, 10, 14, 20, 10, 16, 12].map((h, i) => (
-                    <div key={i} style={{ width: 2, height: h, background: "#fff", borderRadius: 1 }} />
-                  ))}
-                </div>
+  
               </div>
             </div>
 
@@ -211,10 +209,13 @@ export function StudentIdCardClient({ student, institution }: Props) {
                 <span style={{ fontSize: 7, color: GOLD, letterSpacing: "0.06em" }}>{student.loginRollNumber.split('@')[0]}</span>
               </div>
               <div style={{ flex: 1, padding: "14px 16px 12px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  <ContactRow Icon={PhoneIcon} label="Student Contact" value={student.phone || "Not provided"} />
-                  <ContactRow Icon={ShieldIcon} label="Emergency Contact" value={student.emergencyContact || "Not provided"} />
-                </div>
+                    <ContactRow Icon={PhoneIcon} label="Student Contact" value={student.phone || "Not provided"} />
+                    <ContactRow Icon={ShieldIcon} label="Emergency Contact" value={student.emergencyContact || "Not provided"} />
+                  </div>
+                <StudentCardQr image={verificationQr} />
+              </div>
                 <div style={{ height: 1, background: RULE, margin: "4px 0" }} />
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <N360Mark />
@@ -235,7 +236,7 @@ export function StudentIdCardClient({ student, institution }: Props) {
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
                 <span style={{ fontSize: 7, fontWeight: 700, color: MUTED, letterSpacing: "0.1em", textTransform: "uppercase" as const }}>
-                  Verified Student — Nisaab360
+                  Scan QR to verify student
                 </span>
               </div>
             </div>

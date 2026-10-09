@@ -38,12 +38,6 @@ export default async function StaffLeavesPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <div>
-        <h1 className="font-display text-3xl font-bold text-brand-950">Student Leave Requests</h1>
-        <p className="mt-1 text-stone-500">
-          Manage leave applications from students in your class.
-        </p>
-      </div>
 
       <LeavesClient initialRequests={requests} />
     </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useAbortableReads } from "@/lib/use-abortable-reads";
 import { useCallback, useEffect, useState } from "react";
 import { BookOpen, CheckCircle2, ChevronRight, CirclePlay, Loader2, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ type CourseDetail = {
 type Pagination = { page: number; pageSize: number; total: number; pages: number };
 
 export default function StudentCoursesPage() {
+  const reads = useAbortableReads();
   const [courses, setCourses] = useState<CourseSummary[]>([]);
   const [pagination, setPagination] = useState<Pagination>({ page: 1, pageSize: 10, total: 0, pages: 1 });
   const [page, setPage] = useState(1);
@@ -41,24 +43,29 @@ export default function StudentCoursesPage() {
   const [loadingVideo, setLoadingVideo] = useState(false);
 
   const load = useCallback(async (pageNumber: number) => {
-    const response = await fetch(`/api/student/courses?page=${pageNumber}`, { cache: "no-store" });
+    const signal = reads.begin("list");
+    const response = await fetch(`/api/student/courses?page=${pageNumber}`, { cache: "no-store", signal });
     const data = await response.json();
+    if (signal.aborted) return;
     if (!response.ok) throw new Error(data.error || "Unable to load courses");
     setCourses(data.courses);
     setPagination(data.pagination);
-  }, []);
+  }, [reads]);
 
   useEffect(() => {
+    let active = true;
     const timer = window.setTimeout(() => {
       setLoading(true);
       void load(page)
-        .catch((error) => setMessage(error.message))
-        .finally(() => setLoading(false));
+        .catch((error) => active && setMessage(error.message))
+        .finally(() => { if (active) setLoading(false); });
     }, 0);
-    return () => window.clearTimeout(timer);
-  }, [load, page]);
+    return () => { active = false; window.clearTimeout(timer); reads.cancel("list"); };
+  }, [load, page, reads]);
 
   async function openCourse(course: CourseSummary) {
+    reads.cancel("playback");
+    const signal = reads.begin("detail");
     setSelectedCourse(course);
     setDetail(null);
     setSelectedLectureId(null);
@@ -66,33 +73,37 @@ export default function StudentCoursesPage() {
     setMessage("");
     setLoadingDetail(true);
     try {
-      const response = await fetch(`/api/student/courses/${course.courseId}`, { cache: "no-store" });
+      const response = await fetch(`/api/student/courses/${course.courseId}`, { cache: "no-store", signal });
       const data = await response.json();
+      if (signal.aborted) return;
       if (!response.ok) throw new Error(data.error || "Unable to load course");
       setDetail(data);
-    } catch (error) {
+    } catch (error) { if (signal.aborted) return;
       setMessage(error instanceof Error ? error.message : "Unable to load course");
       setSelectedCourse(null);
     } finally {
-      setLoadingDetail(false);
+      if (!signal.aborted) setLoadingDetail(false);
     }
   }
 
   async function watch(lectureId: number) {
+    const signal = reads.begin("playback");
     setSelectedLectureId(lectureId);
     setPlaybackUrl("");
     setLoadingVideo(true);
     setMessage("");
     try {
-      const response = await fetch(`/api/student/courses/lectures/${lectureId}/playback`, { cache: "no-store" });
+      const response = await fetch(`/api/student/courses/lectures/${lectureId}/playback`, { cache: "no-store", signal });
       const data = await response.json();
+      if (signal.aborted) return;
       if (!response.ok) throw new Error(data.error || "Unable to open lecture");
       if (!data.playbackUrl) throw new Error("Secure playback is unavailable");
       setPlaybackUrl(data.playbackUrl);
     } catch (error) {
+      if (signal.aborted) return;
       setMessage(error instanceof Error ? error.message : "Unable to open lecture");
     } finally {
-      setLoadingVideo(false);
+      if (!signal.aborted) setLoadingVideo(false);
     }
   }
 
@@ -114,7 +125,7 @@ export default function StudentCoursesPage() {
   const selectedLecture = detail?.lectures.find((lecture) => lecture.lectureId === selectedLectureId);
 
   return <div className="mx-auto max-w-6xl space-y-7 p-6">
-    <div><h1 className="flex items-center gap-2 font-display text-3xl font-bold text-brand-950"><BookOpen /> Courses</h1><p className="mt-1 text-stone-500">Continue your lessons and keep track of completed lectures.</p></div>
+
     {message && <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{message}</p>}
     {loading ? <div className="grid min-h-64 place-items-center rounded-xl border border-stone-200 bg-white"><Loader2 className="h-7 w-7 animate-spin text-brand-700" /></div> : courses.length === 0 ? <div className="rounded-xl border border-stone-200 bg-white p-12 text-center"><BookOpen className="mx-auto h-9 w-9 text-stone-300" /><h2 className="mt-3 font-semibold text-brand-950">No courses yet</h2><p className="mt-1 text-sm text-stone-500">Courses assigned to your class will appear here.</p></div> : <div className="grid gap-4 md:grid-cols-2">{courses.map((course) => {
       const progress = course.lectureCount ? Math.round((course.completedCount / course.lectureCount) * 100) : 0;
@@ -122,7 +133,7 @@ export default function StudentCoursesPage() {
     })}</div>}
     {pagination.pages > 1 && <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-white px-4 py-3"><Button type="button" variant="outline" disabled={page <= 1 || loading} onClick={() => setPage((current) => Math.max(1, current - 1))}>Previous</Button><span className="text-sm text-stone-500">Page {pagination.page} of {pagination.pages} · {pagination.total} courses</span><Button type="button" variant="outline" disabled={page >= pagination.pages || loading} onClick={() => setPage((current) => Math.min(pagination.pages, current + 1))}>Next</Button></div>}
 
-    <Dialog open={selectedCourse !== null} onOpenChange={(open) => { if (!open) { setSelectedCourse(null); setDetail(null); setSelectedLectureId(null); setPlaybackUrl(""); } }}>
+    <Dialog open={selectedCourse !== null} onOpenChange={(open) => { if (!open) { reads.cancel("detail"); reads.cancel("playback"); setSelectedCourse(null); setDetail(null); setSelectedLectureId(null); setPlaybackUrl(""); } }}>
       <DialogContent className="max-w-6xl gap-0 overflow-hidden p-0 sm:p-0">
         <DialogHeader className="border-b border-stone-200 bg-stone-50 px-6 py-5 pr-12 text-left"><DialogTitle className="text-xl text-brand-950">{selectedCourse?.title || "Course"}</DialogTitle><DialogDescription>{selectedCourse ? `${selectedCourse.subjectName} · ${selectedCourse.teacherName}` : "Course lectures"}</DialogDescription></DialogHeader>
         {loadingDetail || !detail ? <div className="grid min-h-[540px] place-items-center"><Loader2 className="h-7 w-7 animate-spin text-brand-700" /></div> : <div className="grid min-h-[540px] lg:grid-cols-[320px_minmax(0,1fr)]">

@@ -50,11 +50,6 @@ export default async function StudentExamTimetablePage() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div className="border-b border-border pb-6">
-        <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">My class exams</p>
-        <h1 className="mt-2 text-3xl font-display font-bold text-brand-950">Exam Timetable</h1>
-        <p className="text-stone-500 mt-1">Monthly, Mid, and Final papers arranged by date and subject.</p>
-      </div>
 
       <ExamTimetableList rows={activeExamRows} emptyText="No active institution exam timetable has been published for your class yet." audience="student" />
     </div>

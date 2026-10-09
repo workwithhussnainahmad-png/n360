@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/lib/rbac";
 import { db } from "@/db";
@@ -49,6 +50,9 @@ export const POST = requireRole(["STAFF"], async (req: NextRequest, { session })
 
     return NextResponse.json({ success: true, id: leaveReq.id });
   } catch (err) {
+    const publicInputError = inputErrorResponse(err);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error creating staff leave request:", err);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
@@ -77,6 +81,9 @@ export const GET = requireRole(["STAFF"], async (req: NextRequest, { session }) 
     )).orderBy(desc(leaveRequests.createdAt));
     return NextResponse.json({ requests });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error fetching staff leave requests:", error);
     return NextResponse.json({ error: "Failed to fetch leave requests" }, { status: 500 });
   }

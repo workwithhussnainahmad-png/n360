@@ -51,11 +51,6 @@ export default async function StudentTestsPage() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div className="border-b border-border pb-6">
-        <p className="text-sm font-semibold uppercase tracking-wide text-brand-700">Online tests</p>
-        <h1 className="mt-2 text-3xl font-display font-bold text-brand-950">My Tests</h1>
-        <p className="mt-1 text-stone-500">Start hosted tests from your teachers and submit answers before the timer ends.</p>
-      </div>
 
       <Card>
         <CardHeader className="border-b border-border bg-stone-50/70">

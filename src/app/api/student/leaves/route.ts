@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/lib/rbac";
 import { db } from "@/db";
@@ -80,6 +81,9 @@ export const POST = requireRole(["STUDENT"], async (req: NextRequest, { session 
 
     return NextResponse.json({ success: true, id: leaveReq.id });
   } catch (err: any) {
+    const publicInputError = inputErrorResponse(err);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error creating student leave request:", err);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }

@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/lib/rbac";
 import { db } from "@/db";
@@ -67,6 +68,9 @@ export const PATCH = requireRole(["INSTITUTION", "INSTITUTION_ADMIN"], async (re
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
+    const publicInputError = inputErrorResponse(err);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error updating leave request:", err);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }

@@ -1,3 +1,6 @@
+import { positiveInteger } from "@/lib/pagination";
+import { ServerPagination } from "@/components/ui/server-pagination";
+import { actionFeedback } from '@/lib/action-feedback';
 import { db } from "@/db";
 import { campuses, institutionCustomRoles, staff } from "@/db/schema";
 import { and, desc, eq, isNull } from "drizzle-orm";
@@ -13,13 +16,15 @@ import { DeleteStaffButton } from "./DeleteStaffButton";
 import { StaffPageTabs } from "./StaffPageTabs";
 import { StaffRoleFilter } from "./StaffRoleFilter";
 
-const STAFF_LIST_LIMIT = 200;
+const STAFF_LIST_LIMIT = 50;
 
-export default async function InstitutionStaffPage({ searchParams }: { searchParams: Promise<{ role?: string }> }) {
+export default async function InstitutionStaffPage({ searchParams }: { searchParams: Promise<{ role?: string; page?: string }> }) {
   const session = await getSession();
   if (!session || (session.role !== "INSTITUTION" && session.role !== "INSTITUTION_ADMIN")) redirect("/login");
   const institutionId = session.institutionId || session.userId;
-  const requestedRole = String((await searchParams).role || "all");
+  const params = await searchParams;
+  const page = positiveInteger(params.page);
+  const requestedRole = String(params.role || "all");
   const roleId = Number(requestedRole);
   const roleCondition = requestedRole === "unassigned"
     ? isNull(staff.customRoleId)
@@ -27,29 +32,30 @@ export default async function InstitutionStaffPage({ searchParams }: { searchPar
       ? eq(staff.customRoleId, roleId)
       : undefined;
 
-  const [allStaff, allCampuses, allRoles] = await Promise.all([
+  const [staffRows, allCampuses, allRoles] = await Promise.all([
     db.select({ id: staff.id, name: staff.name, email: staff.email, isActive: staff.isActive, campus: campuses.name, role: institutionCustomRoles.name })
       .from(staff)
       .leftJoin(campuses, eq(staff.campusId, campuses.id))
       .leftJoin(institutionCustomRoles, eq(staff.customRoleId, institutionCustomRoles.id))
       .where(and(eq(staff.institutionId, institutionId), roleCondition))
-      .orderBy(desc(staff.createdAt))
-      .limit(STAFF_LIST_LIMIT),
+      .orderBy(desc(staff.createdAt), desc(staff.id))
+      .limit(STAFF_LIST_LIMIT + 1).offset((page - 1) * STAFF_LIST_LIMIT),
     db.select().from(campuses).where(eq(campuses.institutionId, institutionId)),
     db.select().from(institutionCustomRoles).where(eq(institutionCustomRoles.institutionId, institutionId)).orderBy(institutionCustomRoles.name),
   ]);
 
+  const allStaff = staffRows.slice(0, STAFF_LIST_LIMIT);
+
   async function createStaff(formData: FormData) {
     "use server";
+    return actionFeedback(async () => {
     return createStaffAction(formData);
+
+    });
   }
 
   return (
     <div className="animate-fade-in space-y-8">
-      <div>
-        <h1 className="font-display text-3xl font-bold text-brand-950">Staff Management</h1>
-        <p className="mt-1 text-stone-500">Manage teachers, administrators, and support staff.</p>
-      </div>
 
       <StaffPageTabs
         campuses={allCampuses}
@@ -81,7 +87,7 @@ export default async function InstitutionStaffPage({ searchParams }: { searchPar
                     </tbody>
                   </table>
                 </div>
-                {allStaff.length === STAFF_LIST_LIMIT && <p className="border-t border-border bg-stone-50/50 px-6 py-3 text-xs text-stone-500">Showing the first {STAFF_LIST_LIMIT} staff members. Refine roles/campuses in Settings to narrow this down.</p>}
+                <ServerPagination page={page} hasMore={staffRows.length > STAFF_LIST_LIMIT} params={{ role: requestedRole }} />
               </CardContent>
             </Card>
           </div>

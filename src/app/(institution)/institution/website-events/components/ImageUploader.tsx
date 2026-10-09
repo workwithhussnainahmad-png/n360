@@ -1,3 +1,4 @@
+import { showError } from "@/lib/show-error";
 import type { ChangeEvent } from 'react';
 import { useState } from 'react';
 import Image from 'next/image';
@@ -27,7 +28,7 @@ export function ImageUploader({ value, onChange, label }: { value: string; onCha
     const file = event.target.files?.[0]; event.target.value = '';
     if (!file) return;
     setUploading(true);
-    try { onChange(await uploadPublicImage(file)); } catch (error) { window.alert(error instanceof Error ? error.message : 'Image upload failed'); } finally { setUploading(false); }
+    try { onChange(await uploadPublicImage(file)); } catch (error) { showError(error instanceof Error ? error.message : 'Image upload failed'); } finally { setUploading(false); }
   }
   
   const blurDataURL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";

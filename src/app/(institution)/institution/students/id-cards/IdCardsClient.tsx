@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api-client";
 import { displaySectionName, formatClassSection } from "@/lib/class-section-label";
+import { StudentCardQr } from "@/components/StudentCardQr";
 
 type PickerStudent = { id: number; name: string; classRollNumber: string; className: string; sectionName: string };
 type CardStudent = PickerStudent & {
+  verificationQr: string;
   fatherName: string | null;
   phone: string | null;
   emergencyContact: string | null;
@@ -182,12 +184,7 @@ export function IdCard({ student, institution }: { student: CardStudent; institu
                   </>
                 )}
               </div>
-              {/* Decorative barcode stripes */}
-              <div style={{ display: "flex", gap: 1.5, alignItems: "flex-end", opacity: 0.2 }}>
-                {[10, 16, 10, 20, 12, 18, 10, 14, 20, 10, 16, 12].map((h, i) => (
-                  <div key={i} style={{ width: 2, height: h, background: "#fff", borderRadius: 1 }} />
-                ))}
-              </div>
+
             </div>
           </div>
 
@@ -202,9 +199,12 @@ export function IdCard({ student, institution }: { student: CardStudent; institu
             </div>
             {/* Body */}
             <div style={{ flex: 1, padding: "14px 16px 12px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <ContactRow Icon={PhoneIcon} label="Student Contact" value={student.phone || "Not provided"} />
-                <ContactRow Icon={ShieldIcon} label="Emergency Contact" value={student.emergencyContact || "Not provided"} />
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <ContactRow Icon={PhoneIcon} label="Student Contact" value={student.phone || "Not provided"} />
+                  <ContactRow Icon={ShieldIcon} label="Emergency Contact" value={student.emergencyContact || "Not provided"} />
+                </div>
+                <StudentCardQr image={student.verificationQr} />
               </div>
               <div style={{ height: 1, background: RULE, margin: "4px 0" }} />
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -227,7 +227,7 @@ export function IdCard({ student, institution }: { student: CardStudent; institu
                 <polyline points="20 6 9 17 4 12" />
               </svg>
               <span style={{ fontSize: 7, fontWeight: 700, color: MUTED, letterSpacing: "0.1em", textTransform: "uppercase" as const }}>
-                Verified Student — Nisaab360
+                Scan QR to verify student
               </span>
             </div>
           </div>
@@ -254,24 +254,32 @@ export function IdCardsClient({ initialStudentId }: { initialStudentId?: number 
   const [loading, setLoading] = useState(Boolean(initialStudentId));
   const [error, setError] = useState<string | null>(null);
 
+  const cardsRequest = useRef<AbortController | null>(null);
+  const generatedAt = useRef(0);
+  useEffect(() => () => cardsRequest.current?.abort(), []);
   useEffect(() => {
+    const controller = new AbortController();
     if (!initialStudentId) return;
-    api.get<CardData>(`/api/institution/students/id-cards?studentIds=${initialStudentId}`)
+    api.get<CardData>(`/api/institution/students/id-cards?studentIds=${initialStudentId}`, { signal: controller.signal })
       .then((data) => {
+        if (controller.signal.aborted) return;
+        generatedAt.current = Date.now();
         setCardData(data);
         const s = data.students[0];
         if (s) setSelectedDetails(new Map([[s.id, { id: s.id, name: s.name, classRollNumber: s.classRollNumber, className: s.className, sectionName: s.sectionName }]]));
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load id card"))
-      .finally(() => setLoading(false));
+      .catch((err) => { if (!controller.signal.aborted) setError(err instanceof Error ? err.message : "Failed to load id card"); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (!query.trim()) return;
+    const controller = new AbortController();
     let ignore = false;
     const timer = setTimeout(() => {
-      fetch(`/api/institution/students/picker?${new URLSearchParams({ q: query.trim() })}`)
+      fetch(`/api/institution/students/picker?${new URLSearchParams({ q: query.trim() })}`, { signal: controller.signal })
         .then((res) => (res.ok ? res.json() : null))
         .then((data: { students: PickerStudent[] } | null) => {
           if (ignore) return;
@@ -283,7 +291,7 @@ export function IdCardsClient({ initialStudentId }: { initialStudentId?: number 
         .catch(() => { if (!ignore) setResults([]); })
         .finally(() => { if (!ignore) setSearching(false); });
     }, SEARCH_DEBOUNCE_MS);
-    return () => { ignore = true; clearTimeout(timer); };
+    return () => { ignore = true; controller.abort(); clearTimeout(timer); };
   }, [query]);
 
   const toggle = (s: PickerStudent) => {
@@ -292,11 +300,16 @@ export function IdCardsClient({ initialStudentId }: { initialStudentId?: number 
   };
 
   const generate = async () => {
-    if (!selected.length) return;
+    if (!selected.length || selected.length > MAX_SELECTION) return;
+    if (cardData && Date.now() - generatedAt.current < 60_000 && selected.every(id => cardData.students.some(card => card.id === id))) return;
+    cardsRequest.current?.abort();
+    const controller = new AbortController(); cardsRequest.current = controller;
     setLoading(true); setError(null);
-    try { setCardData(await api.get<CardData>(`/api/institution/students/id-cards?studentIds=${selected.join(",")}`)); }
-    catch (err) { setError(err instanceof Error ? err.message : "Failed"); }
-    finally { setLoading(false); }
+    try {
+      const result = await api.get<CardData>(`/api/institution/students/id-cards?studentIds=${selected.join(",")}`, { signal: controller.signal });
+      if (!controller.signal.aborted) { setCardData(result); generatedAt.current = Date.now(); }
+    } catch (err) { if (!controller.signal.aborted) setError(err instanceof Error ? err.message : "Failed to load cards"); }
+    finally { if (!controller.signal.aborted) setLoading(false); }
   };
 
   const selectedList = useMemo(

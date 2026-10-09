@@ -1,4 +1,6 @@
 "use client";
+import { responseErrorMessage, apiErrorMessage } from '@/lib/validation-errors';
+
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -91,12 +93,12 @@ export default function DiaryClient() {
       const params = new URLSearchParams({ view: "history" });
       if (cursor) params.set("cursor", cursor);
       const res = await fetch(`/api/staff/diary?${params}`);
-      if (!res.ok) throw new Error("Failed to fetch history");
+      if (!res.ok) throw new Error(await responseErrorMessage(res));
       const data = await res.json();
       setHistoryEntries((current) => cursor ? [...current, ...data.entries] : data.entries);
       setHistoryCursor(data.nextCursor);
     } catch (error) {
-      toast({ title: "Error", description: "Failed to load past diary entries.", variant: "destructive" });
+      toast({ title: "Error", description: apiErrorMessage(error), variant: "destructive" });
     } finally {
       setHistoryLoading(false);
     }
@@ -114,11 +116,11 @@ export default function DiaryClient() {
     try {
       const params = new URLSearchParams({ view: "entry", classId: String(entry.classId), date: entry.date });
       const res = await fetch(`/api/staff/diary?${params}`);
-      if (!res.ok) throw new Error("Failed to fetch diary entry");
+      if (!res.ok) throw new Error(await responseErrorMessage(res));
       const data = await res.json();
       if (data.diary) setReadOnlyEntry({ date: entry.date, content: data.diary.content });
     } catch (error) {
-      toast({ title: "Error", description: "Failed to open this diary entry.", variant: "destructive" });
+      toast({ title: "Error", description: apiErrorMessage(error), variant: "destructive" });
     }
   };
 
@@ -131,7 +133,10 @@ export default function DiaryClient() {
   }, [historyOpen]);
 
   const handleSave = async () => {
-    if (!content) return;
+    if (!classId || !subjectId || !date || !content.trim()) {
+      toast({ title: 'Complete the diary entry', description: !classId ? 'Class is required.' : !subjectId ? 'Subject is required.' : !date ? 'Date is required.' : 'Diary content is required.', variant: 'destructive' });
+      return;
+    }
     setIsSaving(true);
     try {
       const res = await fetch("/api/staff/diary", {
@@ -140,12 +145,12 @@ export default function DiaryClient() {
         body: JSON.stringify({ classId, subjectId, date, content }),
       });
 
-      if (!res.ok) throw new Error("Failed to save");
+      if (!res.ok) throw new Error(await responseErrorMessage(res));
 
       toast({ title: "Success", description: "Diary entry saved successfully." });
       await fetchDiary();
     } catch (error) {
-      toast({ title: "Error", description: "Failed to create diary entry.", variant: "destructive" });
+      toast({ title: "Error", description: apiErrorMessage(error), variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -199,7 +204,7 @@ export default function DiaryClient() {
             value={content}
             onChange={(e) => setContent(e.target.value)}
           />
-          <Button onClick={handleSave} disabled={isSaving || !content} className="bg-brand-600 hover:bg-brand-700 w-full sm:w-auto">
+          <Button onClick={handleSave} disabled={isSaving} className="bg-brand-600 hover:bg-brand-700 w-full sm:w-auto">
             {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
             Save Entry
           </Button>

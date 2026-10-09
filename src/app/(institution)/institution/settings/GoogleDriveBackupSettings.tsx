@@ -1,4 +1,6 @@
 "use client";
+import { responseErrorMessage, apiErrorMessage } from '@/lib/validation-errors';
+
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
@@ -35,14 +37,14 @@ export function GoogleDriveBackupSettings() {
   const fetchStatus = async () => {
     try {
       const res = await fetch("/api/institution/settings/google-drive");
-      if (!res.ok) throw new Error("Failed to fetch status");
+      if (!res.ok) throw new Error(await responseErrorMessage(res));
       const data = await res.json();
       setStatus(data);
       if (!data.connected) setShowRestoreRequests(false);
-    } catch {
+    } catch (formError) {
       toast({
         title: "Error",
-        description: "Failed to load Google Drive connection status.",
+        description: apiErrorMessage(formError),
         variant: "destructive",
       });
     } finally {
@@ -72,15 +74,15 @@ export function GoogleDriveBackupSettings() {
     setConnecting(true);
     try {
       const res = await fetch("/api/institution/settings/google-drive/connect");
-      if (!res.ok) throw new Error("Failed to get authorization URL");
+      if (!res.ok) throw new Error(await responseErrorMessage(res));
       const data = await res.json();
       if (data.authorizationUrl) {
         window.location.href = data.authorizationUrl;
       }
-    } catch {
+    } catch (formError) {
       toast({
         title: "Connection Error",
-        description: "Could not initiate Google Drive connection.",
+        description: apiErrorMessage(formError),
         variant: "destructive",
       });
       setConnecting(false);
@@ -116,7 +118,7 @@ export function GoogleDriveBackupSettings() {
         body: JSON.stringify({ password }),
       });
       
-      if (!res.ok) throw new Error("Failed to save password");
+      if (!res.ok) throw new Error(await responseErrorMessage(res));
       
       toast({
         title: "Password Saved",
@@ -126,10 +128,10 @@ export function GoogleDriveBackupSettings() {
       setPassword("");
       setConfirmPassword("");
       await fetchStatus();
-    } catch {
+    } catch (formError) {
       toast({
         title: "Error",
-        description: "Could not save backup password.",
+        description: apiErrorMessage(formError),
         variant: "destructive",
       });
     } finally {
@@ -144,7 +146,7 @@ export function GoogleDriveBackupSettings() {
         method: "DELETE",
       });
       
-      if (!res.ok) throw new Error("Failed to disconnect");
+      if (!res.ok) throw new Error(await responseErrorMessage(res));
       
       toast({
         title: "Disconnected",
@@ -153,10 +155,10 @@ export function GoogleDriveBackupSettings() {
       
       setShowDisconnectConfirm(false);
       await fetchStatus();
-    } catch {
+    } catch (formError) {
       toast({
         title: "Error",
-        description: "Could not disconnect Google Drive.",
+        description: apiErrorMessage(formError),
         variant: "destructive",
       });
     } finally {

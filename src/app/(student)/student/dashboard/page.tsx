@@ -54,13 +54,6 @@ export default async function StudentDashboard() {
     return (
       <div className="space-y-6 animate-fade-in pb-20 lg:pb-0">
         <PromotionResultDialog />
-        <div className="rounded-2xl border border-brand-200 bg-brand-50 p-5 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-brand-700">Graduated Student Access</p>
-          <h1 className="mt-2 font-display text-3xl font-bold text-brand-950">Hi, {currentStudent.name}</h1>
-          <p className="mt-2 text-sm lg:text-base text-brand-900">
-            You are graduated, all you can access is Transcript, Attendance Record and Profile.
-          </p>
-        </div>
 
         <div className="grid gap-4 sm:grid-cols-3">
           <Link href="/student/transcripts" prefetch={false} className="block h-full">
@@ -176,10 +169,6 @@ export default async function StudentDashboard() {
   return (
     <div className="space-y-6 animate-fade-in pb-20 lg:pb-0">
       <PromotionResultDialog />
-      <div>
-        <h1 className="font-display text-3xl font-bold text-brand-950">Hi, {currentStudent.name}</h1>
-        <p className="text-stone-500 mt-1 text-sm lg:text-base">Here is your academic overview.</p>
-      </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="bg-gradient-to-br from-brand-800 to-brand-950 text-white border-none shadow-md">

@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { onlineTestSubmissions, onlineTests, tests, onlineTestQuestions, marks } from "@/db/schema";
@@ -67,6 +68,9 @@ export const POST = requireRole(["STAFF"], async (req: NextRequest, { session, p
 
     return NextResponse.json({ success: true, totalScore });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error grading online test:", error);
     return NextResponse.json({ error: "Failed to grade submission" }, { status: 500 });
   }

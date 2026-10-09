@@ -125,14 +125,10 @@ export function StaffProfileClient({
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-display font-bold text-brand-950">Profile & Settings</h1>
-        <p className="text-stone-500 mt-1">View your staff record, request corrections, and update your password.</p>
-      </div>
+    <div className="flex min-w-0 flex-col gap-6 animate-fade-in">
 
-      <Card>
-        <CardContent className="p-6">
+      <Card className="min-w-0 overflow-hidden">
+        <CardContent className="p-5 pt-5 sm:p-6 sm:pt-6">
           <ProfilePictureUploader 
             currentPictureUrl={staff.profilePictureUrl} 
             name={staff.firstName + " " + (staff.lastName || "")} 
@@ -141,22 +137,22 @@ export function StaffProfileClient({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="border-b border-border bg-stone-50/70"><CardTitle className="text-lg">Course streaming</CardTitle></CardHeader>
-        <CardContent className="p-6 pt-7"><CourseStreamingSettings /></CardContent>
+      <Card className="min-w-0 overflow-hidden">
+        <CardHeader className="border-b border-border bg-stone-50/70"><CardTitle className="text-base leading-6">Course streaming</CardTitle></CardHeader>
+        <CardContent className="p-5 pt-5 sm:p-6 sm:pt-6"><CourseStreamingSettings /></CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
-        <div className="space-y-6">
-          <Card>
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="flex min-w-0 flex-col gap-6">
+          <Card className="min-w-0 overflow-hidden">
             <CardHeader className="border-b border-border bg-stone-50/70">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <UserRound className="h-5 w-5 text-brand-700" />
+              <CardTitle className="flex items-start gap-2 text-base leading-6">
+                <UserRound className="mt-0.5 h-5 w-5 shrink-0 text-brand-700" />
                 Staff Profile
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-6 pt-7">
-              <div className="grid gap-4 md:grid-cols-2">
+            <CardContent className="p-5 pt-5 sm:p-6 sm:pt-6">
+              <div className="grid min-w-0 gap-4 sm:grid-cols-2">
                 <ReadOnlyField label="First Name" value={staff.firstName} />
                 <ReadOnlyField label="Last Name" value={staff.lastName || "-"} />
                 <ReadOnlyField label="Email" value={staff.email} />
@@ -168,26 +164,26 @@ export function StaffProfileClient({
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="min-w-0 overflow-hidden">
             <CardHeader className="border-b border-border bg-stone-50/70">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <BriefcaseBusiness className="h-5 w-5 text-brand-700" />
+              <CardTitle className="flex items-start gap-2 text-base leading-6">
+                <BriefcaseBusiness className="mt-0.5 h-5 w-5 shrink-0 text-brand-700" />
                 Teaching Assignments
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-0 sm:p-0">
               {assignments.length === 0 ? (
-                <p className="p-6 text-sm text-stone-500">No timetable assignments yet.</p>
+                <p className="p-5 text-sm leading-6 text-stone-500 sm:p-6">No timetable assignments yet.</p>
               ) : (
                 <div className="divide-y divide-border">
                   {assignments.map((assignment) => (
-                    <div key={assignment.id} className="grid gap-2 p-5 sm:grid-cols-[1fr_auto] sm:items-center">
+                    <div key={assignment.id} className="flex min-w-0 flex-col gap-2 p-5 sm:p-6">
                       <div>
-                        <p className="font-semibold text-brand-950">{assignment.subject || "Subject"}</p>
+                        <p className="text-sm font-semibold leading-6 text-brand-950 [overflow-wrap:anywhere]">{assignment.subject || "Subject"}</p>
                         <p className="text-sm text-stone-500">{formatClassSection(assignment.className, assignment.sectionName)}</p>
                       </div>
-                      <p className="flex items-center gap-2 text-sm text-stone-600">
-                        <CalendarClock className="h-4 w-4 text-stone-400" />
+                      <p className="flex flex-wrap items-center gap-2 text-sm leading-6 text-stone-600">
+                        <CalendarClock className="h-4 w-4 shrink-0 text-stone-400" />
                         {DAYS[assignment.dayOfWeek]} {assignment.startTime.substring(0, 5)} - {assignment.endTime.substring(0, 5)}
                       </p>
                     </div>
@@ -197,16 +193,16 @@ export function StaffProfileClient({
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="min-w-0 overflow-hidden">
             <CardHeader className="border-b border-border bg-stone-50/70">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Send className="h-5 w-5 text-brand-700" />
+              <CardTitle className="flex items-start gap-2 text-base leading-6">
+                <Send className="mt-0.5 h-5 w-5 shrink-0 text-brand-700" />
                 Request Profile Correction
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-6 pt-7">
+            <CardContent className="p-5 pt-5 sm:p-6 sm:pt-6">
               <form onSubmit={handleRequest} className="space-y-5 text-left">
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid min-w-0 gap-4 sm:grid-cols-2">
                   <Field label="First Name">
                     <Input name="firstName" placeholder={staff.firstName} />
                   </Field>
@@ -246,27 +242,27 @@ export function StaffProfileClient({
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="min-w-0 overflow-hidden">
             <CardHeader className="border-b border-border bg-stone-50/70">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Mail className="h-5 w-5 text-brand-700" />
+              <CardTitle className="flex items-start gap-2 text-base leading-6">
+                <Mail className="mt-0.5 h-5 w-5 shrink-0 text-brand-700" />
                 Request History
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-0 sm:p-0">
               {requests.length === 0 ? (
-                <p className="p-6 text-sm text-stone-500">No profile correction requests yet.</p>
+                <p className="p-5 text-sm leading-6 text-stone-500 sm:p-6">No profile correction requests yet.</p>
               ) : (
                 <div className="divide-y divide-border">
                   {requests.map((request) => (
-                    <div key={request.id} className="p-5">
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div key={request.id} className="min-w-0 p-5 sm:p-6">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
-                          <p className="font-semibold text-brand-950">
+                          <p className="text-sm font-semibold leading-6 text-brand-950 [overflow-wrap:anywhere]">
                             {formatRequestedFields(request.requestedFields, campuses)}
                           </p>
-                          <p className="mt-1 text-sm text-stone-500">{request.reason}</p>
-                          {request.adminNote && <p className="mt-2 text-sm text-stone-600">Admin note: {request.adminNote}</p>}
+                          <p className="mt-1 text-sm leading-6 text-stone-500 [overflow-wrap:anywhere]">{request.reason}</p>
+                          {request.adminNote && <p className="mt-2 text-sm leading-6 text-stone-600 [overflow-wrap:anywhere]">Admin note: {request.adminNote}</p>}
                         </div>
                         <StatusBadge status={request.status} />
                       </div>
@@ -279,14 +275,14 @@ export function StaffProfileClient({
           </Card>
         </div>
 
-        <Card className="h-fit">
+        <Card className="h-fit min-w-0 overflow-hidden">
           <CardHeader className="border-b border-border bg-stone-50/70">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <KeyRound className="h-5 w-5 text-brand-700" />
+            <CardTitle className="flex items-start gap-2 text-base leading-6">
+              <KeyRound className="mt-0.5 h-5 w-5 shrink-0 text-brand-700" />
               Update Password
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-6 pt-7">
+          <CardContent className="p-5 pt-5 sm:p-6 sm:pt-6">
             <form onSubmit={handlePassword} className="space-y-5 text-left">
               <Field label="Current Password">
                 <Input name="currentPassword" type="password" required />
@@ -307,16 +303,16 @@ export function StaffProfileClient({
 
 function ReadOnlyField({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-border bg-stone-50/60 px-4 py-3">
+    <div className="min-w-0 rounded-md border border-border bg-stone-50/60 px-4 py-3">
       <p className="text-xs font-medium uppercase tracking-wider text-stone-500">{label}</p>
-      <p className="mt-2 break-words text-sm font-semibold text-brand-950">{value}</p>
+      <p className="mt-2 text-sm font-semibold leading-6 text-brand-950 [overflow-wrap:anywhere]">{value}</p>
     </div>
   );
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="block space-y-2 text-left">
+    <label className="flex min-w-0 flex-col gap-2 text-left">
       <span className="text-sm font-medium text-stone-700">{label}</span>
       {children}
     </label>
@@ -330,5 +326,5 @@ function StatusBadge({ status }: { status: ProfileRequest["status"] }) {
       ? "bg-danger/15 text-red-700"
       : "bg-warning/20 text-yellow-700";
 
-  return <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-bold ${className}`}>{status}</span>;
+  return <span className={`w-fit shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${className}`}>{status}</span>;
 }

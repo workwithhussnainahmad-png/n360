@@ -1,9 +1,12 @@
+import { withApiPolicy } from "@/lib/api-policy";
+import { submitAdmissionFeeProof } from '@/lib/manual-admission-payments';
 import { NextRequest, NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import {
   admissionApplicantAccounts,
   admissionApplications,
+  admissionCycles,
   admissionFeePayments,
   institutions,
 } from "@/db/schema";
@@ -17,6 +20,7 @@ import { getAdmissionSessionFromRequest } from "@/lib/admission-auth";
 import { parseInstitutionHostname } from "@/lib/institution-domain";
 import { getPublicSiteBaseDomain } from "@/lib/public-site-domain";
 import { withRateLimit } from "@/lib/rate-limit";
+import { getPaymentAccounts } from "@/lib/manual-payment-accounts";
 
 const MAX_PROOF_BYTES = 5 * 1024 * 1024;
 const ALLOWED_PROOF_FORMATS = new Set(["jpg", "jpeg", "png", "webp", "pdf"]);
@@ -32,9 +36,11 @@ async function authorize(req: NextRequest, applicationId: number) {
     .select({
       payment: admissionFeePayments,
       applicationStatus: admissionApplications.status,
+      archivedAt: admissionCycles.archivedAt,
       accountSessionVersion: admissionApplicantAccounts.sessionVersion,
     })
     .from(admissionApplications)
+    .innerJoin(admissionCycles, eq(admissionCycles.id, admissionApplications.cycleId))
     .innerJoin(
       admissionFeePayments,
       and(
@@ -76,10 +82,18 @@ async function authorize(req: NextRequest, applicationId: number) {
   return { ...row, session };
 }
 
-export async function POST(
+export async function GET(req: NextRequest, { params }: { params: Promise<{ applicationId: string }> }) {
+  const applicationId = Number((await params).applicationId);
+  if (!Number.isSafeInteger(applicationId) || applicationId <= 0) return NextResponse.json({ error: "Invalid application." }, { status: 400 });
+  const authorized = await authorize(req, applicationId);
+  if (!authorized) return NextResponse.json({ error: "Applicant session required." }, { status: 401 });
+  return NextResponse.json({ paymentAccounts: await getPaymentAccounts(authorized.payment.institutionId) }, { headers: { 'Cache-Control': 'private, no-store' } });
+}
+
+export const POST = withApiPolicy(async (
   req: NextRequest,
   { params }: { params: Promise<{ applicationId: string }> },
-) {
+) => {
   const { applicationId: rawApplicationId } = await params;
   const applicationId = Number(rawApplicationId);
   if (!Number.isInteger(applicationId) || applicationId <= 0)
@@ -90,6 +104,7 @@ export async function POST(
       { error: "Applicant session required" },
       { status: 401 },
     );
+  if (authorized.archivedAt) return NextResponse.json({ error: "Restore this archived admission cycle before changing its records." }, { status: 409 });
   if (
     authorized.applicationStatus !== "FEE_PENDING" ||
     !["PENDING", "REJECTED"].includes(authorized.payment.status)
@@ -141,11 +156,11 @@ export async function POST(
     const allowedFormats = "jpg,jpeg,png,webp,pdf";
     const type = "authenticated";
     const signature = cloudinary.utils.api_sign_request(
-      { timestamp, folder, allowed_formats: allowedFormats, type },
+      { timestamp, folder, allowed_formats: allowedFormats, type, overwrite: false },
       apiSecret,
     );
     return NextResponse.json(
-      { signature, timestamp, folder, allowedFormats, type, cloudName, apiKey },
+      { signature, timestamp, folder, allowedFormats, type, overwrite: false, cloudName, apiKey },
       { headers: { "Cache-Control": "no-store" } },
     );
   }
@@ -212,49 +227,12 @@ export async function POST(
     );
   }
 
-  const submitted = await db.transaction(async (tx) => {
-    const [current] = await tx.select({ status: admissionApplications.status }).from(admissionApplications)
-      .where(and(eq(admissionApplications.id, applicationId), eq(admissionApplications.institutionId, authorized.payment.institutionId))).for("update");
-    if (!current || current.status !== "FEE_PENDING") return false;
-    const [fee] = await tx.select({ status: admissionFeePayments.status }).from(admissionFeePayments)
-      .where(and(eq(admissionFeePayments.id, authorized.payment.id), eq(admissionFeePayments.institutionId, authorized.payment.institutionId))).for("update");
-    if (!fee || fee.status !== authorized.payment.status) return false;
-    await tx
-      .update(admissionFeePayments)
-      .set({
-        payerReference,
-        payerSourceBank,
-        proofFileKey: encodeAdmissionFileAsset(asset),
-        status: "SUBMITTED",
-        reviewerNote: null,
-        submittedAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(admissionFeePayments.id, authorized.payment.id),
-          eq(
-            admissionFeePayments.institutionId,
-            authorized.payment.institutionId,
-          ),
-          eq(admissionFeePayments.status, authorized.payment.status),
-        ),
-      );
-    await tx
-      .update(admissionApplications)
-      .set({ status: "FEE_VERIFICATION", updatedAt: new Date() })
-      .where(
-        and(
-          eq(admissionApplications.id, applicationId),
-          eq(
-            admissionApplications.institutionId,
-            authorized.payment.institutionId,
-          ),
-          eq(admissionApplications.status, "FEE_PENDING"),
-        ),
-      );
-    return true;
-  });
+  let submitted;
+  try { submitted = await db.transaction(tx => submitAdmissionFeeProof(tx, { institutionId: authorized.payment.institutionId, applicationId, paymentId: authorized.payment.id, expectedStatus: authorized.payment.status, paymentAccountId: String("paymentAccountId" in body ? body.paymentAccountId : ""), transactionId: payerReference, sourceBankName: payerSourceBank, proofFileKey: encodeAdmissionFileAsset(asset) })); } catch (error) {
+    if (error instanceof Error && error.message === "PAYMENT_ACCOUNT_UNAVAILABLE") return NextResponse.json({ error: "Payment account was removed. Refresh and select a current account." }, { status: 409 });
+    if (error instanceof Error && error.message === "PAYMENT_REFERENCE_USED") return NextResponse.json({ error: "This transaction ID has already been submitted for this payment account." }, { status: 409 });
+    throw error;
+  }
   if (!submitted) return NextResponse.json({ error: "Fee status changed. Refresh before submitting proof." }, { status: 409 });
   return NextResponse.json({ success: true, status: "FEE_VERIFICATION" });
-}
+});

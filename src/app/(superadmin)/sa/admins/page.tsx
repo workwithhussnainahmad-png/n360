@@ -1,3 +1,5 @@
+import { actionFeedback } from '@/lib/action-feedback';
+import { ActionForm } from '@/components/ui/action-form';
 import { db } from "@/db";
 import { superAdmins } from "@/db/schema";
 import { desc } from "drizzle-orm";
@@ -20,25 +22,25 @@ export default async function SAAdminsPage() {
 
   async function createAdmin(formData: FormData) {
     "use server";
+    return actionFeedback(async () => {
     await createSuperAdminAction(formData);
     redirect("/sa/admins"); // Refresh
+
+    });
   }
 
   async function deleteAdmin(formData: FormData) {
     "use server";
+    return actionFeedback(async () => {
     const id = parseInt(formData.get("id") as string, 10);
     await deleteSuperAdminAction(id);
     redirect("/sa/admins"); // Refresh
+
+    });
   }
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-brand-950">System Admins</h1>
-          <p className="text-stone-500 mt-1">Manage top-level administrators with full system access.</p>
-        </div>
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
@@ -75,12 +77,12 @@ export default async function SAAdminsPage() {
                         {isRoot && (
                           <td className="px-6 py-4 text-right">
                             {admin.id !== session.userId && admin.id !== 1 && (
-                              <form action={deleteAdmin}>
+                              <ActionForm action={deleteAdmin}>
                                 <input type="hidden" name="id" value={admin.id} />
                                 <button type="submit" className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors" title="Delete Admin">
                                   <Trash2 className="h-4 w-4" />
                                 </button>
-                              </form>
+                              </ActionForm>
                             )}
                           </td>
                         )}
@@ -103,7 +105,7 @@ export default async function SAAdminsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
-                <form action={createAdmin} className="space-y-4">
+                <ActionForm action={createAdmin} className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-stone-700 mb-1">Email Address</label>
                     <input
@@ -143,7 +145,7 @@ export default async function SAAdminsPage() {
                     />
                   </div>
                   <SubmitButton className="w-full">Create Admin</SubmitButton>
-                </form>
+                </ActionForm>
               </CardContent>
             </Card>
           </div>

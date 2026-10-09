@@ -44,12 +44,6 @@ export default async function StudentTimetablePage() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-brand-950">My Timetable</h1>
-          <p className="text-stone-500 mt-1">View your weekly class schedule and subjects.</p>
-        </div>
-      </div>
 
       <WeeklyTimetable
         entries={timetableEntries}

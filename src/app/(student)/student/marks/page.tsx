@@ -35,10 +35,6 @@ export default async function StudentMarksPage() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-display font-bold text-brand-950">My Marks</h1>
-        <p className="text-stone-500 mt-1">Review uploaded assessment and exam scores.</p>
-      </div>
 
       <Card>
         <CardHeader className="border-b border-border bg-stone-50/50">

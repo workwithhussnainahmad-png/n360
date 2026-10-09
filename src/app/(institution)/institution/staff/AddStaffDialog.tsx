@@ -1,4 +1,7 @@
 "use client";
+import { ActionForm } from '@/components/ui/action-form';
+import type { ActionResult } from '@/lib/action-feedback';
+import { ApiError } from '@/lib/api-client';
 
 import { useState } from "react";
 import { Plus } from "lucide-react";
@@ -11,7 +14,7 @@ type Option = { id: number; name: string };
 export function AddStaffDialog({ campuses, roles, createStaff }: {
   campuses: Option[];
   roles: Option[];
-  createStaff: (formData: FormData) => Promise<{ success: boolean }>;
+  createStaff: (formData: FormData) => Promise<ActionResult<{ success: boolean }>>;
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
@@ -19,7 +22,8 @@ export function AddStaffDialog({ campuses, roles, createStaff }: {
   async function submit(formData: FormData) {
     setError("");
     try {
-      await createStaff(formData);
+      const result = await createStaff(formData);
+      if (!result.ok) throw new ApiError(400, result);
       setOpen(false);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Staff account could not be created.");
@@ -36,7 +40,7 @@ export function AddStaffDialog({ campuses, roles, createStaff }: {
           <DialogTitle className="text-xl text-brand-950">Add staff member</DialogTitle>
           <DialogDescription className="mt-1 leading-6">Create a staff account and assign its campus and role.</DialogDescription>
         </DialogHeader>
-        <form action={submit} className="space-y-5 p-6 pt-7">
+        <ActionForm action={submit} className="space-y-5 p-6 pt-7">
           <div><label className="mb-2 block text-sm font-medium text-stone-700">Full name</label><input type="text" name="name" required className="w-full rounded-md border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="Jane Smith" /></div>
           <div><label className="mb-2 block text-sm font-medium text-stone-700">Phone number</label><input type="text" name="phone" required className="w-full rounded-md border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="+92 300 1234567" /></div>
           <div className="grid gap-5 sm:grid-cols-2">
@@ -46,7 +50,7 @@ export function AddStaffDialog({ campuses, roles, createStaff }: {
           <div><label className="mb-2 block text-sm font-medium text-stone-700">Initial password</label><input type="password" name="password" required className="w-full rounded-md border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" /><p className="mt-2 text-xs leading-5 text-stone-500">A login email is generated automatically. The staff member must change this password after signing in.</p></div>
           {error && <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
           <div className="flex justify-end gap-3 border-t border-border pt-5"><Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button><SubmitButton>Create staff account</SubmitButton></div>
-        </form>
+        </ActionForm>
       </DialogContent>
     </Dialog>
   );

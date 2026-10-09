@@ -1,11 +1,12 @@
 "use client";
+import { runAction } from '@/lib/run-action';
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toaster";
-import { createInstitutionAdminAction } from "@/app/actions/institution-actions";
+import { createInstitutionAdminWithFeedback as createInstitutionAdminAction } from '@/app/actions/feedback-actions';
 import { ShieldCheck, Mail, Lock, UserCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
@@ -19,7 +20,7 @@ export function InstitutionAdminForm() {
     const formData = new FormData(e.currentTarget);
     
     try {
-      await createInstitutionAdminAction(formData);
+      await runAction(createInstitutionAdminAction, formData);
       toast({
         title: "Admin created",
         description: "The new institution admin has been created successfully.",

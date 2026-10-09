@@ -1,7 +1,9 @@
 "use client";
 
+import { abortableDelay } from "@/lib/abortable-delay";
+import { useAbortableReads } from "@/lib/use-abortable-reads";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BookOpen, CheckCircle2, ChevronRight, Circle, Film, Loader2, UploadCloud } from "lucide-react";
+import { CheckCircle2, ChevronRight, Circle, Film, Loader2, UploadCloud } from "lucide-react";
 import { Upload } from "tus-js-client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +17,7 @@ type Pagination = { page: number; pageSize: number; total: number; pages: number
 const field = "w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
 
 export default function StaffCoursesPage() {
+  const reads = useAbortableReads();
   const [courses, setCourses] = useState<Course[]>([]);
   const [options, setOptions] = useState<{ classes: Option[]; subjects: Option[]; assignments: Array<{ classId: number; subjectId: number }> }>({ classes: [], subjects: [], assignments: [] });
   const [subjectId, setSubjectId] = useState("");
@@ -27,12 +30,17 @@ export default function StaffCoursesPage() {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<Pagination>({ page: 1, pageSize: 10, total: 0, pages: 1 });
   const metadataLoaded = useRef(false);
+  const uploadCancelled = useRef(false);
+  const uploadedVideo = useRef<{ file: File; title: string; uploadId: string } | null>(null);
+  useEffect(() => { uploadCancelled.current = false; return () => { uploadCancelled.current = true; }; }, []);
 
   const load = useCallback(async (pageNumber: number) => {
+    const signal = reads.begin("list");
     const query = new URLSearchParams({ page: String(pageNumber) });
     if (!metadataLoaded.current) query.set("meta", "1");
-    const response = await fetch(`/api/staff/courses?${query}`, { cache: "no-store" });
+    const response = await fetch(`/api/staff/courses?${query}`, { cache: "no-store", signal });
     const data = await response.json();
+    if (signal.aborted) return;
     if (!response.ok) throw new Error(data.error || "Unable to load courses");
     setCourses(data.courses);
     setPagination(data.pagination);
@@ -40,13 +48,14 @@ export default function StaffCoursesPage() {
       setOptions(data.options);
       metadataLoaded.current = true;
     }
-  }, []);
+  }, [reads]);
   useEffect(() => {
+    let active = true;
     const timer = window.setTimeout(() => {
-      void load(page).catch((error) => setMessage(error.message));
+      void load(page).catch((error) => active && setMessage(error.message));
     }, 0);
-    return () => window.clearTimeout(timer);
-  }, [load, page]);
+    return () => { active = false; window.clearTimeout(timer); reads.cancel("list"); };
+  }, [load, page, reads]);
   const allowedClasses = useMemo(() => options.classes.filter((item) => options.assignments.some((assignment) => assignment.classId === item.id && assignment.subjectId === Number(subjectId))), [options, subjectId]);
 
   async function create(event: FormEvent<HTMLFormElement>) {
@@ -62,21 +71,26 @@ export default function StaffCoursesPage() {
   }
 
   const loadCourse = useCallback(async (id: number) => {
+    const signal = reads.begin("detail");
     setLoadingDetail(true); setMessage("");
     try {
-      const response = await fetch(`/api/staff/courses/${id}`, { cache: "no-store" }); const data = await response.json();
+      const response = await fetch(`/api/staff/courses/${id}`, { cache: "no-store", signal }); const data = await response.json();
+      if (signal.aborted) return;
       if (!response.ok) throw new Error(data.error || "Unable to load course"); setDetail(data);
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Unable to load course"); setOpenCourseId(null); }
-    finally { setLoadingDetail(false); }
-  }, []);
+    } catch (error) { if (signal.aborted) return; setMessage(error instanceof Error ? error.message : "Unable to load course"); setOpenCourseId(null); }
+    finally { if (!signal.aborted) setLoadingDetail(false); }
+  }, [reads]);
   function openCourse(id: number) { setOpenCourseId(id); setDetail(null); void loadCourse(id); }
 
   async function uploadVideo(file: File, title: string) {
+    const signal = reads.begin("upload");
     if (!file.type.startsWith("video/")) throw new Error("Choose a valid video file");
     if (file.size > 5 * 1024 * 1024 * 1024) throw new Error("Video files cannot exceed 5 GB");
+    let uploadId = uploadedVideo.current?.file === file && uploadedVideo.current.title === title ? uploadedVideo.current.uploadId : null;
+    if (!uploadId) {
     setMessage("Preparing protected upload…");
     const createResponse = await fetch("/api/staff/courses/uploads", {
-      method: "POST",
+      method: "POST", signal,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title, contentType: file.type }),
     });
@@ -93,7 +107,9 @@ export default function StaffCoursesPage() {
           onError: reject,
           onSuccess: () => resolve(),
         });
-        task.start();
+        const abort = () => { void task.abort(); reject(new DOMException("Cancelled", "AbortError")); };
+        signal.addEventListener("abort", abort, { once: true });
+        if (signal.aborted) abort(); else task.start();
       });
     } else {
       await new Promise<void>((resolve, reject) => {
@@ -101,19 +117,28 @@ export default function StaffCoursesPage() {
         request.open("PUT", upload.uploadUrl);
         Object.entries(upload.headers || {}).forEach(([key, value]) => request.setRequestHeader(key, String(value)));
         request.upload.onprogress = (event) => { if (event.lengthComputable) setMessage(`Uploading video… ${Math.round((event.loaded / event.total) * 100)}%`); };
+        request.onabort = () => reject(new DOMException("Cancelled", "AbortError"));
+        signal.addEventListener("abort", () => request.abort(), { once: true });
         request.onerror = () => reject(new Error("Video upload failed. Check your connection and try again."));
         request.onload = () => request.status >= 200 && request.status < 300 ? resolve() : reject(new Error("The streaming provider rejected the upload."));
-        request.send(file);
+        if (signal.aborted) reject(new DOMException("Cancelled", "AbortError")); else request.send(file);
       });
     }
+    uploadId = String(upload.uploadId);
+    uploadedVideo.current = { file, title, uploadId };
+    }
     setMessage("Upload complete. The provider is preparing adaptive video quality…");
-    for (let attempt = 0; attempt < 120; attempt += 1) {
-      const statusResponse = await fetch(`/api/staff/courses/uploads?uploadId=${encodeURIComponent(upload.uploadId)}`, { cache: "no-store" });
+    const deadline = Date.now() + 10 * 60_000;
+    for (let attempt = 0; Date.now() < deadline; attempt += 1) {
+      if (signal.aborted) throw new DOMException("Cancelled", "AbortError");
+      if (document.visibilityState === "hidden" || !navigator.onLine) { await abortableDelay(5000, signal); continue; }
+      const statusResponse = await fetch(`/api/staff/courses/uploads?uploadId=${encodeURIComponent(uploadId)}`, { cache: "no-store", signal });
+      if (statusResponse.status === 429 || statusResponse.status >= 500) { await abortableDelay(30_000, signal); continue; }
       const status = await statusResponse.json();
       if (!statusResponse.ok) throw new Error(status.error || "Could not check video processing");
       if (status.status === "READY" && status.videoUrl) return status.videoUrl as string;
       if (status.status === "ERROR") throw new Error(status.error || "The provider could not process this video");
-      await new Promise((resolve) => window.setTimeout(resolve, 5000));
+      await abortableDelay(Math.min(30_000, 5000 * Math.pow(1.5, attempt)), signal);
     }
     throw new Error("Video processing is taking longer than expected. Try saving the lecture again shortly.");
   }
@@ -122,18 +147,19 @@ export default function StaffCoursesPage() {
     event.preventDefault(); if (!detail) return; const form = event.currentTarget; const data = new FormData(form); setSaving(true); setMessage("");
     try {
       const title = String(data.get("title") || "").trim();
-      const file = data.get("videoFile");
+      const file = (form.elements.namedItem("videoFile") as HTMLInputElement | null)?.files?.[0];
       let videoUrl = String(data.get("videoUrl") || "").trim();
       if (file instanceof File && file.size > 0) videoUrl = await uploadVideo(file, title);
+      if (uploadCancelled.current) return;
       if (!videoUrl) throw new Error("Upload a video or paste an existing provider link");
       const response = await fetch(`/api/staff/courses/${detail.course.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sequence: Number(data.get("sequence")), title, description: String(data.get("description") || "") || null, videoUrl }) });
-      const result = await response.json(); if (!response.ok) throw new Error(result.error || "Unable to save lecture"); form.reset(); await loadCourse(detail.course.id); setMessage("Lecture saved.");
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Unable to save lecture"); }
-    finally { setSaving(false); }
+      const result = await response.json(); if (!response.ok) throw new Error(result.error || "Unable to save lecture"); uploadedVideo.current = null; form.reset(); await loadCourse(detail.course.id); setMessage("Lecture saved.");
+    } catch (error) { if (!uploadCancelled.current) setMessage(error instanceof Error ? error.message : "Unable to save lecture"); }
+    finally { if (!uploadCancelled.current) setSaving(false); }
   }
 
   return <div className="mx-auto max-w-6xl space-y-7 p-6">
-    <div><h1 className="flex items-center gap-2 font-display text-3xl font-bold text-brand-950"><BookOpen /> Courses</h1><p className="mt-1 text-stone-500">Build structured video courses for your assigned classes.</p></div>
+
     {message && <p className="rounded-lg border border-stone-200 bg-white p-3 text-sm text-stone-700">{message}</p>}
     <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
       <Card><CardHeader><CardTitle>New course</CardTitle></CardHeader><CardContent>
@@ -146,7 +172,7 @@ export default function StaffCoursesPage() {
             {allowedClasses.map((item) => <label key={item.id} className="flex items-center gap-2 rounded-lg border border-stone-200 px-3 py-2 text-sm"><input type="checkbox" checked={classIds.includes(item.id)} onChange={() => setClassIds((current) => current.includes(item.id) ? current.filter((id) => id !== item.id) : [...current, item.id])} />{item.name}</label>)}
           </fieldset>
           <label className="block text-sm font-semibold text-stone-700">Planned lectures<input required name="lectureCount" type="number" min="1" max="500" className={`${field} mt-2`} /></label>
-          <Button className="w-full" disabled={saving || !subjectId || classIds.length === 0}>{saving ? "Creating..." : "Create course"}</Button>
+          <Button className="w-full" disabled={saving}>{saving ? "Creating..." : "Create course"}</Button>
         </form>
       </CardContent></Card>
       <div className="space-y-3">
@@ -156,7 +182,7 @@ export default function StaffCoursesPage() {
       </div>
     </div>
 
-    <Dialog open={openCourseId !== null} onOpenChange={(open) => { if (!open && !saving) { setOpenCourseId(null); setDetail(null); } }}>
+    <Dialog open={openCourseId !== null} onOpenChange={(open) => { if (!open && !saving) { reads.cancel("detail"); setOpenCourseId(null); setDetail(null); } }}>
       <DialogContent className="max-w-5xl gap-0 overflow-hidden p-0 sm:p-0">
         <DialogHeader className="border-b border-stone-200 bg-stone-50 px-6 py-5 pr-12 text-left"><DialogTitle className="text-xl text-brand-950">{detail?.course.title || "Course lectures"}</DialogTitle><DialogDescription>{detail ? `${detail.course.subjectName} · ${detail.lectures.length} of ${detail.course.lectureCount} lectures added` : "Loading course details..."}</DialogDescription></DialogHeader>
         {loadingDetail || !detail ? <div className="grid min-h-72 place-items-center"><Loader2 className="h-7 w-7 animate-spin text-brand-700" /></div> : <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)]">

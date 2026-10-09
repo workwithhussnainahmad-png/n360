@@ -1,3 +1,5 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
+import { validationError } from '@/lib/validation-errors';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { institutions, campuses } from '@/db/schema';
@@ -17,7 +19,7 @@ export async function POST(req: NextRequest) {
     const parsed = registerInstitutionSchema.safeParse(body);
     
     if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error }, { status: 400 });
+      return NextResponse.json(validationError(parsed.error), { status: 400 });
     }
 
     const data = parsed.data;
@@ -47,6 +49,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ message: 'Institution registered successfully. Pending approval.' }, { status: 201 });
   } catch (err: unknown) {
+    const publicInputError = inputErrorResponse(err);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     if (err instanceof Error && err.message === 'This login email is already in use.') {
       return NextResponse.json({ error: err.message }, { status: 409 });
     }

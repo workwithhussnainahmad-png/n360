@@ -66,6 +66,10 @@ const SUPPLEMENTAL_MIGRATIONS = [
   "0068_admission_campus_availability.sql",
   "0069_campus_identity.sql",
   "0070_submissions_file_url.sql",
+  "0071_manual_payment_accounts.sql",
+  "0072_admission_cycle_archive.sql",
+  "0073_fee_snapshots_and_archive_write_guards.sql",
+  "0074_explicit_fee_billing.sql",
 ];
 
 if (!process.argv.includes("--apply"))

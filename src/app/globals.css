@@ -74,6 +74,25 @@
   }
 }
 
+@layer components {
+  /* Utilities on a particular page override these defaults at every width.
+     This also keeps p-0 table/list bodies flush without a responsive reset. */
+  .ui-card-padding {
+    padding: 1.25rem;
+  }
+
+  .app-content > *,
+  .app-content :where(form, section, article, div) {
+    min-width: 0;
+  }
+
+  @media (min-width: 640px) {
+    .ui-card-padding {
+      padding: 1.5rem;
+    }
+  }
+}
+
 @layer utilities {
   .focus-ring {
     outline: 2px solid transparent;
@@ -358,14 +377,6 @@
 
 .app-content :where(h1, h2, h3, h4) {
   text-wrap: balance;
-}
-
-.app-content > *,
-.app-content form,
-.app-content section,
-.app-content article,
-.app-content div {
-  min-width: 0;
 }
 
 .app-content img,

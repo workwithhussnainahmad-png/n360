@@ -1,3 +1,4 @@
+import { actionFeedback } from '@/lib/action-feedback';
 import { db } from "@/db";
 import { announcements, staffAssignments, classes, sections } from "@/db/schema";
 import { and, eq, desc } from "drizzle-orm";
@@ -97,18 +98,15 @@ export default async function StaffAnnouncementsPage({ searchParams }: { searchP
 
   async function createAnnouncement(formData: FormData) {
     "use server";
+    return actionFeedback(async () => {
     await createStaffAnnouncementAction(formData);
     redirect("/staff/announcements");
+
+    });
   }
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-brand-950">Notice Board</h1>
-          <p className="text-stone-500 mt-1">Read updates and broadcast messages to your classes.</p>
-        </div>
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
@@ -161,7 +159,7 @@ export default async function StaffAnnouncementsPage({ searchParams }: { searchP
         </div>
 
         <div>
-          <StaffAnnouncementForm 
+          <StaffAnnouncementForm
             classes={assignedClasses}
             sections={assignedSections}
             action={createAnnouncement}

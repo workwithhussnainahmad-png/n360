@@ -15,7 +15,7 @@ export function ResetPasswordForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!identifier) {
+    if (!identifier.trim()) {
       setError(`Please enter the ${userType === "STUDENT" ? "Roll Number" : "Email"}`);
       return;
     }
@@ -95,7 +95,10 @@ Administration`;
                 {userType === "STUDENT" ? "Student Roll Number" : "Staff Email"}
               </label>
               <input
-                type="text"
+                type={userType === 'STAFF' ? 'email' : 'text'}
+                name="identifier"
+                required
+                maxLength={255}
                 placeholder={userType === "STUDENT" ? "e.g. 2026-1234" : "e.g. staff@school.edu"}
                 className="w-full rounded-md border border-border px-3 py-2 text-sm bg-transparent"
                 value={identifier}
@@ -110,7 +113,7 @@ Administration`;
               </div>
             )}
 
-            <Button type="submit" disabled={isLoading || !identifier}>
+            <Button type="submit" disabled={isLoading}>
               {isLoading ? "Resetting..." : "Reset Password"}
             </Button>
           </form>

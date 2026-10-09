@@ -1,14 +1,15 @@
 "use client";
 
-import { PaymentHistory } from "@/components/PaymentHistory";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { MonthlyBillingPanel, OneTimeBillingPanel } from "@/components/fees/BillingPanels";
+import { Fragment, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toaster";
+import { useAbortableReads } from "@/lib/use-abortable-reads";
 import { api } from "@/lib/api-client";
 import { formatClassSection } from "@/lib/class-section-label";
 import {
@@ -19,6 +20,7 @@ import {
   ReceiptText,
   Search,
   Settings2,
+  Trash2,
   Users,
 } from "lucide-react";
 
@@ -43,6 +45,8 @@ type Invoice = {
   className: string;
   sectionName: string;
   billingMonth: string;
+  billingKind?: "MONTHLY" | "ONE_TIME";
+  billingLabel?: string | null;
   dueDate: string;
   status: "DUE" | "PARTIAL" | "PAID" | "VOID";
   totalAmount: number;
@@ -51,6 +55,7 @@ type Invoice = {
 };
 
 type Submission = {
+  paymentAccount: import("@/lib/payment-account-types").PaymentAccount | null;
   id: number;
   invoiceId: number;
   amount: number;
@@ -65,10 +70,12 @@ type FeesResponse = {
   heads: FeeHead[];
   classItems: ClassItem[];
   invoices: Invoice[];
+  pagination: { page: number; pageSize: number; total: number; pages: number };
 
   submissions: Submission[];
   summary: {
     invoiceCount: number;
+    studentCount?: number;
     billed: number;
     collected: number;
     outstanding: number;
@@ -100,12 +107,18 @@ const statusTone = (
         : "outline";
 
 export function FeesManager({ mode }: { mode: FeeSection }) {
+  const reads = useAbortableReads();
   const { toast } = useToast();
   const [data, setData] = useState<FeesResponse | null>(null);
   const [loading, setLoading] = useState(mode !== "billing");
   const [busy, setBusy] = useState(false);
-  const [month, setMonth] = useState(currentMonth);
+  const [headToRemove, setHeadToRemove] = useState<FeeHead | null>(null);
+  const removeHeadTrigger = useRef<HTMLButtonElement | null>(null);
+  const cancelHeadRemoval = useRef<HTMLButtonElement | null>(null);
+  const [month, setMonth] = useState(mode === "paid" ? "" : currentMonth);
+  const [page, setPage] = useState(1);
   const [status, setStatus] = useState("");
+  const [classId, setClassId] = useState("");
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
@@ -128,12 +141,12 @@ export function FeesManager({ mode }: { mode: FeeSection }) {
 
   const handleSearchAdjustments = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!resetRollNumber.trim()) return;
+    if (!resetRollNumber.trim()) { setResetError('Student roll number is required.'); return; }
     setResetSearchBusy(true);
     setResetError("");
     setResetAdjustments(null);
     try {
-      const res = (await api.post("/institution/fees", {
+      const res = (await api.post("/api/institution/fees", {
         action: "getAdjustmentsByRollNumber",
         rollNumber: resetRollNumber.trim(),
       })) as any;
@@ -150,7 +163,7 @@ export function FeesManager({ mode }: { mode: FeeSection }) {
   const handleRemoveAdjustment = async (adjustmentId: number) => {
     setResetSearchBusy(true);
     try {
-      await api.post("/institution/fees", {
+      await api.post("/api/institution/fees", {
         action: "removeAdjustment",
         adjustmentId,
       });
@@ -164,33 +177,43 @@ export function FeesManager({ mode }: { mode: FeeSection }) {
   };
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 300);
+    const timer = window.setTimeout(() => { setDebouncedQuery(query.trim()); setPage(1); }, 300);
     return () => window.clearTimeout(timer);
   }, [query]);
 
+  const metadataLoaded = useRef(0);
+  const summaryMonth = useRef<string | null>(null);
+  const summaryLoadedAt = useRef(0);
+  const readMonth = mode === 'collections' || mode === 'paid' ? month : '';
   const load = useCallback(
-    async (signal?: AbortSignal) => {
-      if (mode === "billing") {
-        setLoading(false);
-        return;
-      }
+    async (parentSignal?: AbortSignal, force = false) => {
+      const signal = reads.begin("fees", parentSignal);
       setLoading(true);
       try {
         const params = new URLSearchParams({ view: mode });
+        if (Date.now() - metadataLoaded.current < 30_000 && !force) params.set("meta", "0");
+        if (mode === "collections" && summaryMonth.current === readMonth && Date.now() - summaryLoadedAt.current < 10_000 && !force) params.set("summary", "0");
         if (mode === "collections" || mode === "paid") {
-          params.set("month", month);
+          params.set("page", String(page));
+          if (readMonth) params.set("month", readMonth);
           if (status) params.set("status", status);
           if (debouncedQuery) params.set("q", debouncedQuery);
+          if (classId) params.set("classId", classId);
         }
         const result = await api.get<FeesApiResponse>(
           `/api/institution/fees?${params}`,
           { signal },
         );
+        if (signal?.aborted) return;
+        if (result.classes) metadataLoaded.current = Date.now();
+        if (result.summary) { summaryMonth.current = readMonth; summaryLoadedAt.current = Date.now(); }
+        if (result.pagination && page > result.pagination.pages) { setPage(result.pagination.pages); return; }
         setData((current) => ({
           classes: result.classes ?? current?.classes ?? [],
           heads: result.heads ?? current?.heads ?? [],
           classItems: result.classItems ?? current?.classItems ?? [],
           invoices: result.invoices ?? current?.invoices ?? [],
+          pagination: result.pagination ?? current?.pagination ?? { page: 1, pageSize: 50, total: 0, pages: 1 },
 
           submissions: result.submissions ?? current?.submissions ?? [],
           summary: result.summary ??
@@ -216,7 +239,7 @@ export function FeesManager({ mode }: { mode: FeeSection }) {
         if (!signal?.aborted) setLoading(false);
       }
     },
-    [mode, month, status, debouncedQuery, toast],
+    [mode, readMonth, status, classId, debouncedQuery, page, toast, reads],
   );
 
   useEffect(() => {
@@ -265,14 +288,16 @@ export function FeesManager({ mode }: { mode: FeeSection }) {
         body,
       );
       toast({
-        title: success,
+        title: body && typeof body === "object" && "action" in body && body.action === "generateMonth" && result.created === 0 ? "No new challans created" : success,
         description:
           typeof result.created === "number"
-            ? `${result.created} student invoices created.`
+            ? result.created === 0
+              ? "Eligible students already have a challan for this billing month. Existing challans were skipped."
+              : `${result.created} student invoices created.`
             : undefined,
         variant: "success",
       });
-      if (mode !== "billing") await load();
+      await load(undefined, true);
       return true;
     } catch (error) {
       toast({
@@ -299,11 +324,14 @@ export function FeesManager({ mode }: { mode: FeeSection }) {
   const feeAmount = (classId: number, headId: number) =>
     data?.classItems.find(
       (item) => item.classId === classId && item.feeHeadId === headId,
-    )?.amount || 0;
+    )?.amount;
 
   async function reviewStudentPayment(statusValue: "VERIFIED" | "REJECTED") {
     if (!reviewSubmission) return;
-    if (statusValue === "REJECTED" && reviewNote.trim().length < 2) return;
+    if (statusValue === "REJECTED" && reviewNote.trim().length < 2) {
+      toast({ title: 'Review note required', description: 'Enter at least 2 characters explaining why the payment is rejected.', variant: 'destructive' });
+      return;
+    }
     const okay = await post(
       {
         action: "reviewStudentPayment",
@@ -318,13 +346,13 @@ export function FeesManager({ mode }: { mode: FeeSection }) {
     if (okay) {
       setReviewSubmission(null);
       setReviewNote("");
-      await load();
     }
   }
 
   const createHead = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     if (
       await post(
         {
@@ -335,7 +363,7 @@ export function FeesManager({ mode }: { mode: FeeSection }) {
         "Fee head added",
       )
     )
-      event.currentTarget.reset();
+      formElement.reset();
   };
 
   const saveClassFee = async (
@@ -343,6 +371,7 @@ export function FeesManager({ mode }: { mode: FeeSection }) {
     feeHeadId: number,
     input: HTMLInputElement,
   ) => {
+    if (!input.reportValidity()) return;
     await post(
       {
         action: "setClassFee",
@@ -354,27 +383,18 @@ export function FeesManager({ mode }: { mode: FeeSection }) {
     );
   };
 
-  const generate = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const billingMonth = String(form.get("billingMonth"));
-    if (
-      await post(
-        { action: "generateMonth", billingMonth, dueDate: form.get("dueDate") },
-        "Monthly challans generated",
-      )
-    )
-      setMonth(billingMonth);
-  };
-
   const addAdjustment = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!selectedStudent) return;
-    const form = new FormData(event.currentTarget);
+    if (!selectedStudent) { toast({ title: 'Student required', description: 'Select a student from the search results before saving the adjustment.', variant: 'destructive' }); return; }
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     if (
       await post(
         {
           action: "addAdjustment",
+          frequency: form.get("frequency"),
+          startMonth: form.get("startMonth") || undefined,
+          endMonth: form.get("endMonth") || undefined,
           studentId: selectedStudent.id,
           label: form.get("label"),
           type: form.get("type"),
@@ -385,7 +405,7 @@ export function FeesManager({ mode }: { mode: FeeSection }) {
     ) {
       setSelectedStudent(null);
       setStudentQuery("");
-      event.currentTarget.reset();
+      formElement.reset();
     }
   };
 
@@ -409,13 +429,13 @@ export function FeesManager({ mode }: { mode: FeeSection }) {
 
   return (
     <div className="space-y-7">
-      {(mode === "collections" || mode === "paid") && <PaymentHistory />}
       {mode === "collections" && (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="overflow-x-auto pb-1">
+          <div className="grid min-w-[850px] grid-cols-5 gap-3">
           {[
             {
               label: "Students billed",
-              value: data?.summary.invoiceCount || 0,
+              value: data?.summary.studentCount ?? data?.summary.invoiceCount ?? 0,
               Icon: Users,
             },
             {
@@ -439,22 +459,21 @@ export function FeesManager({ mode }: { mode: FeeSection }) {
               Icon: CalendarDays,
             },
           ].map(({ label, value, Icon }) => (
-            <Card key={label} className="h-full">
-              <CardContent className="flex min-h-28 items-center justify-between gap-4 p-5">
-                <div className="min-w-0 text-left">
-                  <p className="text-xs font-semibold uppercase leading-5 tracking-wide text-stone-500">
+            <Card key={label} className="min-w-0">
+              <div className="space-y-2 p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[10px] font-semibold uppercase leading-4 tracking-wide text-stone-500">
                     {label}
                   </p>
-                  <p className="mt-1.5 whitespace-nowrap text-xl font-bold tabular-nums leading-tight text-brand-950">
-                    {String(value)}
-                  </p>
+                  <Icon aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-brand-600" />
                 </div>
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50">
-                  <Icon className="h-5 w-5 text-brand-600" />
-                </div>
-              </CardContent>
+                <p className="whitespace-nowrap text-sm font-semibold tabular-nums leading-5 text-brand-950">
+                  {String(value)}
+                </p>
+              </div>
             </Card>
           ))}
+          </div>
         </div>
       )}
 
@@ -495,6 +514,19 @@ export function FeesManager({ mode }: { mode: FeeSection }) {
                   kept available for special charges.
                 </p>
               </div>
+              {!loading && data && data.heads.some(head => head.isActive) && <div className="space-y-3 border-b border-border p-5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Your fee heads</p>
+                {data.heads.filter(head => head.isActive).map(head => <div key={head.id} className="flex flex-wrap items-center gap-3 rounded-md border border-border bg-stone-50/50 p-3">
+                  <p className="min-w-0 flex-1 break-words text-sm font-semibold text-brand-950">{head.name}</p>
+                  <select aria-label={`Frequency for ${head.name}`} value={head.kind} disabled={busy} className="h-9 rounded-md border border-border bg-white px-2 text-sm" onChange={event => void post({ action: "updateHeadKind", feeHeadId: head.id, kind: event.target.value }, "Fee head updated")}>
+                    <option value="RECURRING">Every month</option><option value="ONE_TIME">One time</option>
+                  </select>
+                  <Button type="button" variant="ghost" size="sm" disabled={busy} className="cursor-pointer border-red-200 bg-white text-red-700 hover:border-red-600 hover:bg-red-600 hover:text-white" onClick={event => {
+                    removeHeadTrigger.current = event.currentTarget;
+                    setHeadToRemove(head);
+                  }}><Trash2 className="mr-1.5 h-4 w-4" />Remove</Button>
+                </div>)}
+              </div>}
               {loading ? (
                 <div className="p-8 text-center text-sm text-stone-500">
                   Loading fee structure…
@@ -543,10 +575,14 @@ export function FeesManager({ mode }: { mode: FeeSection }) {
                                   aria-label={`${head.name} for ${schoolClass.name}`}
                                   type="number"
                                   min="0"
+                                  max="10000000"
+                                  required
                                   defaultValue={feeAmount(
                                     schoolClass.id,
                                     head.id,
-                                  )}
+                                  ) ?? ""}
+                                  placeholder="Not set"
+                                  onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); if (event.currentTarget.reportValidity()) event.currentTarget.blur(); } }}
                                   className="w-28 rounded-md border border-border px-2 py-1.5 text-right tabular-nums"
                                   onBlur={(event) => {
                                     if (
@@ -578,43 +614,7 @@ export function FeesManager({ mode }: { mode: FeeSection }) {
 
       {mode === "billing" && (
         <div className="grid gap-6 lg:grid-cols-2">
-          <Card>
-            <CardHeader className="border-b border-border bg-stone-50/60">
-              <CardTitle className="text-lg leading-6">
-                Generate monthly challans
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-5">
-              <form onSubmit={generate} className="space-y-4">
-                <label className="block text-left text-sm font-medium leading-5 text-stone-700">
-                  Billing month
-                  <Input
-                    className="mt-1.5 tabular-nums"
-                    type="month"
-                    name="billingMonth"
-                    defaultValue={month}
-                    required
-                  />
-                </label>
-                <label className="block text-left text-sm font-medium leading-5 text-stone-700">
-                  Payment due date
-                  <Input
-                    className="mt-1.5 tabular-nums"
-                    type="date"
-                    name="dueDate"
-                    required
-                  />
-                </label>
-                <p className="text-left text-xs leading-5 text-stone-500">
-                  Only active students with a fee structure receive a challan.
-                  Existing challans are safely skipped.
-                </p>
-                <Button className="h-11 w-full" disabled={busy}>
-                  Generate challans
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+          <MonthlyBillingPanel month={month} disabled={loading || !data || recurringHeads.length === 0} onIssued={async billingMonth=>{setMonth(billingMonth);await load(undefined, true);}} />
 
           <Card>
             <CardHeader className="border-b border-border bg-stone-50/60">
@@ -679,11 +679,13 @@ export function FeesManager({ mode }: { mode: FeeSection }) {
                     placeholder="Amount"
                   />
                 </div>
+                <label className="block space-y-1.5 text-sm"><span>Apply adjustment</span><select name="frequency" className="h-11 w-full rounded-sm border border-border bg-white px-3"><option value="ONCE">Once ? next eligible monthly challan</option><option value="RECURRING">Every month within the dates below</option></select></label>
+                <div className="grid gap-3 sm:grid-cols-2"><label className="block space-y-1.5 text-sm"><span>From month</span><Input type="month" name="startMonth" defaultValue={month} required /></label><label className="block space-y-1.5 text-sm"><span>Until month (optional)</span><Input type="month" name="endMonth" /></label></div>
                 <div className="flex gap-2 w-full">
                   <Button
                     variant="outline"
                     className="h-11 w-[70%]"
-                    disabled={busy || !selectedStudent}
+                    disabled={busy}
                   >
                     Save adjustment
                   </Button>
@@ -708,13 +710,14 @@ export function FeesManager({ mode }: { mode: FeeSection }) {
               </form>
             </CardContent>
           </Card>
+          <OneTimeBillingPanel month={month} heads={(data?.heads || []).filter(head=>head.isActive && head.kind === "ONE_TIME")} classes={data?.classes || []} onIssued={async billingMonth=>{setMonth(billingMonth);await load(undefined, true);}} />
         </div>
       )}
 
       {(mode === "collections" || mode === "paid") && (
         <Card>
           <CardHeader className="border-b border-border bg-stone-50/60">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="flex flex-col gap-4">
               <div className="text-left">
                 <CardTitle className="text-lg leading-6">
                   {mode === "paid"
@@ -723,36 +726,67 @@ export function FeesManager({ mode }: { mode: FeeSection }) {
                 </CardTitle>
                 <p className="mt-1 text-sm leading-5 text-stone-500">
                   {mode === "paid"
-                    ? "The 50 most recent fully paid challans are shown."
-                    : "The first 50 matching accounts are shown to keep the page fast."}
+                    ? "Paid challans grouped by billing month. 50 records per page."
+                    : "50 unpaid challans per page. Fully paid challans appear in Paid fees / challans."}
                 </p>
               </div>
               {mode === "collections" && (
-                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[160px_140px_minmax(180px,1fr)_180px]">
                   <Input
                     type="month"
+                    aria-label="Billing month"
                     value={month}
-                    onChange={(event) => setMonth(event.target.value)}
-                    className="tabular-nums sm:w-40"
+                    onChange={(event) => { setMonth(event.target.value); setPage(1); }}
+                    className="w-full min-w-0 tabular-nums"
                   />
                   <select
+                    aria-label="Payment status"
                     value={status}
-                    onChange={(event) => setStatus(event.target.value)}
+                    onChange={(event) => { setStatus(event.target.value); setPage(1); }}
                     className="h-11 rounded-sm border border-border bg-white px-3 text-left text-sm text-brand-950"
                   >
-                    <option value="">All statuses</option>
+                    <option value="">All unpaid statuses</option>
                     <option value="DUE">Due</option>
                     <option value="PARTIAL">Partial</option>
-                    <option value="PAID">Paid</option>
                   </select>
-                  <div className="relative min-w-56">
+                  <div className="relative min-w-0">
                     <Search className="pointer-events-none absolute left-3 top-3.5 z-10 h-4 w-4 text-stone-400" />
                     <Input
                       value={query}
                       onChange={(event) => setQuery(event.target.value)}
                       className="pl-9"
                       placeholder="Student or roll no."
+                      aria-label="Search students"
                     />
+                  </div>
+                  <select
+                    aria-label="Class"
+                    value={classId}
+                    onChange={(event) => { setClassId(event.target.value); setPage(1); }}
+                    className="h-11 min-w-0 rounded-sm border border-border bg-white px-3 text-left text-sm text-brand-950"
+                  >
+                    <option value="">All classes</option>
+                    {data?.classes.map((schoolClass) => (
+                      <option key={schoolClass.id} value={schoolClass.id}>
+                        {schoolClass.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {mode === "paid" && (
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[220px_180px_minmax(180px,1fr)]">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Input type="month" aria-label="Billing month" value={month} onChange={(event) => { setMonth(event.target.value); setPage(1); }} className="min-w-0 flex-1 tabular-nums" />
+                    {month ? <Button type="button" variant="ghost" size="sm" className="shrink-0 cursor-pointer" onClick={() => { setMonth(""); setPage(1); }}>Clear</Button> : <span className="shrink-0 text-xs text-stone-500">All months</span>}
+                  </div>
+                  <select aria-label="Class" value={classId} onChange={(event) => { setClassId(event.target.value); setPage(1); }} className="h-11 min-w-0 rounded-sm border border-border bg-white px-3 text-left text-sm text-brand-950">
+                    <option value="">All classes</option>
+                    {data?.classes.map((schoolClass) => <option key={schoolClass.id} value={schoolClass.id}>{schoolClass.name}</option>)}
+                  </select>
+                  <div className="relative min-w-0">
+                    <Search className="pointer-events-none absolute left-3 top-3.5 z-10 h-4 w-4 text-stone-400" />
+                    <Input value={query} onChange={(event) => setQuery(event.target.value)} className="pl-9" placeholder="Student or roll no." aria-label="Search students" />
                   </div>
                 </div>
               )}
@@ -770,7 +804,7 @@ export function FeesManager({ mode }: { mode: FeeSection }) {
                   No challans found
                 </p>
                 <p className="mt-1 text-sm text-stone-500">
-                  Prepare the fee structure and generate this month’s challans.
+                  {mode === "paid" ? "Try another month, class or student search. Fully paid challans appear here." : "No unpaid challans match these filters."}
                 </p>
               </div>
             ) : (
@@ -800,13 +834,15 @@ export function FeesManager({ mode }: { mode: FeeSection }) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {data.invoices.map((invoice) => {
+                    {data.invoices.map((invoice, index) => {
                       const pendingSubmission = data.submissions.find(
                         (submission) =>
                           submission.invoiceId === invoice.id &&
                           submission.status === "SUBMITTED",
                       );
                       return (
+                        <Fragment key={invoice.id}>
+                        {mode === "paid" && (index === 0 || data.invoices[index - 1].billingMonth !== invoice.billingMonth) && <tr className="bg-stone-100/70"><th colSpan={7} scope="colgroup" className="px-5 py-3 text-left text-sm font-semibold text-brand-950">{new Date(`${invoice.billingMonth}-01T00:00:00`).toLocaleDateString("en-PK", { month: "long", year: "numeric" })}</th></tr>}
                         <tr key={invoice.id} className="hover:bg-stone-50/60">
                           <td className="px-5 py-3 text-left align-middle">
                             <p className="font-semibold leading-5 text-brand-950">
@@ -818,6 +854,7 @@ export function FeesManager({ mode }: { mode: FeeSection }) {
                           </td>
                           <td className="px-3 py-3 text-left align-middle">
                             {formatClassSection(invoice.className, invoice.sectionName, " · ")}
+                            {invoice.billingKind === "ONE_TIME" && <span className="mt-1 block break-words text-xs text-stone-500">One-time: {invoice.billingLabel}</span>}
                           </td>
                           <td className="whitespace-nowrap px-3 py-3 text-left align-middle tabular-nums">
                             {new Date(
@@ -862,12 +899,17 @@ export function FeesManager({ mode }: { mode: FeeSection }) {
                             )}
                           </td>
                         </tr>
+                        </Fragment>
                       );
                     })}
                   </tbody>
                 </table>
               </div>
             )}
+            {data && !loading && <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-4 text-sm">
+              <span>{data.pagination.total.toLocaleString()} challans · Page {page} of {data.pagination.pages}</span>
+              <div className="flex gap-2"><Button type="button" size="sm" variant="outline" disabled={busy || page === 1} onClick={() => setPage(page - 1)}>Previous</Button><Button type="button" size="sm" variant="outline" disabled={busy || page >= data.pagination.pages} onClick={() => setPage(page + 1)}>Next</Button></div>
+            </div>}
           </CardContent>
         </Card>
       )}
@@ -911,6 +953,7 @@ export function FeesManager({ mode }: { mode: FeeSection }) {
                   </dd>
                 </div>
               </dl>
+              {reviewSubmission.paymentAccount && <p className="rounded border p-3 text-sm">Paid to: {reviewSubmission.paymentAccount.providerName} · {reviewSubmission.paymentAccount.accountTitle} · {reviewSubmission.paymentAccount.accountNumber}</p>}
               <a
                 href={`/api/institution/fees/files/${reviewSubmission.id}`}
                 target="_blank"
@@ -940,7 +983,7 @@ export function FeesManager({ mode }: { mode: FeeSection }) {
                 </Button>
                 <Button
                   variant="danger"
-                  disabled={busy || reviewNote.trim().length < 2}
+                  disabled={busy}
                   onClick={() => void reviewStudentPayment("REJECTED")}
                 >
                   Reject proof
@@ -1021,6 +1064,25 @@ export function FeesManager({ mode }: { mode: FeeSection }) {
           </Card>
         </div>
       )}
+      <Dialog open={headToRemove !== null} onOpenChange={open => { if (!open && !busy) setHeadToRemove(null); }}>
+        <DialogContent className="max-w-md" onOpenAutoFocus={event => { event.preventDefault(); cancelHeadRemoval.current?.focus(); }} onCloseAutoFocus={event => { event.preventDefault(); removeHeadTrigger.current?.focus(); }}>
+          <DialogHeader>
+            <span className="mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-red-50 text-red-600"><Trash2 className="h-5 w-5" /></span>
+            <DialogTitle>Remove fee head?</DialogTitle>
+            <DialogDescription className="pt-2 leading-6">
+              Remove <strong className="break-words font-semibold text-stone-800">{headToRemove?.name}</strong> from your fee structure? Existing challans and payment records will be preserved.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+            <Button ref={cancelHeadRemoval} type="button" variant="outline" className="cursor-pointer" disabled={busy} onClick={() => setHeadToRemove(null)}>Cancel</Button>
+            <Button type="button" variant="danger" className="cursor-pointer" disabled={busy} onClick={async () => {
+              if (!headToRemove) return;
+              const removed = await post({ action: "removeHead", feeHeadId: headToRemove.id }, "Fee head removed");
+              if (removed) setHeadToRemove(null);
+            }}>{busy ? "Removing…" : "Remove fee head"}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -1048,7 +1110,8 @@ export function FeesManager({ mode }: { mode: FeeSection }) {
                   <div key={adj.id} className="flex items-center justify-between rounded-md border p-3">
                     <div>
                       <p className="font-medium text-sm">{adj.label} <span className="text-stone-500 text-xs">({adj.type})</span></p>
-                      <p className="text-xs font-bold tabular-nums">Rs {adj.amount.toLocaleString()}</p>
+                        <p className="text-xs font-bold tabular-nums">Rs {adj.amount.toLocaleString()}</p>
+                        <p className="mt-1 text-xs text-stone-500">{adj.frequency === "ONCE" ? adj.consumedInvoiceId ? "Once — already applied" : "Once — pending" : "Every month"} · {adj.startMonth || "No start limit"} to {adj.endMonth || "No end limit"}</p>
                     </div>
                     <Button 
                       variant="danger" 

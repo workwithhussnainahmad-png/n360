@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionFromRequest } from "@/lib/auth";
 import { db } from "@/db";
@@ -41,6 +42,9 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ error: "Only students and staff can register push tokens" }, { status: 403 });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error checking push token:", error);
     return NextResponse.json({ error: "Failed to check push token" }, { status: 500 });
   }
@@ -102,6 +106,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, message: "Push token registered successfully" });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error registering push token:", error);
     return NextResponse.json({ error: "Failed to register push token" }, { status: 500 });
   }

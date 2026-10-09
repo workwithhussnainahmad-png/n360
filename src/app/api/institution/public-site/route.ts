@@ -1,3 +1,4 @@
+import { validationError } from '@/lib/validation-errors';
 import { isMainCampusWebsite } from '@/lib/public-website-access';
 import { NextRequest, NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
@@ -57,7 +58,7 @@ export const PATCH = requireRole(['INSTITUTION', 'INSTITUTION_ADMIN'], async (re
     ? institutionPublicThemeSchema.safeParse(body)
     : institutionPublicContentPatchSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid website information' }, { status: 400 });
+    return NextResponse.json(validationError(parsed.error), { status: 400 });
   }
 
   const [institution] = await db.select({

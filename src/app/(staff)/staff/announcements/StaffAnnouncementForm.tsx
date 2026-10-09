@@ -1,4 +1,5 @@
 "use client";
+import { ActionForm } from '@/components/ui/action-form';
 
 import { useState } from "react";
 import { Plus } from "lucide-react";
@@ -16,13 +17,13 @@ export function StaffAnnouncementForm({
 }: {
   classes: ClassOption[];
   sections: SectionOption[];
-  action: (formData: FormData) => Promise<void>;
+  action: (formData: FormData) => Promise<unknown>;
 }) {
   const [targetType, setTargetType] = useState<string>("CLASS");
   const [selectedClassId, setSelectedClassId] = useState<string>("");
   const [selectedSectionId, setSelectedSectionId] = useState<string>("");
 
-  const filteredSections = selectedClassId 
+  const filteredSections = selectedClassId
     ? sections.filter(s => s.classId === parseInt(selectedClassId) && displaySectionName(s.name))
     : [];
 
@@ -35,7 +36,7 @@ export function StaffAnnouncementForm({
         </CardTitle>
       </CardHeader>
       <CardContent className="p-6">
-        <form action={action} className="space-y-4 pt-2 text-left">
+        <ActionForm action={action} className="space-y-4 pt-2 text-left">
           <div>
             <label className="mb-2 block text-sm font-medium text-stone-700">Message Title</label>
             <input
@@ -67,9 +68,9 @@ export function StaffAnnouncementForm({
           {(targetType === "CLASS" || targetType === "SECTION") && (
             <div>
               <label className="mb-2 block text-sm font-medium text-stone-700">Select Class</label>
-              <select 
-                name="targetClassId" 
-                required 
+              <select
+                name="targetClassId"
+                required
                 value={selectedClassId}
                 onChange={(e) => {
                   setSelectedClassId(e.target.value);
@@ -114,7 +115,7 @@ export function StaffAnnouncementForm({
           >
             Send Announcement
           </SubmitButton>
-        </form>
+        </ActionForm>
       </CardContent>
     </Card>
   );

@@ -8,7 +8,7 @@ export default async function SuperAdminDownloadAppPage() {
 
   return (
     <div className="space-y-6">
-      <div><h1 className="text-2xl font-bold text-brand-950">Android app download</h1><p className="mt-1 text-stone-600">Manage the APK available on the public download page.</p></div>
+
       <DownloadAppUploader />
     </div>
   );

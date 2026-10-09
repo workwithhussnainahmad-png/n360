@@ -1,22 +1,15 @@
+import { refreshSession } from './session-refresh';
+import { apiErrorMessage } from './validation-errors';
+
 export class ApiError extends Error {
+  readonly fieldErrors: Record<string, string[]>;
   constructor(public status: number, public data: unknown) {
-    const message = typeof data === 'object' && data && 'error' in data && typeof data.error === 'string'
-      ? data.error
-      : 'An error occurred';
-    super(message);
+    super(apiErrorMessage(data, status));
+    this.name = 'ApiError';
+    this.fieldErrors = data && typeof data === 'object' && 'fieldErrors' in data && data.fieldErrors && typeof data.fieldErrors === 'object'
+      ? data.fieldErrors as Record<string, string[]> : {};
   }
 }
-
-let isRefreshing = false;
-let failedQueue: { resolve: () => void, reject: (err: any) => void }[] = [];
-
-const processQueue = (error: Error | null) => {
-  failedQueue.forEach(prom => {
-    if (error) prom.reject(error);
-    else prom.resolve();
-  });
-  failedQueue = [];
-};
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   if (typeof document !== 'undefined' && document.documentElement.dataset.campusReadOnly === 'true'
@@ -24,49 +17,37 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
     && !['/api/institution/campus-view', '/api/auth/logout', '/api/auth/refresh'].includes(url)) {
     throw new ApiError(403, { error: 'This campus is read-only. Switch back to your own campus to make changes.' });
   }
-  let res = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-  });
+  const send = async () => {
+    try {
+      return await fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options?.headers,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') throw error;
+      throw new ApiError(0, { error: 'Cannot reach the server. Check your internet connection and try again.' });
+    }
+  };
+  let res = await send();
 
   if (res.status === 401 && !url.includes('/api/auth/refresh') && !url.includes('/api/auth/login')) {
-    if (!isRefreshing) {
-      isRefreshing = true;
-      try {
-        const refreshRes = await fetch('/api/auth/refresh', { method: 'POST' });
-        if (!refreshRes.ok) throw new Error('Session expired');
-        
-        processQueue(null);
-      } catch (err: any) {
-        processQueue(err);
-        throw err;
-      } finally {
-        isRefreshing = false;
-      }
-    } else {
-      await new Promise<void>((resolve, reject) => {
-        failedQueue.push({ resolve, reject });
-      });
-    }
+    await refreshSession();
+    if (options?.signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
 
     // Retry original request
-    res = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
-    });
+    res = await send();
   }
 
   const isJson = res.headers.get('content-type')?.includes('application/json');
-  const data = isJson ? await res.json() : await res.text();
+  let data: unknown;
+  try { data = isJson ? await res.json() : await res.text(); }
+  catch { throw new ApiError(res.status, { error: 'The server returned an unreadable response. Please try again.' }); }
 
   if (!res.ok) {
-    throw new ApiError(res.status, isJson ? data : { error: data });
+    throw new ApiError(res.status, isJson ? data : null);
   }
 
   return data as T;

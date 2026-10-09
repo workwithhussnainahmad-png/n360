@@ -1,7 +1,8 @@
 'use client';
+import { runAction } from '@/lib/run-action';
 
 import { useState } from 'react';
-import { updatePublicSiteBaseDomainAction } from '@/app/actions/sa-actions';
+import { updatePublicSiteBaseDomainWithFeedback as updatePublicSiteBaseDomainAction } from '@/app/actions/feedback-actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,7 +15,7 @@ export function PublicSiteDomainUpdater({ currentDomain }: { currentDomain: stri
   async function update() {
     setPending(true);
     try {
-      const result = await updatePublicSiteBaseDomainAction(domain);
+      const result = await runAction(updatePublicSiteBaseDomainAction, domain);
       setDomain(result.domain);
       toast({ title: 'Public website domain updated', description: `Institution links will use .${result.domain}.` });
     } catch (error) {

@@ -1,3 +1,4 @@
+import { validationError } from '@/lib/validation-errors';
 import { NextRequest, NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
@@ -31,7 +32,7 @@ export const PATCH = requireRole(['SUPER_ADMIN', 'EMPLOYEE'], async (req: NextRe
 
   const parsed = updatePublicSiteSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid public-site settings' }, { status: 400 });
+    return NextResponse.json(validationError(parsed.error), { status: 400 });
   }
 
   const [institution] = await db.select({

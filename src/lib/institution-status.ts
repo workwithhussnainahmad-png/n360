@@ -1,3 +1,4 @@
+import { ActionInputError } from './action-input-error';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { institutions } from '@/db/schema';
@@ -8,12 +9,12 @@ import { logAudit } from './audit';
 
 export async function changeInstitutionStatus(session: JWTPayload, id: number, status: 'PENDING' | 'APPROVED' | 'REJECTED', reason?: string) {
   await assertPlatformOperator(session);
-  if (!Number.isSafeInteger(id) || id <= 0 || !['PENDING', 'APPROVED', 'REJECTED'].includes(status)) throw new Error('Invalid institution status request.');
+  if (!Number.isSafeInteger(id) || id <= 0 || !['PENDING', 'APPROVED', 'REJECTED'].includes(status)) throw new ActionInputError('Invalid institution status request.');
   await db.transaction(async tx => {
     await tx.execute(sql`SELECT id FROM institutions WHERE id = ${id} FOR UPDATE`);
     const [account] = await tx.select({ status: institutions.status, parent: institutions.parentInstitutionId }).from(institutions).where(eq(institutions.id, id)).limit(1);
-    if (!account || account.parent !== null) throw new Error('Main institution not found.');
-    if (session.role === 'EMPLOYEE' && (account.status !== 'PENDING' || status === 'PENDING')) throw new Error('Forbidden: employees may review pending registrations only.');
+    if (!account || account.parent !== null) throw new ActionInputError('Main institution not found.');
+    if (session.role === 'EMPLOYEE' && (account.status !== 'PENDING' || status === 'PENDING')) throw new ActionInputError('Forbidden: employees may review pending registrations only.');
     await tx.update(institutions).set({ status, rejectionReason: status === 'REJECTED' ? reason ?? null : null }).where(eq(institutions.id, id));
   });
   await invalidateUserValidity('INSTITUTION', id);

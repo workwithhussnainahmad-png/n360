@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { tests, classes, sections, subjects, staffAssignments, students, marks } from "@/db/schema";
@@ -77,6 +78,9 @@ export const GET = requireRole(["STAFF"], async (req: NextRequest, { session }) 
       sectionOptions, subjectOptions,
     });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error fetching marks data:", error);
     return NextResponse.json({ error: "Failed to fetch marks data" }, { status: 500 });
   }
@@ -147,6 +151,9 @@ export const POST = requireRole(["STAFF"], async (req: NextRequest, { session })
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error creating assessment:", error);
     return NextResponse.json({ error: "Failed to create assessment" }, { status: 500 });
   }

@@ -1,3 +1,4 @@
+import { validationError } from '@/lib/validation-errors';
 import { NextRequest, NextResponse } from "next/server";
 import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -109,7 +110,7 @@ export const GET = requireRole(["STUDENT"], async (req, { session }) => {
 export const POST = requireRole(["STUDENT"], async (req: NextRequest, { session }) => {
   const parsed = progressSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid lecture" }, { status: 400 });
+    return NextResponse.json(validationError(parsed.error), { status: 400 });
   }
   const institutionId = getTenantContext(session);
   if (!(await isInstitutionCourseStreamingConfigured(institutionId))) {

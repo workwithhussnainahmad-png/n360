@@ -23,7 +23,7 @@ export default async function SuperAdminBlogsPage() {
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold font-display text-stone-900 mb-6">Manage Blogs</h1>
+
       <BlogClient
         initialBlogs={paginatedBlogs}
         initialPage={1}

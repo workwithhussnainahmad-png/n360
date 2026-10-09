@@ -72,7 +72,7 @@ export function Topbar({ onMenuClick, role, brand, onLogoutStart }: TopbarProps)
           <Menu className="h-5 w-5" />
         </Button>
         <div className="min-w-0">
-          <p className="truncate font-display text-sm font-semibold text-brand-950 sm:text-base">{pageLabel}</p>
+          <h1 className="truncate font-display text-sm font-semibold text-brand-950 sm:text-base">{pageLabel}</h1>
           <p className="hidden text-[10px] font-bold uppercase tracking-[0.14em] text-stone-500 sm:block">
             {brand.name}
           </p>

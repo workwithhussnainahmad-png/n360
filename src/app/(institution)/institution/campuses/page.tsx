@@ -20,7 +20,7 @@ export default async function InstitutionCampusesPage() {
   const canSetUp = canManage && plan.campusLimit !== null && campuses.length <= plan.campusLimit;
   const canAdd = canManage && plan.campusLimit !== null && campuses.length < plan.campusLimit;
   return <div className="space-y-8">
-    <div><h1 className="text-3xl font-display font-bold text-brand-950">Campuses</h1><p className="mt-1 text-stone-500">Your institution’s campuses and their login accounts.</p></div>
+
     <div className="grid gap-6 lg:grid-cols-3">
       <Card className="lg:col-span-2"><CardHeader><CardTitle>Campus List</CardTitle></CardHeader><CardContent className="space-y-4">
         {campuses.map((campus) => {

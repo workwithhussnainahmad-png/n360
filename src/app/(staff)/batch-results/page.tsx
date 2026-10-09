@@ -46,10 +46,6 @@ export default function StaffBatchResultsPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-display font-bold text-brand-950">Batch Results (Transcripts)</h1>
-	        <p className="text-stone-500 mt-1">Review and publish your students&apos; marks for term exams.</p>
-      </div>
 
       {results.length === 0 ? (
         <Card className="bg-stone-50 border-dashed">
@@ -92,7 +88,7 @@ export default function StaffBatchResultsPage() {
                     </div>
                   )}
                 </div>
-                
+
                 <Link href={`/batch-results/${res.id}`} prefetch={false} className="w-full">
                   <Button variant="outline" className="w-full justify-between group">
                     View Details

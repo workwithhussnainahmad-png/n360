@@ -1,3 +1,4 @@
+import { validationError } from '@/lib/validation-errors';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { campuses } from '@/db/schema';
@@ -21,7 +22,7 @@ export const POST = requireRole(['INSTITUTION'], async (req: NextRequest, { sess
     return NextResponse.json({ success: true, ...await createCampusWorkspace(session, body.data) }, { status: 201 });
   } catch (error) {
     if (error instanceof CampusPolicyError) return NextResponse.json({ error: error.message }, { status: error.status });
-    if (error instanceof ZodError) return NextResponse.json({ error: error.issues[0]?.message ?? 'Check campus details.' }, { status: 400 });
+    if (error instanceof ZodError) return NextResponse.json(validationError(error), { status: 400 });
     if (error instanceof Error && /already|cannot|existing records|Only the main|not found/.test(error.message)) {
       return NextResponse.json({ error: error.message }, { status: error.message.startsWith('Only') ? 403 : 409 });
     }

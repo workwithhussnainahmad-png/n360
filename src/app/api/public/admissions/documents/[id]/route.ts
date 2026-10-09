@@ -1,7 +1,8 @@
+import { withApiPolicy } from "@/lib/api-policy";
 import { NextRequest, NextResponse } from 'next/server';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
-import { admissionApplicantAccounts, admissionApplications, admissionDocumentRequests, institutions } from '@/db/schema';
+import { admissionApplicantAccounts, admissionApplications, admissionCycles, admissionDocumentRequests, institutions } from '@/db/schema';
 import cloudinary from '@/lib/cloudinary';
 import { encodeAdmissionFileAsset, hasExactFolderPrefix, parseAdmissionUploadCompletion } from '@/lib/admission-files';
 import { getAdmissionSessionFromRequest } from '@/lib/admission-auth';
@@ -19,12 +20,14 @@ async function getAuthorizedDocument(req: NextRequest, documentId: number) {
 
   const [row] = await db.select({
     document: admissionDocumentRequests,
+    archivedAt: admissionCycles.archivedAt,
     accountSessionVersion: admissionApplicantAccounts.sessionVersion,
   }).from(admissionDocumentRequests)
     .innerJoin(admissionApplications, and(
       eq(admissionApplications.id, admissionDocumentRequests.applicationId),
       eq(admissionApplications.institutionId, admissionDocumentRequests.institutionId),
     ))
+    .innerJoin(admissionCycles, eq(admissionCycles.id, admissionApplications.cycleId))
     .innerJoin(admissionApplicantAccounts, and(
       eq(admissionApplicantAccounts.id, admissionApplications.applicantId),
       eq(admissionApplicantAccounts.institutionId, admissionApplications.intakeInstitutionId),
@@ -41,12 +44,13 @@ async function getAuthorizedDocument(req: NextRequest, documentId: number) {
   return { ...row, session };
 }
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withApiPolicy(async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   const documentId = Number(id);
   if (!Number.isInteger(documentId) || documentId <= 0) return NextResponse.json({ error: 'Invalid document request' }, { status: 400 });
   const authorized = await getAuthorizedDocument(req, documentId);
   if (!authorized) return NextResponse.json({ error: 'Applicant session required' }, { status: 401 });
+  if (authorized.archivedAt) return NextResponse.json({ error: 'Restore this archived admission cycle before changing its records.' }, { status: 409 });
   if (!['REQUESTED', 'REJECTED'].includes(authorized.document.status)) {
     return NextResponse.json({ error: 'This document has already been submitted for review' }, { status: 409 });
   }
@@ -95,4 +99,4 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     eq(admissionDocumentRequests.applicationId, authorized.document.applicationId),
   ));
   return NextResponse.json({ success: true, status: 'SUBMITTED' });
-}
+});

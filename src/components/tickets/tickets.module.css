@@ -1,0 +1,61 @@
+.page {
+  width: 100%;
+  max-width: 1100px;
+  min-width: 0;
+  margin-inline: auto;
+}
+.panel { overflow: hidden; }
+.page .header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border, #ded8cc);
+}
+.heading { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.headingIcon, .emptyIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #6c841e;
+  background: #f0f3e6;
+  border-radius: 8px;
+}
+.headingIcon { width: 42px; height: 42px; }
+.page .title { font-size: 15px; line-height: 1.5; }
+.page .subtitle { margin-top: 3px; color: #827c72; font-size: 12px; line-height: 1.6; }
+.page .createButton { gap: 8px; padding-inline: 14px; font-size: 12px; cursor: pointer; }
+.empty {
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 24px;
+  text-align: center;
+}
+.emptyIcon { width: 56px; height: 56px; margin-bottom: 4px; border-radius: 16px; }
+.empty h2 { font-size: 16px; font-weight: 600; line-height: 1.5; }
+.page .empty p { max-width: 370px; text-align: center; font-size: 13px; line-height: 1.85; color: #827c72; }
+.list { display: flex; flex-direction: column; }
+.row { padding: 24px; }
+.row + .row { border-top: 1px solid var(--border, #ded8cc); }
+.rowHeading { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.subject { min-width: 0; }
+.reference { display: block; color: #827c72; font-size: 11px; line-height: 1.6; margin-bottom: 4px; }
+.row h2 { font-size: 14px; font-weight: 600; line-height: 1.6; overflow-wrap: anywhere; }
+.status { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; padding: 5px 9px; border-radius: 5px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.page .description { margin-top: 12px; font-size: 13px; line-height: 1.85; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--foreground, #33382e); }
+.page .timestamp { margin-top: 16px; font-size: 11px; line-height: 1.6; color: #827c72; }
+.pagination { display: flex; justify-content: center; padding: 20px 24px; border-top: 1px solid var(--border, #ded8cc); }
+@media (max-width: 640px) {
+  .page .header { padding: 16px; gap: 16px; }
+  .row { padding: 20px 16px; }
+  .rowHeading { flex-direction: column; gap: 10px; }
+  .empty { padding: 32px 20px; }
+}

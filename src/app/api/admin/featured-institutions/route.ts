@@ -1,3 +1,5 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
+import { validationError } from '@/lib/validation-errors';
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { featuredInstitutions } from "@/db/schema";
@@ -20,6 +22,9 @@ export async function GET(req: Request) {
     const insts = await db.select().from(featuredInstitutions).orderBy(featuredInstitutions.createdAt);
     return NextResponse.json(insts);
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error fetching featured institutions:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
@@ -36,7 +41,7 @@ export async function POST(req: Request) {
     const result = featuredInstSchema.safeParse(body);
 
     if (!result.success) {
-      return NextResponse.json({ error: "Invalid data", details: result.error.issues }, { status: 400 });
+      return NextResponse.json(validationError(result.error), { status: 400 });
     }
 
     const { name, logoKey } = result.data;
@@ -48,6 +53,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ message: "Featured institution added successfully" });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error adding featured institution:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
@@ -72,6 +80,9 @@ export async function DELETE(req: Request) {
 
     return NextResponse.json({ message: "Deleted successfully" });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error deleting featured institution:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

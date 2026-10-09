@@ -1,6 +1,8 @@
 "use client";
+import { runAction } from '@/lib/run-action';
+import { ActionForm } from '@/components/ui/action-form';
 
-import { updateClassInchargeAction } from "@/app/actions/institution-actions";
+import { updateClassInchargeWithFeedback as updateClassInchargeAction } from '@/app/actions/feedback-actions';
 import { useToast } from "@/components/ui/toaster";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useRouter } from "next/navigation";
@@ -24,9 +26,9 @@ export function InchargeForm({
   const router = useRouter();
 
   return (
-    <form action={async (formData) => {
+    <ActionForm action={async (formData) => {
       try {
-        await updateClassInchargeAction(formData);
+        await runAction(updateClassInchargeAction, formData);
         toast({ title: "Success", description: "Class Incharge updated successfully.", variant: "success" });
         router.refresh();
       } catch (err: unknown) {
@@ -38,7 +40,7 @@ export function InchargeForm({
 
       <div>
         <label className="mb-2 block text-sm font-medium text-stone-700">Select Class Incharge</label>
-        <select 
+        <select
           key={currentInchargeId || "unassigned"}
           name="classTeacherId"
           defaultValue={currentInchargeId || ""}
@@ -55,6 +57,6 @@ export function InchargeForm({
       <SubmitButton className="w-full bg-brand-800 text-white rounded-md py-2 text-sm font-medium hover:bg-brand-900 transition-colors">
         Save Incharge
       </SubmitButton>
-    </form>
+    </ActionForm>
   );
 }

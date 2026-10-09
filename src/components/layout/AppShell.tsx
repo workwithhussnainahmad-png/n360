@@ -82,7 +82,7 @@ export function AppShell({
         />
 
         <main className="min-w-0 flex-1 overflow-x-hidden px-4 py-5 sm:px-6 sm:py-7 lg:px-8 lg:py-9">
-          <div className="app-content min-h-full">{children}</div>
+          <div className="app-content flex min-h-full flex-col gap-6">{children}</div>
         </main>
       </div>
     </div>

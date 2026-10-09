@@ -1,4 +1,5 @@
 "use client";
+import { runAction } from '@/lib/run-action';
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toaster";
-import { createInstitutionOwnerAction } from "@/app/actions/institution-actions";
+import { createInstitutionOwnerWithFeedback as createInstitutionOwnerAction } from '@/app/actions/feedback-actions';
 import { Building2, UserCircle, Phone, Mail } from "lucide-react";
 
 export function OwnerOnboardingForm() {
@@ -19,7 +20,7 @@ export function OwnerOnboardingForm() {
     const formData = new FormData(e.currentTarget);
     
     try {
-      await createInstitutionOwnerAction(formData);
+      await runAction(createInstitutionOwnerAction, formData);
       toast({
         title: "Welcome aboard!",
         description: "Your details have been saved successfully.",

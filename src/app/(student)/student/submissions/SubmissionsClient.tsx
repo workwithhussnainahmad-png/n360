@@ -1,4 +1,6 @@
 "use client";
+import { responseErrorMessage } from '@/lib/validation-errors';
+
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -39,7 +41,7 @@ export function SubmissionsClient({ assignments }: { assignments: AssignmentItem
 
     try {
       const sigRes = await fetch("/api/upload/signature", { method: "POST" });
-      if (!sigRes.ok) throw new Error("Failed to get upload signature");
+      if (!sigRes.ok) throw new Error(await responseErrorMessage(sigRes));
       const signaturePayload = await sigRes.json();
       if (!signaturePayload.signature || !signaturePayload.timestamp || !signaturePayload.cloudName || !signaturePayload.apiKey || !signaturePayload.folder) {
         throw new Error(signaturePayload.error || "Upload service is not configured");

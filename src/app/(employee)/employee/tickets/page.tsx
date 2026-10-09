@@ -1,3 +1,7 @@
+import { positiveInteger } from "@/lib/pagination";
+import { ServerPagination } from "@/components/ui/server-pagination";
+import { actionFeedback } from '@/lib/action-feedback';
+import { ActionForm } from '@/components/ui/action-form';
 import { db } from "@/db";
 import { tickets, institutions } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
@@ -8,13 +12,14 @@ import { Ticket, Clock, CheckCircle2, PlayCircle, Send, AlertCircle } from "luci
 import { updateTicketPlatformStatusAction } from "@/app/actions/sa-actions";
 import { SubmitButton } from "@/components/ui/submit-button";
 
-export default async function EmployeeTicketsPage() {
+export default async function EmployeeTicketsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+  const page = positiveInteger((await searchParams).page);
   const session = await getSession();
   if (!session || session.role !== "EMPLOYEE") {
     redirect("/login");
   }
 
-  const forwardedTickets = await db.select({
+  const ticketRows = await db.select({
     id: tickets.id,
     title: tickets.title,
     description: tickets.description,
@@ -25,21 +30,21 @@ export default async function EmployeeTicketsPage() {
     .from(tickets)
     .innerJoin(institutions, eq(tickets.institutionId, institutions.id))
     .where(eq(tickets.isForwarded, true))
-    .orderBy(desc(tickets.createdAt));
+    .orderBy(desc(tickets.createdAt), desc(tickets.id)).limit(51).offset((page - 1) * 50);
+  const forwardedTickets = ticketRows.slice(0, 50);
 
   async function handleStatusChange(formData: FormData) {
     "use server";
+    return actionFeedback(async () => {
     const ticketId = parseInt(formData.get("ticketId") as string, 10);
     const status = formData.get("status") as "WORKING" | "RESOLVED";
     await updateTicketPlatformStatusAction(ticketId, status);
+
+    });
   }
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-display font-bold text-brand-950">Platform Support Tickets</h1>
-        <p className="text-stone-500 mt-1">Manage tickets forwarded from institutions.</p>
-      </div>
 
       <Card>
         <CardHeader className="border-b border-border bg-stone-50/50">
@@ -84,21 +89,21 @@ export default async function EmployeeTicketsPage() {
                         {ticket.platformStatus !== 'RESOLVED' && (
                           <>
                             {ticket.platformStatus === 'RECEIVED' && (
-                              <form action={handleStatusChange}>
+                              <ActionForm action={handleStatusChange}>
                                 <input type="hidden" name="ticketId" value={ticket.id} />
                                 <input type="hidden" name="status" value="WORKING" />
                                 <SubmitButton className="w-full bg-yellow-600 hover:bg-yellow-700 text-white" size="sm">
                                   <PlayCircle className="w-4 h-4 mr-2" /> Mark Working
                                 </SubmitButton>
-                              </form>
+                              </ActionForm>
                             )}
-                            <form action={handleStatusChange}>
+                            <ActionForm action={handleStatusChange}>
                               <input type="hidden" name="ticketId" value={ticket.id} />
                               <input type="hidden" name="status" value="RESOLVED" />
                               <SubmitButton className="w-full bg-green-600 hover:bg-green-700 text-white" size="sm">
                                 <CheckCircle2 className="w-4 h-4 mr-2" /> Mark Resolved
                               </SubmitButton>
-                            </form>
+                            </ActionForm>
                           </>
                         )}
                       </div>
@@ -110,6 +115,7 @@ export default async function EmployeeTicketsPage() {
           )}
         </CardContent>
       </Card>
+      <ServerPagination page={page} hasMore={ticketRows.length > 50} />
     </div>
   );
 }

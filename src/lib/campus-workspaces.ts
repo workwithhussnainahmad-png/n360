@@ -1,3 +1,4 @@
+import { ActionInputError } from './action-input-error';
 import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { hashPassword } from './argon2-pool';
@@ -27,7 +28,7 @@ export async function assertCampusEmailAvailable(tx: Transaction, email: string)
     UNION ALL SELECT 1 FROM employees WHERE lower(email) = ${email}
     UNION ALL SELECT 1 FROM super_admins WHERE lower(email) = ${email}
     UNION ALL SELECT 1 FROM parent_accounts WHERE lower(email) = ${email} LIMIT 1`);
-  if (result.rows.length) throw new Error('This login email is already in use.');
+  if (result.rows.length) throw new ActionInputError('This login email is already in use.');
 }
 
 /** Fresh database ownership, never a client-supplied tenant or cached membership. */
@@ -77,7 +78,7 @@ export function canManageCampuses(session: JWTPayload) {
   return session.role === 'INSTITUTION' && !session.campusReadOnly && !session.mustChangePassword && session.homeInstitutionId === session.rootInstitutionId;
 }
 
-export class CampusPolicyError extends Error {
+export class CampusPolicyError extends ActionInputError {
   constructor(message: string, public readonly status: number) { super(message); }
 }
 
@@ -109,14 +110,14 @@ export async function createCampusWorkspace(session: JWTPayload, input: unknown,
     let existing: typeof campuses.$inferSelect | undefined;
     if (data.existingCampusId) {
       [existing] = await tx.select().from(campuses).where(and(eq(campuses.id, data.existingCampusId), eq(campuses.institutionId, root.id), isNull(campuses.deletedAt))).limit(1);
-      if (!existing || existing.name === root.campusName) throw new Error('This campus cannot be set up.');
+      if (!existing || existing.name === root.campusName) throw new ActionInputError('This campus cannot be set up.');
       // Existing populated campuses need a reviewed data migration, never silently
       // leave students or staff in the main workspace while moving their campus.
       const [studentRows, staffRows] = await Promise.all([
         tx.select({ id: students.id }).from(students).where(eq(students.campusId, existing.id)).limit(1),
         tx.select({ id: staff.id }).from(staff).where(eq(staff.campusId, existing.id)).limit(1),
       ]);
-      if (studentRows.length || staffRows.length) throw new Error('This campus has existing records. Its data must be migrated before creating its login.');
+      if (studentRows.length || staffRows.length) throw new ActionInputError('This campus has existing records. Its data must be migrated before creating its login.');
     }
     const name = existing?.name ?? data.name;
     const loginName = campusLoginSlug(name);
@@ -126,7 +127,7 @@ export async function createCampusWorkspace(session: JWTPayload, input: unknown,
     if ((siblings.rows as Array<{ name: string }>).some(campus => {
       if (campus.name.toLowerCase() === name.toLowerCase()) return true;
       try { return campusLoginSlug(campus.name) === loginName; } catch { return false; }
-    })) throw new Error('A campus with this name or student login name already exists.');
+    })) throw new ActionInputError('A campus with this name or student login name already exists.');
     // Serialize username claims across roots as well as siblings.
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('campus-workspace-usernames'))`);
     let attempt = 0;

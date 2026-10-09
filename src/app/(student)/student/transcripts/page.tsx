@@ -30,9 +30,9 @@ export default async function TranscriptsPage() {
 
   // Group by Exam
   const examMap = new Map<number, { id: number, title: string, type: string, officialPublishedAt: Date | null, createdAt: Date, subjects: any[] }>();
-  
+
   const now = new Date();
-  
+
   for (const r of rawResults) {
     if (!examMap.has(r.examId)) {
       examMap.set(r.examId, {
@@ -44,7 +44,7 @@ export default async function TranscriptsPage() {
         subjects: []
       });
     }
-    
+
     const isEffectivelyPublished = r.isPublished || now > r.reviewDeadline;
     examMap.get(r.examId)?.subjects.push({
       ...r,
@@ -59,10 +59,6 @@ export default async function TranscriptsPage() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-display font-bold text-brand-950">My Transcripts</h1>
-        <p className="text-stone-500 mt-1">View your term exams and final transcripts.</p>
-      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {publishedExams.map(exam => (

@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { students, staff } from "@/db/schema";
@@ -105,6 +106,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, name: userName, phone: userPhone });
 
   } catch (err: any) {
+    const publicInputError = inputErrorResponse(err);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Reset password error:", err);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }

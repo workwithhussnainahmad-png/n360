@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { staff, students } from "@/db/schema";
@@ -54,6 +55,9 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ error: "Only students and staff can manage push preferences" }, { status: 403 });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error fetching push preferences:", error);
     return NextResponse.json({ error: "Failed to fetch push preferences" }, { status: 500 });
   }
@@ -117,6 +121,9 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error updating push preferences:", error);
     return NextResponse.json({ error: "Failed to update push preferences" }, { status: 500 });
   }

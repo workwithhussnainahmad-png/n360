@@ -1,3 +1,5 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
+import { validationError } from '@/lib/validation-errors';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { employees } from '@/db/schema';
@@ -18,7 +20,7 @@ export const POST = requireRole(['SUPER_ADMIN'], async (req: NextRequest, { sess
   const parsed = createEmployeeSchema.safeParse(body);
   
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error }, { status: 400 });
+    return NextResponse.json(validationError(parsed.error), { status: 400 });
   }
 
   const { name, email } = parsed.data;
@@ -49,6 +51,9 @@ export const POST = requireRole(['SUPER_ADMIN'], async (req: NextRequest, { sess
 
     return NextResponse.json({ message: 'Employee created successfully' }, { status: 201 });
   } catch (err: any) {
+    const publicInputError = inputErrorResponse(err);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     if (err.code === '23505') {
       return NextResponse.json({ error: 'Email already exists' }, { status: 409 });
     }

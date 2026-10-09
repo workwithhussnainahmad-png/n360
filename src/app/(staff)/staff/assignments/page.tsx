@@ -1,3 +1,7 @@
+import { positiveInteger } from "@/lib/pagination";
+import { ServerPagination } from "@/components/ui/server-pagination";
+import { actionFeedback } from '@/lib/action-feedback';
+import { ActionForm } from '@/components/ui/action-form';
 import { formatUtcDateTime } from "@/lib/date-format";
 import { db } from "@/db";
 import { assignments, classes, sections, staffAssignments, students, subjects, submissions } from "@/db/schema";
@@ -12,7 +16,8 @@ import { ReferenceFileInput } from "./ReferenceFileInput";
 import { AssignmentDetails } from "./AssignmentDetails";
 import { formatClassSection } from "@/lib/class-section-label";
 
-export default async function StaffAssignmentsPage() {
+export default async function StaffAssignmentsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+  const page = positiveInteger((await searchParams).page);
   const session = await getSession();
   if (!session || session.role !== "STAFF" || !session.institutionId) redirect("/login");
 
@@ -44,7 +49,7 @@ export default async function StaffAssignmentsPage() {
 
   const sectionIds = sectionOptions.map((slot) => slot.sectionId);
 
-  const createdAssignments = await db.select({
+  const createdAssignmentRows = await db.select({
     assignment: assignments,
     className: classes.name,
     sectionName: sections.name,
@@ -55,7 +60,8 @@ export default async function StaffAssignmentsPage() {
     .leftJoin(sections, eq(assignments.sectionId, sections.id))
     .leftJoin(subjects, eq(assignments.subjectId, subjects.id))
     .where(and(eq(assignments.staffId, session.userId), eq(assignments.institutionId, session.institutionId)))
-    .orderBy(desc(assignments.createdAt));
+    .orderBy(desc(assignments.createdAt), desc(assignments.id)).limit(51).offset((page - 1) * 50);
+  const createdAssignments = createdAssignmentRows.slice(0, 50);
 
   const assignmentIds = createdAssignments.map(({ assignment }) => assignment.id);
   const classIds = Array.from(new Set(createdAssignments.map(({ assignment }) => assignment.classId)));
@@ -94,10 +100,6 @@ export default async function StaffAssignmentsPage() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-display font-bold text-brand-950">Assignments</h1>
-        <p className="text-stone-500 mt-1">Create class work before students can upload submissions.</p>
-      </div>
 
       <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
         <Card>
@@ -108,7 +110,7 @@ export default async function StaffAssignmentsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
-            <form action={createStaffAssignmentAction} className="space-y-4 pt-2 text-left">
+            <ActionForm action={async (formData: FormData) => { "use server"; return actionFeedback(() => createStaffAssignmentAction(formData)); }} className="space-y-4 pt-2 text-left">
               <div>
                 <label className="mb-2 block text-sm font-medium text-stone-700">Class / Section</label>
                 <select name="sectionId" required className="w-full rounded-md border border-border px-3 py-2 text-sm bg-surface">
@@ -149,7 +151,7 @@ export default async function StaffAssignmentsPage() {
               <ReferenceFileInput />
 
               <SubmitButton className="w-full">Create Assignment</SubmitButton>
-            </form>
+            </ActionForm>
           </CardContent>
         </Card>
 
@@ -199,6 +201,7 @@ export default async function StaffAssignmentsPage() {
           </CardContent>
         </Card>
       </div>
+      <ServerPagination page={page} hasMore={createdAssignmentRows.length > 50} />
     </div>
   );
 }

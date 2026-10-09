@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { createReadStream } from "node:fs";
@@ -223,6 +224,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     console.log(`[central-backup] Google Drive upload verified: ${encryptedFileName} (${driveFileId})`);
   } catch (err) {
+    const publicInputError = inputErrorResponse(err);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     const message = err instanceof Error ? err.message.slice(0, 2000) : "Unknown upload failure";
     console.error(`[central-backup] Google Drive upload FAILED for run ${runId}:`, message);
     await db

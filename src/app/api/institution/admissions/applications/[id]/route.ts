@@ -1,3 +1,4 @@
+import { validationError } from '@/lib/validation-errors';
 import { applicantCredentialResetAllowedSql } from "@/lib/admission-campus";
 import { after, NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
@@ -12,6 +13,7 @@ import {
   admissionCycles,
   admissionDocumentRequests,
   admissionFeePayments,
+  admissionFeeProofs,
   admissionOfferings,
   campuses,
   classes,
@@ -96,6 +98,7 @@ async function getApplication(applicationId: number, institutionId: number) {
       offeringTitle: admissionOfferings.title,
       offeringCapacity: admissionOfferings.capacity,
       cycleName: admissionCycles.name,
+      cycleArchivedAt: admissionCycles.archivedAt,
       requiresTest: admissionCycles.requiresTest,
       requiredDocuments: admissionCycles.requiredDocuments,
       testScheduledAt: admissionCycles.testScheduledAt,
@@ -256,7 +259,7 @@ function automaticWorkflowStep(
 
   if (application.admissionFeeAmount) {
     const dueDate = feeDueDate(application.admissionFeeDueDays);
-    const instructions = application.admissionFeeInstructions || "Choose one of the institution's configured online payment gateways.";
+    const instructions = application.admissionFeeInstructions || "Transfer the fee to a configured institution payment account and submit a screenshot and transaction ID.";
     return {
       status: "FEE_PENDING",
       title: "Admission offered — fee payment requested",
@@ -426,6 +429,7 @@ export const GET = requireRole(
       : null;
     return NextResponse.json({
       application,
+      feeProofHistory: (await db.select().from(admissionFeeProofs).where(and(eq(admissionFeeProofs.applicationId, applicationId), eq(admissionFeeProofs.institutionId, institutionId))).orderBy(asc(admissionFeeProofs.submittedAt))).map(({ proofFileKey: _key, ...proof }) => { void _key; return proof; }),
       documents: safeDocuments,
       appointments,
       events,
@@ -468,7 +472,7 @@ export const PATCH = requireRole(
     const parsed = admissionReviewActionSchema.safeParse(body);
     if (!parsed.success)
       return NextResponse.json(
-        { error: parsed.error.issues[0]?.message || "Invalid review action" },
+        validationError(parsed.error),
         { status: 400 },
       );
 
@@ -479,6 +483,8 @@ export const PATCH = requireRole(
         { error: "Application not found" },
         { status: 404 },
       );
+
+    if (application.cycleArchivedAt) return NextResponse.json({ error: "Restore this archived admission cycle before changing its records." }, { status: 409 });
 
     let nextStatus: ApplicationStatus = application.status;
     let title = "Application updated";
@@ -719,7 +725,10 @@ export const PATCH = requireRole(
         );
       const temporaryPassword = crypto.randomBytes(9).toString("base64url");
       const passwordHash = await hashPassword(temporaryPassword);
-      await db
+      await db.transaction(async (tx) => {
+        const locked = await tx.execute(sql`SELECT archived_at FROM admission_cycles WHERE id=${application.cycleId} FOR SHARE`);
+        if ((locked.rows[0] as { archived_at: unknown })?.archived_at) throw Object.assign(new Error("Admission cycle is archived"), { code: "N3601" });
+      await tx
         .update(admissionApplicantAccounts)
         .set({
           passwordHash,
@@ -735,6 +744,7 @@ export const PATCH = requireRole(
             eq(admissionApplicantAccounts.institutionId, institutionId),
           ),
         );
+      });
       const resetIp = getClientIp(req);
       await enqueueEmail({
         institutionId,
@@ -1302,7 +1312,7 @@ export const PATCH = requireRole(
     }
 
     const transitionApplied = await db.transaction(async (tx) => {
-      // Serialize manual decisions with gateway settlement before touching the fee.
+      // Serialize institution decisions with applicant proof submission before touching the fee.
       const [current] = await tx.select({ status: admissionApplications.status }).from(admissionApplications)
         .where(and(eq(admissionApplications.id, applicationId), eq(admissionApplications.institutionId, institutionId))).for("update");
       if (!current || current.status !== application.status) return false;
@@ -1394,6 +1404,7 @@ export const PATCH = requireRole(
               payerReference: null,
               payerSourceBank: null,
               proofFileKey: null,
+              paymentAccount: null,
               status: "PENDING",
               reviewerNote: null,
               verifiedBy: null,
@@ -1505,6 +1516,7 @@ export const PATCH = requireRole(
               payerReference: null,
               payerSourceBank: null,
               proofFileKey: null,
+              paymentAccount: null,
               status: "PENDING",
               reviewerNote: null,
               verifiedBy: null,
@@ -1515,6 +1527,9 @@ export const PATCH = requireRole(
           });
       }
       if (action.action === "reviewFee") {
+        await tx.update(admissionFeeProofs).set({ status: action.status, reviewerNote: action.note,
+          verifiedBy: session.userId, verifiedAt: new Date() }).where(and(
+            eq(admissionFeeProofs.applicationId, applicationId), eq(admissionFeeProofs.institutionId, institutionId), eq(admissionFeeProofs.status, "SUBMITTED")));
         await tx
           .update(admissionFeePayments)
           .set({

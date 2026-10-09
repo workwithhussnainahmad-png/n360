@@ -25,10 +25,6 @@ export default async function InstitutionStaffAttendancePage() {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      <div>
-	        <h1 className="text-3xl font-display font-bold text-brand-950">Teacher&apos;s Attendance</h1>
-        <p className="text-stone-500 mt-1">Monitor and manage daily attendance for your teachers.</p>
-      </div>
 
       <StaffAttendanceClient staffMembers={staffMembers} />
     </div>

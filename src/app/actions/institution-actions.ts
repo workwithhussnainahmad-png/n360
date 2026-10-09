@@ -1,5 +1,9 @@
 "use server";
 
+import { ActionInputError } from "@/lib/action-input-error";
+import { z } from 'zod';
+import { createStaffSchema } from '@/lib/validators/staff';
+
 import { db } from "@/db";
 import { campuses, staff, classes, sections, subjects, announcements, notifications, institutions, institutionCustomRoles } from "@/db/schema";
 import { assertSecurityPermission } from "@/lib/security-permissions";
@@ -23,7 +27,7 @@ async function getOrCreateWholeClassSection(institutionId: number, classId: numb
     .from(classes)
     .where(and(eq(classes.id, classId), eq(classes.institutionId, institutionId)))
     .limit(1);
-  if (!classRow) throw new Error("Class not found");
+  if (!classRow) throw new ActionInputError("Class not found");
 
   const [existingSection] = await db.select({ id: sections.id })
     .from(sections)
@@ -48,7 +52,7 @@ async function getOrCreateWholeClassSection(institutionId: number, classId: numb
 export async function createCampusAction(formData: FormData) {
   const session = await getSession();
   assertCampusWritable(session);
-  if (!session || (session.role !== "INSTITUTION" && session.role !== "INSTITUTION_ADMIN")) throw new Error("Unauthorized");
+  if (!session || (session.role !== "INSTITUTION" && session.role !== "INSTITUTION_ADMIN")) throw new ActionInputError("Unauthorized");
   
   const result = await createCampusWorkspace(session, {
     name: formData.get("name"), address: formData.get("address"), loginEmail: formData.get("loginEmail"),
@@ -60,7 +64,7 @@ export async function createCampusAction(formData: FormData) {
 export async function createStaffAction(formData: FormData) {
   const session = await getSession();
   assertCampusWritable(session);
-  if (!session || (session.role !== "INSTITUTION" && session.role !== "INSTITUTION_ADMIN")) throw new Error("Unauthorized");
+  if (!session || (session.role !== "INSTITUTION" && session.role !== "INSTITUTION_ADMIN")) throw new ActionInputError("Unauthorized");
   
   const institutionId = session.institutionId || session.userId;
   const name = formData.get("name") as string;
@@ -68,23 +72,25 @@ export async function createStaffAction(formData: FormData) {
   const password = formData.get("password") as string;
   const campusIdRaw = formData.get("campusId") as string;
   const campusId = session.campusId ?? (campusIdRaw ? parseInt(campusIdRaw, 10) : null);
-  if (campusIdRaw && Number(campusIdRaw) !== campusId) throw new Error('Select your own campus.');
+  if (campusIdRaw && Number(campusIdRaw) !== campusId) throw new ActionInputError('Select your own campus.');
   const customRoleId = Number(formData.get("customRoleId"));
 
+  createStaffSchema.extend({ password: z.string().min(8).max(1024) }).parse({ name, phone, campusId: campusId ?? undefined, customRoleId, password });
+
   if (phone.replace(/\D/g, "").length < 4) {
-    throw new Error("Phone number must include at least 4 digits");
+    throw new ActionInputError("Phone number must include at least 4 digits");
   }
   if (!Number.isInteger(customRoleId) || customRoleId <= 0) {
-    throw new Error("Select a staff role before creating the account");
+    throw new ActionInputError("Select a staff role before creating the account");
   }
 
   const [institution] = await db.select().from(institutions).where(eq(institutions.id, institutionId)).limit(1);
-  if (!institution) throw new Error("Institution not found");
+  if (!institution) throw new ActionInputError("Institution not found");
   const [customRole] = await db.select({ id: institutionCustomRoles.id })
     .from(institutionCustomRoles)
     .where(and(eq(institutionCustomRoles.id, customRoleId), eq(institutionCustomRoles.institutionId, institutionId)))
     .limit(1);
-  if (!customRole) throw new Error("Selected staff role was not found");
+  if (!customRole) throw new ActionInputError("Selected staff role was not found");
 
   const baseEmail = generateStaffEmail({ name, phone, institution });
   const [localPart, domain] = baseEmail.split("@");
@@ -119,7 +125,7 @@ export async function createStaffAction(formData: FormData) {
 export async function createSubjectAction(formData: FormData) {
   const session = await getSession();
   assertCampusWritable(session);
-  if (!session || (session.role !== "INSTITUTION" && session.role !== "INSTITUTION_ADMIN")) throw new Error("Unauthorized");
+  if (!session || (session.role !== "INSTITUTION" && session.role !== "INSTITUTION_ADMIN")) throw new ActionInputError("Unauthorized");
 
   const institutionId = session.institutionId || session.userId;
   const names = Array.from(new Map(
@@ -130,16 +136,16 @@ export async function createSubjectAction(formData: FormData) {
       .map((name) => [name.toLocaleLowerCase(), name]),
   ).values());
   const code = String(formData.get("code") || "").trim();
-  if (names.length === 0 || names.length > 50 || names.some((name) => name.length > 255)) {
-    throw new Error("Enter between 1 and 50 valid subject names");
-  }
-  if (code.length > 50) throw new Error("Subject code is too long");
-  if (names.length > 1 && code) throw new Error("Leave subject code empty when adding multiple subjects");
+  if (names.length === 0) throw new ActionInputError('Subject name is required.');
+  if (names.length > 50) throw new ActionInputError('Add no more than 50 subjects at once.');
+  if (names.some(name => name.length > 255)) throw new ActionInputError('Subject name must not exceed 255 characters.');
+  if (code.length > 50) throw new ActionInputError("Subject code must not exceed 50 characters.");
+  if (names.length > 1 && code) throw new ActionInputError("Leave subject code empty when adding multiple subjects");
 
   const existing = await db.select({ name: subjects.name }).from(subjects).where(eq(subjects.institutionId, institutionId));
   const existingNames = new Set(existing.map((subject) => subject.name.trim().toLocaleLowerCase()));
   const newNames = names.filter((name) => !existingNames.has(name.toLocaleLowerCase()));
-  if (newNames.length === 0) throw new Error("All entered subjects already exist");
+  if (newNames.length === 0) throw new ActionInputError("All entered subjects already exist");
 
   await db.insert(subjects).values(newNames.map((name) => ({
     institutionId,
@@ -155,7 +161,7 @@ export async function createSubjectAction(formData: FormData) {
 export async function createAnnouncementAction(formData: FormData) {
   const session = await getSession();
   assertCampusWritable(session);
-  if (!session || (session.role !== "INSTITUTION" && session.role !== "INSTITUTION_ADMIN")) throw new Error("Unauthorized");
+  if (!session || (session.role !== "INSTITUTION" && session.role !== "INSTITUTION_ADMIN")) throw new ActionInputError("Unauthorized");
 
   const institutionId = getTenantContext(session);
   const title = formData.get("title") as string;
@@ -165,8 +171,8 @@ export async function createAnnouncementAction(formData: FormData) {
   const targetClassId = parseOptionalId(formData.get("targetClassId"));
   const targetSectionId = parseOptionalId(formData.get("targetSectionId"));
 
-  if (!title.trim() || !content.trim()) throw new Error("Title and content are required");
-  if (!["ALL", "STAFF", "CAMPUS", "CLASS", "SECTION"].includes(targetTypeRaw)) throw new Error("Invalid target audience");
+  if (!title.trim() || !content.trim()) throw new ActionInputError("Title and content are required");
+  if (!["ALL", "STAFF", "CAMPUS", "CLASS", "SECTION"].includes(targetTypeRaw)) throw new ActionInputError("Invalid target audience");
 
   let targetType: "ALL" | "CAMPUS" | "CLASS" | "SECTION" | "USER" = "ALL";
   let targetUserRole: "STAFF" | null = null;
@@ -178,25 +184,25 @@ export async function createAnnouncementAction(formData: FormData) {
     targetType = "USER";
     targetUserRole = "STAFF";
   } else if (targetTypeRaw === "CAMPUS") {
-    if (!targetCampusId) throw new Error("Campus is required");
+    if (!targetCampusId) throw new ActionInputError("Campus is required");
     const [campusRow] = await db.select({ id: campuses.id })
       .from(campuses)
       .where(and(eq(campuses.id, targetCampusId), eq(campuses.institutionId, institutionId)))
       .limit(1);
-    if (!campusRow) throw new Error("Campus not found");
+    if (!campusRow) throw new ActionInputError("Campus not found");
     targetType = "CAMPUS";
     resolvedCampusId = targetCampusId;
   } else if (targetTypeRaw === "CLASS") {
-    if (!targetClassId) throw new Error("Class is required");
+    if (!targetClassId) throw new ActionInputError("Class is required");
     const [classRow] = await db.select({ id: classes.id })
       .from(classes)
       .where(and(eq(classes.id, targetClassId), eq(classes.institutionId, institutionId)))
       .limit(1);
-    if (!classRow) throw new Error("Class not found");
+    if (!classRow) throw new ActionInputError("Class not found");
     targetType = "CLASS";
     resolvedClassId = targetClassId;
   } else if (targetTypeRaw === "SECTION") {
-    if (!targetClassId || !targetSectionId) throw new Error("Class and section are required");
+    if (!targetClassId || !targetSectionId) throw new ActionInputError("Class and section are required");
     const [sectionRow] = await db.select({ id: sections.id })
       .from(sections)
       .where(and(
@@ -205,7 +211,7 @@ export async function createAnnouncementAction(formData: FormData) {
         eq(sections.institutionId, institutionId)
       ))
       .limit(1);
-    if (!sectionRow) throw new Error("Section not found for the selected class");
+    if (!sectionRow) throw new ActionInputError("Section not found for the selected class");
     targetType = "SECTION";
     resolvedClassId = targetClassId;
     resolvedSectionId = targetSectionId;
@@ -240,17 +246,17 @@ function parseOptionalId(value: FormDataEntryValue | null) {
 export async function deleteAnnouncementAction(formData: FormData) {
   const session = await getSession();
   assertCampusWritable(session);
-  if (!session || (session.role !== "INSTITUTION" && session.role !== "INSTITUTION_ADMIN")) throw new Error("Unauthorized");
+  if (!session || (session.role !== "INSTITUTION" && session.role !== "INSTITUTION_ADMIN")) throw new ActionInputError("Unauthorized");
 
   const institutionId = getTenantContext(session);
   const announcementId = parseOptionalId(formData.get("announcementId"));
-  if (!announcementId) throw new Error("Invalid announcement ID");
+  if (!announcementId) throw new ActionInputError("Invalid announcement ID");
 
   const [announcement] = await db.select({ id: announcements.id })
     .from(announcements)
     .where(and(eq(announcements.id, announcementId), eq(announcements.institutionId, institutionId)))
     .limit(1);
-  if (!announcement) throw new Error("Announcement not found");
+  if (!announcement) throw new ActionInputError("Announcement not found");
 
   await db.delete(notifications)
     .where(and(
@@ -273,12 +279,13 @@ export async function deleteAnnouncementAction(formData: FormData) {
 export async function createClassAction(formData: FormData) {
   const session = await getSession();
   assertCampusWritable(session);
-  if (!session || (session.role !== "INSTITUTION" && session.role !== "INSTITUTION_ADMIN")) throw new Error("Unauthorized");
+  if (!session || (session.role !== "INSTITUTION" && session.role !== "INSTITUTION_ADMIN")) throw new ActionInputError("Unauthorized");
 
   const institutionId = getTenantContext(session);
-  const name = formData.get("name") as string;
+  const name = String(formData.get("name") || '').trim();
   const levelRaw = formData.get("level") as string;
-  const level = levelRaw ? parseInt(levelRaw, 10) : 0;
+  const level = levelRaw ? Number(levelRaw) : 0;
+  z.object({ name: z.string().min(1).max(100), level: z.number().int().min(0).max(100) }).parse({ name, level });
   const isFinalClass = formData.get("isFinalClass") === "on";
 
   if (isFinalClass) {
@@ -307,7 +314,7 @@ export async function createClassAction(formData: FormData) {
 export async function createSectionAction(formData: FormData) {
   const session = await getSession();
   assertCampusWritable(session);
-  if (!session || (session.role !== "INSTITUTION" && session.role !== "INSTITUTION_ADMIN")) throw new Error("Unauthorized");
+  if (!session || (session.role !== "INSTITUTION" && session.role !== "INSTITUTION_ADMIN")) throw new ActionInputError("Unauthorized");
 
   const institutionId = getTenantContext(session);
   const name = formData.get("name") as string;
@@ -316,22 +323,22 @@ export async function createSectionAction(formData: FormData) {
   const classTeacherId = classTeacherIdRaw ? parseInt(classTeacherIdRaw, 10) : null;
 
   if (!/^[A-Za-z0-9]$/.test(name.trim()) || !Number.isInteger(classId)) {
-    throw new Error("Section must be exactly one letter or number, for example A, B, C, or 1");
+    throw new ActionInputError("Section must be exactly one letter or number, for example A, B, C, or 1");
   }
-  if (classTeacherIdRaw && !Number.isInteger(classTeacherId)) throw new Error("Invalid staff ID");
+  if (classTeacherIdRaw && !Number.isInteger(classTeacherId)) throw new ActionInputError("Invalid staff ID");
 
   const [classRow] = await db.select({ id: classes.id })
     .from(classes)
     .where(and(eq(classes.id, classId), eq(classes.institutionId, institutionId)))
     .limit(1);
-  if (!classRow) throw new Error("Class not found");
+  if (!classRow) throw new ActionInputError("Class not found");
 
   if (classTeacherId !== null) {
     const [staffRow] = await db.select({ id: staff.id })
       .from(staff)
       .where(and(eq(staff.id, classTeacherId), eq(staff.institutionId, institutionId)))
       .limit(1);
-    if (!staffRow) throw new Error("Selected staff member was not found in this institution");
+    if (!staffRow) throw new ActionInputError("Selected staff member was not found in this institution");
   }
 
   await db.insert(sections).values({
@@ -349,7 +356,7 @@ export async function createSectionAction(formData: FormData) {
 export async function updateClassInchargeAction(formData: FormData) {
   const session = await getSession();
   assertCampusWritable(session);
-  if (!session || (session.role !== "INSTITUTION" && session.role !== "INSTITUTION_ADMIN")) throw new Error("Unauthorized");
+  if (!session || (session.role !== "INSTITUTION" && session.role !== "INSTITUTION_ADMIN")) throw new ActionInputError("Unauthorized");
 
   const institutionId = session.institutionId || session.userId;
   const sectionIdRaw = formData.get("sectionId") as string;
@@ -359,9 +366,9 @@ export async function updateClassInchargeAction(formData: FormData) {
   const classTeacherIdRaw = formData.get("classTeacherId") as string;
   const classTeacherId = classTeacherIdRaw ? parseInt(classTeacherIdRaw, 10) : null;
 
-  if (sectionIdRaw && !Number.isInteger(sectionId)) throw new Error("Invalid section ID");
-  if (!sectionId && (!classId || !Number.isInteger(classId))) throw new Error("Valid section or class is required");
-  if (classTeacherIdRaw && !Number.isInteger(classTeacherId)) throw new Error("Invalid staff ID");
+  if (sectionIdRaw && !Number.isInteger(sectionId)) throw new ActionInputError("Invalid section ID");
+  if (!sectionId && (!classId || !Number.isInteger(classId))) throw new ActionInputError("Valid section or class is required");
+  if (classTeacherIdRaw && !Number.isInteger(classTeacherId)) throw new ActionInputError("Invalid staff ID");
 
   if (!sectionId && classId) {
     sectionId = await getOrCreateWholeClassSection(institutionId, classId);
@@ -371,14 +378,14 @@ export async function updateClassInchargeAction(formData: FormData) {
     .from(sections)
     .where(and(eq(sections.id, sectionId!), eq(sections.institutionId, institutionId)))
     .limit(1);
-  if (!sectionRow) throw new Error("Section not found");
+  if (!sectionRow) throw new ActionInputError("Section not found");
 
   if (classTeacherId !== null) {
     const [staffRow] = await db.select({ id: staff.id })
       .from(staff)
       .where(and(eq(staff.id, classTeacherId), eq(staff.institutionId, institutionId)))
       .limit(1);
-    if (!staffRow) throw new Error("Selected staff member was not found in this institution");
+    if (!staffRow) throw new ActionInputError("Selected staff member was not found in this institution");
   }
 
   await db.update(sections)
@@ -395,7 +402,7 @@ export async function updateClassInchargeAction(formData: FormData) {
 export async function createTimetableAssignmentAction(formData: FormData) {
   const session = await getSession();
   assertCampusWritable(session);
-  if (!session || (session.role !== "INSTITUTION" && session.role !== "INSTITUTION_ADMIN")) throw new Error("Unauthorized");
+  if (!session || (session.role !== "INSTITUTION" && session.role !== "INSTITUTION_ADMIN")) throw new ActionInputError("Unauthorized");
 
   const institutionId = session.institutionId || session.userId;
   const sectionIdRaw = formData.get("sectionId") as string;
@@ -414,17 +421,17 @@ export async function createTimetableAssignmentAction(formData: FormData) {
   const staffId = staffIdRaw && !isBreak ? parseInt(staffIdRaw as string, 10) : null;
   const subjectId = subjectIdRaw && !isBreak ? parseInt(subjectIdRaw as string, 10) : null;
 
-  if (sectionIdRaw && !Number.isInteger(sectionId)) throw new Error("Invalid section ID");
-  if (!sectionId && (!classId || !Number.isInteger(classId))) throw new Error("Valid section or class is required");
+  if (sectionIdRaw && !Number.isInteger(sectionId)) throw new ActionInputError("Invalid section ID");
+  if (!sectionId && (!classId || !Number.isInteger(classId))) throw new ActionInputError("Valid section or class is required");
   const validTime = /^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
   if (
     !Number.isInteger(dayOfWeek) || dayOfWeek < 1 || dayOfWeek > 6 ||
     !validTime.test(startTime) || !validTime.test(endTime) || startTime >= endTime
   ) {
-    throw new Error("Valid section, day, start time, and end time are required");
+    throw new ActionInputError("Valid section, day, start time, and end time are required");
   }
   if (!isBreak && (!staffId || !subjectId || !Number.isInteger(staffId) || !Number.isInteger(subjectId))) {
-    throw new Error("Subject and teacher are required for class periods");
+    throw new ActionInputError("Subject and teacher are required for class periods");
   }
 
   if (!sectionId && classId) {
@@ -435,14 +442,14 @@ export async function createTimetableAssignmentAction(formData: FormData) {
     .from(sections)
     .where(and(eq(sections.id, sectionId!), eq(sections.institutionId, institutionId)))
     .limit(1);
-  if (!sectionRow) throw new Error("Section not found");
+  if (!sectionRow) throw new ActionInputError("Section not found");
 
   if (subjectId) {
     const [subjectRow] = await db.select({ id: subjects.id })
       .from(subjects)
       .where(and(eq(subjects.id, subjectId), eq(subjects.institutionId, institutionId)))
       .limit(1);
-    if (!subjectRow) throw new Error("Subject not found");
+    if (!subjectRow) throw new ActionInputError("Subject not found");
   }
 
   if (staffId) {
@@ -450,7 +457,7 @@ export async function createTimetableAssignmentAction(formData: FormData) {
       .from(staff)
       .where(and(eq(staff.id, staffId), eq(staff.institutionId, institutionId)))
       .limit(1);
-    if (!staffRow) throw new Error("Selected staff member was not found in this institution");
+    if (!staffRow) throw new ActionInputError("Selected staff member was not found in this institution");
   }
 
   const sectionConflicts = await db.select({ id: staffAssignments.id })
@@ -463,7 +470,7 @@ export async function createTimetableAssignmentAction(formData: FormData) {
       gt(staffAssignments.endTime, startTime),
     ))
     .limit(1);
-  if (sectionConflicts.length > 0) throw new Error("This section already has a timetable entry in that time range");
+  if (sectionConflicts.length > 0) throw new ActionInputError("This section already has a timetable entry in that time range");
 
   if (staffId) {
     const staffConflicts = await db.select({ id: staffAssignments.id })
@@ -476,7 +483,7 @@ export async function createTimetableAssignmentAction(formData: FormData) {
         gt(staffAssignments.endTime, startTime),
       ))
       .limit(1);
-    if (staffConflicts.length > 0) throw new Error("This staff member is already booked in that time range");
+    if (staffConflicts.length > 0) throw new ActionInputError("This staff member is already booked in that time range");
   }
 
   await db.insert(staffAssignments).values({
@@ -501,7 +508,7 @@ export async function updateGraduatedStudentAccessAction(allowGraduatedStudentAc
   const session = await getSession();
   await assertSecurityPermission(session, "institution.security");
   assertCampusWritable(session);
-  if (!session || (session.role !== "INSTITUTION" && session.role !== "INSTITUTION_ADMIN")) throw new Error("Unauthorized");
+  if (!session || (session.role !== "INSTITUTION" && session.role !== "INSTITUTION_ADMIN")) throw new ActionInputError("Unauthorized");
 
   const institutionId = session.institutionId || session.userId;
 
@@ -523,7 +530,7 @@ export async function createInstitutionOwnerAction(formData: FormData) {
   await assertSecurityPermission(session, "institution.security");
   assertCampusWritable(session);
   // Only the actual institution (owner) can fill this out, not the admin.
-  if (!session || (session.role !== "INSTITUTION" && session.role !== "INSTITUTION_ADMIN")) throw new Error("Unauthorized");
+  if (!session || (session.role !== "INSTITUTION" && session.role !== "INSTITUTION_ADMIN")) throw new ActionInputError("Unauthorized");
   
   const institutionId = getTenantContext(session);
   const name = formData.get("name") as string;
@@ -532,13 +539,13 @@ export async function createInstitutionOwnerAction(formData: FormData) {
   const contactNumber = formData.get("contactNumber") as string;
 
   if (!name || !gender || !email || !contactNumber) {
-    throw new Error("All fields are required");
+    throw new ActionInputError("All fields are required");
   }
 
   // Check if owner already exists
   const existing = await db.select().from(institutionOwners).where(eq(institutionOwners.institutionId, institutionId)).limit(1);
   if (existing.length > 0) {
-    throw new Error("Owner details have already been submitted");
+    throw new ActionInputError("Owner details have already been submitted");
   }
 
   await db.insert(institutionOwners).values({
@@ -566,18 +573,18 @@ export async function createInstitutionAdminAction(formData: FormData) {
   const session = await getSession();
   await assertSecurityPermission(session, "institution.security");
   assertCampusWritable(session);
-  if (!session || session.role !== "INSTITUTION") throw new Error("Unauthorized");
+  if (!session || session.role !== "INSTITUTION") throw new ActionInputError("Unauthorized");
   
   const institutionId = getTenantContext(session);
   const name = formData.get("name") as string;
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
-  if (!name || !email || !password) throw new Error("All fields are required");
+  if (!name || !email || !password) throw new ActionInputError("All fields are required");
 
   const [existing] = await db.select({ value: count() }).from(institutionAdmins).where(eq(institutionAdmins.institutionId, institutionId));
   if (existing.value >= 2) {
-    throw new Error("You can only create a maximum of 2 admins");
+    throw new ActionInputError("You can only create a maximum of 2 admins");
   }
 
   const passwordHash = await hash(password);
@@ -586,7 +593,7 @@ export async function createInstitutionAdminAction(formData: FormData) {
     await tx.execute(sql`SELECT id FROM institutions WHERE id = ${institutionId} FOR UPDATE`);
     await assertCampusEmailAvailable(tx, email.trim().toLowerCase());
     const [adminCount] = await tx.select({ value: count() }).from(institutionAdmins).where(eq(institutionAdmins.institutionId, institutionId));
-    if (adminCount.value >= 2) throw new Error('You can only create a maximum of 2 admins');
+    if (adminCount.value >= 2) throw new ActionInputError('You can only create a maximum of 2 admins');
     await tx.insert(institutionAdmins).values({ institutionId, name, email: email.trim().toLowerCase(), passwordHash });
   });
 
@@ -598,7 +605,7 @@ export async function deleteInstitutionAdminAction(adminId: number) {
   const session = await getSession();
   await assertSecurityPermission(session, "institution.security");
   assertCampusWritable(session);
-  if (!session || session.role !== "INSTITUTION") throw new Error("Unauthorized");
+  if (!session || session.role !== "INSTITUTION") throw new ActionInputError("Unauthorized");
   
   const institutionId = getTenantContext(session);
 

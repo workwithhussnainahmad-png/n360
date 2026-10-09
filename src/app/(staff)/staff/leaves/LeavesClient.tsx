@@ -1,4 +1,6 @@
 "use client";
+import { responseErrorMessage } from '@/lib/validation-errors';
+
 
 import { useState } from "react";
 import { format } from "date-fns";
@@ -38,7 +40,7 @@ export function LeavesClient({ initialRequests }: { initialRequests: LeaveReques
       });
 
       if (!res.ok) {
-        throw new Error("Failed to update leave request");
+        throw new Error(await responseErrorMessage(res));
       }
 
       setRequests((prev) => prev.filter((req) => req.id !== id));

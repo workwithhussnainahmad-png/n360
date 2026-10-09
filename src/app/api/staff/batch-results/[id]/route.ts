@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { db } from "@/db";
 import { batchExamResults, batchExamSubjects, batchExams, students, subjects, classes, sections } from "@/db/schema";
 import { getSession } from "@/lib/auth";
@@ -66,6 +67,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       results
     });
   } catch (error: any) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Fetch batch result details error:", error);
     return NextResponse.json({ error: "Failed to fetch details" }, { status: 500 });
   }
@@ -125,6 +129,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Update batch result error:", error);
     return NextResponse.json({ error: "Failed to update" }, { status: 500 });
   }
@@ -154,6 +161,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Publish batch result error:", error);
     return NextResponse.json({ error: "Failed to publish" }, { status: 500 });
   }

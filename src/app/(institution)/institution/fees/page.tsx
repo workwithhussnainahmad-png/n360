@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { FeesManager } from "./FeesManager";
+import { PaymentSubmissionsPanel } from "./PaymentSubmissionsPanel";
 
 export const metadata = { title: "Fees & Collections | Institution" };
 
@@ -26,6 +27,11 @@ const sections = [
     label: "Paid fees / challans",
     description: "Recent verified and fully paid challans",
   },
+  {
+    key: "submissions",
+    label: "Payment submissions",
+    description: "Review payments and saved screenshots",
+  },
 ] as const;
 
 export default async function InstitutionFeesPage({
@@ -43,21 +49,10 @@ export default async function InstitutionFeesPage({
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div className="max-w-3xl">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">
-          Accounts desk
-        </p>
-        <h1 className="mt-1 text-3xl font-display font-bold leading-tight text-brand-950">
-          Fees & Collections
-        </h1>
-        <p className="mt-2 text-sm leading-6 text-stone-500 sm:text-base">
-          Set class fees, issue monthly challans, and record payments without
-          loading unrelated records.
-        </p>
-      </div>
+
       <nav
         aria-label="Fee sections"
-        className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+        className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5"
       >
         {sections.map((item) => (
           <Link
@@ -75,7 +70,11 @@ export default async function InstitutionFeesPage({
           </Link>
         ))}
       </nav>
-      <FeesManager mode={section} />
+      {section === "submissions" ? (
+        <PaymentSubmissionsPanel />
+      ) : (
+        <FeesManager key={`${session.institutionId || session.userId}:${section}`} mode={section} />
+      )}
     </div>
   );
 }

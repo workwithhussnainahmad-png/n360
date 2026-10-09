@@ -16,6 +16,7 @@ function isAuthenticatedPortalPath(pathname: string | null) {
     pathname.startsWith("/employee") ||
     pathname.startsWith("/sa") ||
     pathname.startsWith("/batch-results") ||
+    pathname === "/verify/student" ||
     pathname.startsWith("/force-password-change")
   );
 }

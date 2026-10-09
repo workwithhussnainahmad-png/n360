@@ -1,6 +1,8 @@
+import { validationError } from '@/lib/validation-errors';
+import { AdmissionArchiveError, setAdmissionCycleArchived } from "@/lib/admission-cycle-archive";
 import { admissionOfferingOwners, listAdmissionCampuses, canConfigureAdmissions } from "@/lib/admission-campus";
 import { NextRequest, NextResponse } from 'next/server';
-import { and, count, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, sql, isNull, isNotNull, or, ilike, getTableColumns } from 'drizzle-orm';
 import { db } from '@/db';
 import { admissionApplications, admissionCycleCampuses, admissionCycles, admissionOfferings, institutions } from '@/db/schema';
 import { admissionCalendarDateSql } from '@/lib/admission-calendar';
@@ -19,7 +21,19 @@ export const GET = requireRole(['INSTITUTION', 'INSTITUTION_ADMIN'], async (req:
   const owners = intake ? await admissionOfferingOwners(institutionId) : [institutionId];
   const campusOptions = (await listAdmissionCampuses(institutionId)).filter(campus => campus.institutionId === institutionId);
   const today = admissionCalendarDateSql();
-  const cycles = await db.select().from(admissionCycles).where(and(inArray(admissionCycles.institutionId, owners),
+  const archived = !intake && req.nextUrl.searchParams.get('archived') === '1';
+  const search = (req.nextUrl.searchParams.get('search') || '').trim().slice(0, 100);
+  const page = Math.floor(Math.min(100000, Math.max(1, Number(req.nextUrl.searchParams.get('page')) || 1)));
+  if (archived) {
+    const pattern = '%' + search.replaceAll('%', '\\%').replaceAll('_', '\\_') + '%';
+    const where = and(eq(admissionCycles.institutionId, institutionId), isNotNull(admissionCycles.archivedAt), search ? or(ilike(admissionCycles.name, pattern), ilike(admissionCycles.academicYear, pattern)) : undefined);
+    const [cycles, [total]] = await Promise.all([
+      db.select().from(admissionCycles).where(where).orderBy(desc(admissionCycles.archivedAt), desc(admissionCycles.id)).limit(20).offset((page - 1) * 20),
+      db.select({ count: count() }).from(admissionCycles).where(where),
+    ]);
+    return NextResponse.json({ cycles, total: total.count, page, pageSize: 20 }, { headers: { 'Cache-Control': 'no-store' } });
+  }
+  const cycles = await db.select({ ...getTableColumns(admissionCycles), hasApplications: sql<boolean>`EXISTS (SELECT 1 FROM ${admissionApplications} WHERE ${admissionApplications.cycleId} = ${admissionCycles.id})` }).from(admissionCycles).where(and(inArray(admissionCycles.institutionId, owners), isNull(admissionCycles.archivedAt),
     intake ? and(eq(admissionCycles.status, 'OPEN'),
       sql`(${admissionCycles.opensOn} IS NULL OR ${admissionCycles.opensOn} <= ${today})`,
       sql`(${admissionCycles.closesOn} IS NULL OR ${admissionCycles.closesOn} >= ${today})`,
@@ -28,7 +42,7 @@ export const GET = requireRole(['INSTITUTION', 'INSTITUTION_ADMIN'], async (req:
         AND ${admissionCycleCampuses.isOpen} = true)`) : undefined,
   )).orderBy(desc(admissionCycles.createdAt));
   const offerings = await db.select().from(admissionOfferings).where(and(inArray(admissionOfferings.institutionId, owners),
-    intake ? and(inArray(admissionOfferings.cycleId, cycles.map(cycle => cycle.id)), eq(admissionOfferings.isActive, true)) : undefined,
+    inArray(admissionOfferings.cycleId, cycles.map(cycle => cycle.id)), intake ? eq(admissionOfferings.isActive, true) : undefined,
   )).orderBy(desc(admissionOfferings.createdAt));
   return NextResponse.json({ cycles, offerings, campuses: campusOptions }, { headers: { 'Cache-Control': 'no-store' } });
 });
@@ -47,13 +61,21 @@ export const POST = requireRole(['INSTITUTION', 'INSTITUTION_ADMIN'], async (req
 
   const parsed = admissionConfigurationActionSchema.safeParse(body);
   if (!parsed.success) {
-    const issue = parsed.error.issues[0];
-    const field = issue?.path.length ? ` (${issue.path.join('.')})` : '';
-    return NextResponse.json({ error: `${issue?.message || 'Invalid admissions settings'}${field}` }, { status: 400 });
+    return NextResponse.json(validationError(parsed.error), { status: 400 });
   }
   const action = parsed.data;
 
   try {
+    if (action.action === 'archiveCycle' || action.action === 'restoreCycle') {
+      await setAdmissionCycleArchived({ institutionId, cycleId: action.cycleId, archived: action.action === 'archiveCycle', actorId: session.userId, actorRole: session.role, ip: getClientIp(req) });
+      const [institution] = await db.select({ publicSlug: institutions.publicSlug }).from(institutions).where(eq(institutions.id, institutionId)).limit(1);
+      if (institution?.publicSlug) await invalidateInstitutionTenantCache(institution.publicSlug);
+      return NextResponse.json({ success: true });
+    }
+    if ('cycleId' in action) {
+      const [target] = await db.select({ archivedAt: admissionCycles.archivedAt }).from(admissionCycles).where(and(eq(admissionCycles.id, action.cycleId), eq(admissionCycles.institutionId, institutionId))).limit(1);
+      if (target?.archivedAt) return NextResponse.json({ error: 'Restore this archived cycle before editing or reopening it' }, { status: 409 });
+    }
     if (action.action === 'createCycle') {
       const [cycle] = await db.insert(admissionCycles).values({
         institutionId,
@@ -148,11 +170,12 @@ export const POST = requireRole(['INSTITUTION', 'INSTITUTION_ADMIN'], async (req
         eq(admissionOfferings.institutionId, institutionId),
       )).limit(1);
       if (!offering) return NextResponse.json({ error: 'Admission program or class not found' }, { status: 404 });
-      const [cycle] = await db.select({ status: admissionCycles.status }).from(admissionCycles).where(and(
+      const [cycle] = await db.select({ status: admissionCycles.status, archivedAt: admissionCycles.archivedAt }).from(admissionCycles).where(and(
         eq(admissionCycles.id, offering.cycleId),
         eq(admissionCycles.institutionId, institutionId),
       )).limit(1);
       if (!cycle) return NextResponse.json({ error: 'Admission cycle not found' }, { status: 404 });
+      if (cycle.archivedAt) return NextResponse.json({ error: 'Restore this archived cycle before changing its offerings' }, { status: 409 });
       if (cycle.status === 'OPEN') return NextResponse.json({ error: 'Close this admission cycle before editing or removing its programs and classes' }, { status: 409 });
 
       if (action.action === 'updateOffering') {
@@ -170,7 +193,6 @@ export const POST = requireRole(['INSTITUTION', 'INSTITUTION_ADMIN'], async (req
 
       const [applicationCount] = await db.select({ value: count() }).from(admissionApplications).where(and(
         eq(admissionApplications.offeringId, offering.id),
-        eq(admissionApplications.intakeInstitutionId, institutionId),
       ));
       if ((applicationCount?.value || 0) > 0) return NextResponse.json({ error: 'This program or class has application records, so it cannot be deleted' }, { status: 409 });
       await db.delete(admissionOfferings).where(and(
@@ -189,12 +211,11 @@ export const POST = requireRole(['INSTITUTION', 'INSTITUTION_ADMIN'], async (req
         )).limit(1),
         db.select({ value: count() }).from(admissionApplications).where(and(
           eq(admissionApplications.cycleId, action.cycleId),
-          eq(admissionApplications.intakeInstitutionId, institutionId),
         )),
       ]);
       if (!cycle) return NextResponse.json({ error: 'Admission cycle not found' }, { status: 404 });
       if (cycle.status === 'OPEN') return NextResponse.json({ error: 'Close this admission cycle before removing it' }, { status: 409 });
-      if ((applicationCount?.value || 0) > 0) return NextResponse.json({ error: 'This cycle has application records, so it cannot be deleted. Keep it closed to preserve the admission history.' }, { status: 409 });
+      if ((applicationCount?.value || 0) > 0) return NextResponse.json({ error: 'This cycle has application records. Archive it to preserve the admission history.' }, { status: 409 });
       await db.delete(admissionCycles).where(and(
         eq(admissionCycles.id, cycle.id),
         eq(admissionCycles.institutionId, institutionId),
@@ -246,8 +267,10 @@ export const POST = requireRole(['INSTITUTION', 'INSTITUTION_ADMIN'], async (req
     await logAudit({ institutionId, actorId: session.userId, actorRole: session.role, action: `SET_ADMISSION_CYCLE_${action.status}`, target: `Admission cycle ${cycle.id}`, ip: getClientIp(req) });
     return NextResponse.json({ success: true, status: action.status });
   } catch (error) {
+    if (error instanceof AdmissionArchiveError) return NextResponse.json({ error: error.message }, { status: error.status });
     const databaseError = error as { code?: string; cause?: { code?: string } };
     const code = databaseError.code || databaseError.cause?.code;
+    if (code === '23503') return NextResponse.json({ error: 'Application history prevents deletion. Archive the cycle instead.' }, { status: 409 });
     if (code === '23505') return NextResponse.json({ error: 'A cycle or offering with that name already exists' }, { status: 409 });
     if (code === '23514') return NextResponse.json({ error: 'Admissions dates or capacity are invalid' }, { status: 400 });
     throw error;

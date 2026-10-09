@@ -1,5 +1,7 @@
 "use client";
 
+import { showError } from "@/lib/show-error";
+
 import { useEffect, useState, use } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -67,7 +69,7 @@ export default function BatchResultDetailsPage({ params }: { params: Promise<{ i
       setEditingId(null);
       fetchDetails();
     } catch (err: any) {
-      alert(err.message);
+      showError(err.message);
     } finally {
       setIsUpdating(false);
     }
@@ -93,7 +95,7 @@ export default function BatchResultDetailsPage({ params }: { params: Promise<{ i
       }
       fetchDetails();
     } catch (err: any) {
-      alert(err.message);
+      showError(err.message);
     } finally {
       setIsPublishing(false);
     }

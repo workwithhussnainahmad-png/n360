@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
@@ -212,6 +213,9 @@ export const POST = requireRole(["INSTITUTION", "INSTITUTION_ADMIN"], async (req
     await createExamAnnouncement(institutionId, classId, title, type, examSchedule.startDate, examSchedule.endDate, validSubjectIds.length, "created");
     return NextResponse.json({ success: true });
   } catch (error: any) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     return NextResponse.json({ error: error.message || "Failed to create exam timetable" }, { status: 500 });
   }
 });
@@ -284,6 +288,9 @@ export const PATCH = requireRole(["INSTITUTION", "INSTITUTION_ADMIN"], async (re
     await createExamAnnouncement(institutionId, classId, title, type, examSchedule.startDate, examSchedule.endDate, validSubjectIds.length, "updated");
     return NextResponse.json({ success: true });
   } catch (error: any) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     return NextResponse.json({ error: error.message || "Failed to update exam timetable" }, { status: 500 });
   }
 });
@@ -325,6 +332,9 @@ export const DELETE = requireRole(["INSTITUTION", "INSTITUTION_ADMIN"], async (r
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     return NextResponse.json({ error: error.message || "Failed to delete exam timetable" }, { status: 500 });
   }
 });

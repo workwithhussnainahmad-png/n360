@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { students, subjects, staffAssignments, sections } from "@/db/schema";
@@ -71,6 +72,9 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ students: studentList, subjects: subjectList.map(s => s.name) });
   } catch (error: any) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Fetch template error:", error);
     return NextResponse.json({ error: "Failed to fetch template data" }, { status: 500 });
   }

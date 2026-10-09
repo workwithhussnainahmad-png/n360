@@ -1,3 +1,5 @@
+import { actionFeedback } from '@/lib/action-feedback';
+import { ActionForm } from '@/components/ui/action-form';
 export const dynamic = "force-dynamic";
 import { db } from "@/db";
 import { institutions } from "@/db/schema";
@@ -41,20 +43,17 @@ export default async function SAInstitutionsPage({ searchParams }: { searchParam
 
   async function updateStatus(formData: FormData) {
     "use server";
+    return actionFeedback(async () => {
     const id = parseInt(formData.get("id") as string, 10);
     const status = formData.get("status") as "PENDING" | "APPROVED" | "REJECTED";
     await updateInstitutionStatusAction(id, status);
     redirect("/sa/institutions");
+
+    });
   }
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-brand-950">School Requests</h1>
-          <p className="text-stone-500 mt-1">Review school requests and approve or reject institution applications.</p>
-        </div>
-      </div>
 
       <Card>
         <CardHeader className="border-b border-border bg-stone-50/50">
@@ -133,22 +132,22 @@ export default async function SAInstitutionsPage({ searchParams }: { searchParam
                     <td className="px-6 py-4">
                       <div className="flex gap-2">
                         {inst.status !== 'APPROVED' && (
-                          <form action={updateStatus}>
+                          <ActionForm action={updateStatus}>
                             <input type="hidden" name="id" value={inst.id} />
                             <input type="hidden" name="status" value="APPROVED" />
                             <SubmitButton variant="outline" size="sm" className="text-success hover:text-success hover:bg-success/10 h-7 text-xs" loadingText="Approving...">
                               Approve
                             </SubmitButton>
-                          </form>
+                          </ActionForm>
                         )}
                         {inst.status !== 'REJECTED' && (
-                          <form action={updateStatus}>
+                          <ActionForm action={updateStatus}>
                             <input type="hidden" name="id" value={inst.id} />
                             <input type="hidden" name="status" value="REJECTED" />
                             <SubmitButton variant="outline" size="sm" className="text-danger hover:text-danger hover:bg-danger/10 h-7 text-xs" loadingText="Rejecting...">
                               Reject
                             </SubmitButton>
-                          </form>
+                          </ActionForm>
                         )}
                       </div>
                     </td>

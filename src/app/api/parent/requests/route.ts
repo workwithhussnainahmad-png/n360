@@ -1,3 +1,5 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
+import { validationError } from '@/lib/validation-errors';
 import { and, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -32,7 +34,10 @@ export const POST = requireRole(["PARENT"], async (req: NextRequest, { session }
     await db.insert(ticketHistory).values({ ticketId: ticket.id, actorRole: "PARENT", actorId: session.userId, action: "CREATED", notes: "Ticket created from parent portal" });
     return NextResponse.json({ success: true, id: ticket.id });
   } catch (error) {
-    if (error instanceof z.ZodError) return NextResponse.json({ error: error.issues[0]?.message || "Invalid request" }, { status: 400 });
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
+    if (error instanceof z.ZodError) return NextResponse.json(validationError(error), { status: 400 });
     console.error("Parent request error:", error);
     return NextResponse.json({ error: "Could not submit request" }, { status: 500 });
   }

@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { 
@@ -126,6 +127,9 @@ export const GET = requireRole(["STAFF"], async (req: NextRequest, { session }) 
       }))
     });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error fetching hosted tests:", error);
     return NextResponse.json({ error: "Failed to fetch tests" }, { status: 500 });
   }
@@ -228,6 +232,9 @@ export const POST = requireRole(["STAFF"], async (req: NextRequest, { session })
 
     return NextResponse.json({ success: true, testId: test.id });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error creating online test:", error);
     return NextResponse.json({ error: "Failed to create online test" }, { status: 500 });
   }

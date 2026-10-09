@@ -61,6 +61,7 @@ const DEFAULT_LANE_ROUTES = [
   '/api/staff/dashboard', '/api/staff/timetable', '/api/staff/profile',
   '/api/institution/dashboard', '/api/institution/dashboard/charts', '/api/institution/academics', '/api/institution/timetable',
   '/api/parent/portal',
+  '/api/public/student-verification',
 ];
 const laneRoutePaths = (process.env.HOT_PATH_LANE_ROUTES
   ? process.env.HOT_PATH_LANE_ROUTES.split(',').map((route) => route.trim()).filter(Boolean)

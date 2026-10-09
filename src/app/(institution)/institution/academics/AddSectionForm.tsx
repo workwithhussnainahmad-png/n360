@@ -1,11 +1,13 @@
 "use client";
+import { runAction } from '@/lib/run-action';
+import { ActionForm } from '@/components/ui/action-form';
 
 import { useState } from "react";
 import type { SyntheticEvent } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Plus } from "lucide-react";
-import { createSectionAction } from "@/app/actions/institution-actions";
+import { createSectionWithFeedback as createSectionAction } from '@/app/actions/feedback-actions';
 
 type StaffOption = { id: number; name: string };
 
@@ -30,7 +32,7 @@ export function AddSectionForm({ classes }: { classes: { id: number; name: strin
   };
 
   const handleCreateSection = async (formData: FormData) => {
-    await createSectionAction(formData);
+    await runAction(createSectionAction, formData);
   };
 
   return (
@@ -47,7 +49,7 @@ export function AddSectionForm({ classes }: { classes: { id: number; name: strin
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
-          <form action={handleCreateSection} className="space-y-4 pt-2">
+          <ActionForm action={handleCreateSection} className="space-y-4 pt-2">
             <div>
               <label className="mb-2 block text-sm font-medium text-stone-700">Select Class</label>
               <select name="classId" required className="w-full rounded-md border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-surface">
@@ -85,7 +87,7 @@ export function AddSectionForm({ classes }: { classes: { id: number; name: strin
             <SubmitButton className="w-full bg-brand-800 text-white rounded-md py-2 text-sm font-medium hover:bg-brand-900 transition-colors">
               Create Section
             </SubmitButton>
-          </form>
+          </ActionForm>
         </CardContent>
       </Card>
     </details>

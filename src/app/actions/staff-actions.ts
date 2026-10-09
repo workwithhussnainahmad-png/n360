@@ -1,5 +1,7 @@
 "use server";
 
+import { ActionInputError } from "@/lib/action-input-error";
+
 import { db } from "@/db";
 import { attendances, announcements, sections, staffAssignments, students } from "@/db/schema";
 import { getSession } from "@/lib/auth";
@@ -15,10 +17,10 @@ export async function submitAttendanceAction(
   records: { studentId: number; status: "PRESENT" | "ABSENT" | "LATE" | "LEAVE" }[]
 ) {
   const session = await getSession();
-  if (!session || session.role !== "STAFF") throw new Error("Unauthorized");
+  if (!session || session.role !== "STAFF") throw new ActionInputError("Unauthorized");
 
   const institutionId = session.institutionId;
-  if (!institutionId) throw new Error("No institution bound");
+  if (!institutionId) throw new ActionInputError("No institution bound");
 
   const [section] = await db.select({ classTeacherId: sections.classTeacherId })
     .from(sections)
@@ -26,7 +28,7 @@ export async function submitAttendanceAction(
     .limit(1);
 
   if (!section || section.classTeacherId !== session.userId) {
-    throw new Error("You are not authorized to mark attendance for this class. Only the designated Class Incharge can do this.");
+    throw new ActionInputError("You are not authorized to mark attendance for this class. Only the designated Class Incharge can do this.");
   }
 
   if (records.length > 0) {
@@ -40,7 +42,7 @@ export async function submitAttendanceAction(
       ));
 
     if (validStudents.length !== new Set(studentIds).size) {
-      throw new Error("Attendance records include students outside this section.");
+      throw new ActionInputError("Attendance records include students outside this section.");
     }
   }
 
@@ -71,10 +73,10 @@ export async function submitAttendanceAction(
 
 export async function createStaffAnnouncementAction(formData: FormData) {
   const session = await getSession();
-  if (!session || session.role !== "STAFF") throw new Error("Unauthorized");
+  if (!session || session.role !== "STAFF") throw new ActionInputError("Unauthorized");
 
   const institutionId = session.institutionId;
-  if (!institutionId) throw new Error("No institution bound");
+  if (!institutionId) throw new ActionInputError("No institution bound");
 
   const title = formData.get("title") as string;
   const content = formData.get("content") as string;
@@ -82,9 +84,9 @@ export async function createStaffAnnouncementAction(formData: FormData) {
   const targetClassId = formData.get("targetClassId") ? parseInt(formData.get("targetClassId") as string) : null;
   const targetSectionId = formData.get("targetSectionId") ? parseInt(formData.get("targetSectionId") as string) : null;
 
-  if (!title.trim() || !content.trim()) throw new Error("Title and content are required");
-  if (targetType !== "CLASS" && targetType !== "SECTION") throw new Error("Invalid target audience");
-  if (!targetClassId || !Number.isInteger(targetClassId)) throw new Error("Class is required");
+  if (!title.trim() || !content.trim()) throw new ActionInputError("Title and content are required");
+  if (targetType !== "CLASS" && targetType !== "SECTION") throw new ActionInputError("Invalid target audience");
+  if (!targetClassId || !Number.isInteger(targetClassId)) throw new ActionInputError("Class is required");
 
   const assignedRows = await db.selectDistinct({
     sectionId: sections.id,
@@ -99,12 +101,12 @@ export async function createStaffAnnouncementAction(formData: FormData) {
       eq(sections.classId, targetClassId),
     ));
 
-  if (assignedRows.length === 0) throw new Error("This class is not assigned to you");
+  if (assignedRows.length === 0) throw new ActionInputError("This class is not assigned to you");
 
   if (targetType === "SECTION") {
-    if (!targetSectionId || !Number.isInteger(targetSectionId)) throw new Error("Section is required");
+    if (!targetSectionId || !Number.isInteger(targetSectionId)) throw new ActionInputError("Section is required");
     const selectedSection = assignedRows.find((row) => row.sectionId === targetSectionId);
-    if (!selectedSection) throw new Error("Section not found for the selected class");
+    if (!selectedSection) throw new ActionInputError("Section not found for the selected class");
   }
 
   const [inserted] = await db.insert(announcements).values({

@@ -1,3 +1,5 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
+import { validationError } from '@/lib/validation-errors';
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { blogs } from "@/db/schema";
@@ -41,6 +43,9 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ blogs: paginatedBlogs, totalCount, limit, page });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error fetching blogs:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
@@ -57,7 +62,7 @@ export async function POST(req: Request) {
     const result = blogSchema.safeParse(body);
 
     if (!result.success) {
-      return NextResponse.json({ error: "Invalid data", details: result.error.issues }, { status: 400 });
+      return NextResponse.json(validationError(result.error), { status: 400 });
     }
 
     // Ensure slug is unique
@@ -81,6 +86,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json(newBlog[0]);
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Error creating blog:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

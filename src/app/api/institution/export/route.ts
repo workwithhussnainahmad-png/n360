@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { students, staff, classes, sections } from "@/db/schema";
@@ -99,6 +100,9 @@ export const GET = requireRole(["INSTITUTION"], async (req: NextRequest, { sessi
       },
     });
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Export Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }

@@ -1,3 +1,4 @@
+import { inputErrorResponse } from '@/lib/input-error-response';
 import { db } from "@/db";
 import { batchExamResults, batchExamSubjects, batchExams } from "@/db/schema";
 import { getSession } from "@/lib/auth";
@@ -68,6 +69,9 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(publishedExams);
   } catch (error) {
+    const publicInputError = inputErrorResponse(error);
+    if (publicInputError) return NextResponse.json(publicInputError.body, { status: publicInputError.status });
+
     console.error("Transcripts GET error:", error);
     return NextResponse.json({ error: "Failed to fetch transcripts" }, { status: 500 });
   }

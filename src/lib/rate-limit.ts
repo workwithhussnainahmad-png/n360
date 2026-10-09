@@ -15,6 +15,7 @@ export type RateLimitBucket =
   | 'marks_write'
   | 'admissions'
   | 'admission_auth'
+  | 'student_verification'
   | 'upload';
 
 const BUCKET_LIMITS: Record<RateLimitBucket, { limit: number; windowSeconds: number }> = {
@@ -28,6 +29,7 @@ const BUCKET_LIMITS: Record<RateLimitBucket, { limit: number; windowSeconds: num
   marks_write: { limit: 30, windowSeconds: 60 },
   admissions: { limit: 5, windowSeconds: 60 },
   admission_auth: { limit: 5, windowSeconds: 60 },
+  student_verification: { limit: 60, windowSeconds: 60 },
   // A signature is an upload capability and each one costs Cloudinary quota.
   // 20/min is far above any real flow (one signature per file picked by hand)
   // and is keyed per account, not per IP.

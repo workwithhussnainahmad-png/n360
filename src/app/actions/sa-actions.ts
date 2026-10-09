@@ -1,5 +1,7 @@
 "use server";
 
+import { ActionInputError } from "@/lib/action-input-error";
+
 import { changeInstitutionStatus } from "@/lib/institution-status";
 import { db } from "@/db";
 import { superAdmins, employees } from "@/db/schema";
@@ -14,7 +16,7 @@ export async function createSuperAdminAction(formData: FormData) {
   const session = await getSession();
   await assertSecurityPermission(session, "platform.security");
   if (!session || session.role !== "SUPER_ADMIN" || !session.isSuperAdmin) {
-    throw new Error("Unauthorized: Only the Root Super Admin can create other admins");
+    throw new ActionInputError("Unauthorized: Only the Root Super Admin can create other admins");
   }
 
   const email = formData.get("email") as string;
@@ -23,12 +25,12 @@ export async function createSuperAdminAction(formData: FormData) {
   const securityAnswer = formData.get("securityAnswer") as string;
 
   if (!email || !password || !securityQuestion || !securityAnswer) {
-    throw new Error("All fields are required");
+    throw new ActionInputError("All fields are required");
   }
 
   const existingAdmin = await db.select().from(superAdmins).where(eq(superAdmins.email, email));
   if (existingAdmin.length > 0) {
-    throw new Error("A Super Admin with this email already exists");
+    throw new ActionInputError("A Super Admin with this email already exists");
   }
 
   const passwordHash = await hash(password);
@@ -49,20 +51,20 @@ export async function deleteSuperAdminAction(adminId: number) {
   const session = await getSession();
   await assertSecurityPermission(session, "platform.security");
   if (!session || session.role !== "SUPER_ADMIN" || !session.isSuperAdmin) {
-    throw new Error("Unauthorized: Only the Root Super Admin can delete admins");
+    throw new ActionInputError("Unauthorized: Only the Root Super Admin can delete admins");
   }
 
   if (session.userId === adminId) {
-    throw new Error("You cannot delete yourself");
+    throw new ActionInputError("You cannot delete yourself");
   }
 
   // Ensure we don't delete the last super admin or root admin (id = 1)
   if (adminId === 1) {
-    throw new Error("Cannot delete the primary root super admin");
+    throw new ActionInputError("Cannot delete the primary root super admin");
   }
 
   const [target] = await db.select({ root: superAdmins.isSuperAdmin }).from(superAdmins).where(eq(superAdmins.id, adminId)).limit(1);
-  if (!target || target.root) throw new Error("Root accounts cannot be removed.");
+  if (!target || target.root) throw new ActionInputError("Root accounts cannot be removed.");
   await db.delete(superAdmins).where(and(eq(superAdmins.id, adminId), eq(superAdmins.isSuperAdmin, false)));
   await invalidateUserValidity("SUPER_ADMIN", adminId);
   revalidatePath("/sa/admins");
@@ -73,7 +75,7 @@ export async function createEmployeeAction(formData: FormData) {
   const session = await getSession();
   await assertSecurityPermission(session, "platform.accounts");
   if (!session || session.role !== "SUPER_ADMIN") {
-    throw new Error("Unauthorized");
+    throw new ActionInputError("Unauthorized");
   }
 
   const name = formData.get("name") as string;
@@ -81,12 +83,12 @@ export async function createEmployeeAction(formData: FormData) {
   const password = formData.get("password") as string;
 
   if (!name || !email || !password) {
-    throw new Error("All fields are required");
+    throw new ActionInputError("All fields are required");
   }
 
   const existingEmployee = await db.select().from(employees).where(eq(employees.email, email));
   if (existingEmployee.length > 0) {
-    throw new Error("An employee with this email already exists");
+    throw new ActionInputError("An employee with this email already exists");
   }
 
   const passwordHash = await hash(password);
@@ -106,7 +108,7 @@ export async function toggleEmployeeStatusAction(employeeId: number, currentlyDi
   const session = await getSession();
   await assertSecurityPermission(session, "platform.accounts");
   if (!session || session.role !== "SUPER_ADMIN") {
-    throw new Error("Unauthorized");
+    throw new ActionInputError("Unauthorized");
   }
 
   await db.update(employees)
@@ -122,7 +124,7 @@ export async function deleteEmployeeAction(employeeId: number) {
   const session = await getSession();
   await assertSecurityPermission(session, "platform.accounts");
   if (!session || session.role !== "SUPER_ADMIN") {
-    throw new Error("Unauthorized: Only super admins can completely delete employees");
+    throw new ActionInputError("Unauthorized: Only super admins can completely delete employees");
   }
 
   await db.update(employees).set({ deletedAt: new Date() }).where(eq(employees.id, employeeId));
@@ -133,7 +135,7 @@ export async function deleteEmployeeAction(employeeId: number) {
 
 export async function updateInstitutionStatusAction(institutionId: number, newStatus: "PENDING" | "APPROVED" | "REJECTED") {
   const session = await getSession();
-  if (!session) throw new Error("Unauthorized");
+  if (!session) throw new ActionInputError("Unauthorized");
   await changeInstitutionStatus(session, institutionId, newStatus);
   for (const path of ["/sa/institutions", "/sa/dashboard", "/employee/institutions", "/employee/dashboard"]) revalidatePath(path);
   return { success: true };
@@ -143,7 +145,7 @@ export async function updateAppVersionAction(version: string) {
   const session = await getSession();
   await assertPlatformOperator(session);
   if (!session || (session.role !== "SUPER_ADMIN" && session.role !== "EMPLOYEE")) {
-    throw new Error("Unauthorized");
+    throw new ActionInputError("Unauthorized");
   }
 
   const { systemSettings } = await import("@/db/schema");
@@ -162,9 +164,9 @@ export async function updateAppVersionAction(version: string) {
 export async function updatePublicSiteBaseDomainAction(value: string) {
   const session = await getSession();
   await assertSecurityPermission(session, "platform.security");
-  if (!session || !['SUPER_ADMIN', 'EMPLOYEE'].includes(session.role)) throw new Error('Unauthorized');
+  if (!session || !['SUPER_ADMIN', 'EMPLOYEE'].includes(session.role)) throw new ActionInputError('Unauthorized');
   const domain = value.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
-  if (domain.length > 253 || !/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(domain)) throw new Error('Enter a valid base domain without https:// or a path');
+  if (domain.length > 253 || !/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(domain)) throw new ActionInputError('Enter a valid base domain without https:// or a path');
   const { systemSettings } = await import('@/db/schema');
   const [settings] = await db.select({ id: systemSettings.id }).from(systemSettings).limit(1);
   if (settings) await db.update(systemSettings).set({ publicSiteBaseDomain: domain, updatedAt: new Date() }).where(eq(systemSettings.id, settings.id));
@@ -183,12 +185,12 @@ export async function updateSoftwareVersionAction(version: string) {
   const session = await getSession();
   await assertPlatformOperator(session);
   if (!session || (session.role !== "SUPER_ADMIN" && session.role !== "EMPLOYEE")) {
-    throw new Error("Unauthorized");
+    throw new ActionInputError("Unauthorized");
   }
 
   const normalizedVersion = version.trim();
   if (!normalizedVersion || normalizedVersion.length > 50) {
-    throw new Error("Provide a software version up to 50 characters.");
+    throw new ActionInputError("Provide a software version up to 50 characters.");
   }
 
   const { systemSettings } = await import("@/db/schema");
@@ -210,13 +212,13 @@ export async function updateTicketPlatformStatusAction(ticketId: number, platfor
   const session = await getSession();
   await assertPlatformOperator(session);
   if (!session || (session.role !== "SUPER_ADMIN" && session.role !== "EMPLOYEE")) {
-    throw new Error("Unauthorized");
+    throw new ActionInputError("Unauthorized");
   }
 
   // tenant-audit: allow-cross-tenant tickets — platform support is explicitly authorized to manage forwarded tickets from every institution.
   const [ticket] = await db.select().from(tickets).where(eq(tickets.id, ticketId)).limit(1);
   if (!ticket || !ticket.isForwarded) {
-    throw new Error("Ticket not found or not forwarded");
+    throw new ActionInputError("Ticket not found or not forwarded");
   }
 
   await db.update(tickets)
