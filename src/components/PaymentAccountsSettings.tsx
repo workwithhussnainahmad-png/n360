@@ -97,10 +97,10 @@ export function PaymentAccountsSettings() {
           </a>}
         </div>
       </article>)}
-    </div> : !showForm && !notice?.error && <div className="rounded-lg border border-dashed border-stone-300 bg-stone-50/60 px-5 py-9 text-center">
+    </div> : !showForm && !notice?.error && <div className="flex min-w-0 flex-col items-center rounded-lg border border-dashed border-stone-300 bg-stone-50/60 px-4 py-6 sm:px-5 sm:py-9">
       <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full border border-border bg-white text-brand-700"><Building2 className="h-5 w-5" /></span>
-      <p className="mt-3 text-sm font-semibold text-brand-950">Add your first payment gateway</p>
-      <p className="mx-auto mt-1 max-w-sm text-sm leading-6 text-stone-500">Add a bank or wallet account where students, parents, and applicants can send their fees.</p>
+      <p className="mt-3 w-full max-w-sm text-center! text-sm font-semibold break-words text-brand-950">Add your first payment gateway</p>
+      <p className="mt-1 w-full max-w-sm text-center! text-sm leading-6 break-words text-stone-500">Add a bank or wallet account where students, parents, and applicants can send their fees.</p>
     </div>}
     {showForm && <form onSubmit={add} className="overflow-hidden rounded-lg border border-brand-200 bg-stone-50/50">
       <div className="flex items-center justify-between border-b border-brand-100 px-4 py-3 sm:px-5">
