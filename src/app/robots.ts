@@ -21,7 +21,8 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
     return {
       rules: {
         userAgent: '*',
-        allow: '/',
+        // Public pages request this build identifier through UpdateNotifier.
+        allow: ['/', '/api/version$'],
         disallow: ['/api', '/sites'],
       },
       sitemap: `${origin}/sitemap.xml`,
@@ -31,13 +32,11 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
   return {
     rules: {
       userAgent: '*',
+      // Public content and its resources are crawlable; exclude portal/logins.
       allow: '/',
       disallow: [
         '/admin', '/sa', '/super-admin', '/superadmin', '/employee',
         '/student', '/institution', '/staff', '/parent', '/login',
-        '/api', '/sites', '/force-password-change', '/payments',
-        '/verify', '/batch-results', '/announcements',
-        '/agreement-nisaab360', '/Thanks', '/Bye',
       ],
     },
     sitemap: 'https://nisaab360.app/sitemap.xml',

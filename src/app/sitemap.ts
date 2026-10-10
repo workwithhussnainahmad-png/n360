@@ -134,6 +134,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'monthly',
       priority: 0.7,
     },
+    // Keep these planned public pages discoverable during content publication.
+    ...['about-us', 'contact', 'privacy-policy', 'terms-of-service', 'security', 'gdpr'].map((slug) => ({
+      url: `https://nisaab360.app/${slug}`,
+      changeFrequency: 'weekly' as const,
+      priority: 0.8,
+    })),
     ...dynamicRoutes,
     ...blogRoutes,
   ];

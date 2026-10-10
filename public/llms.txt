@@ -17,6 +17,12 @@ The platform provides dedicated portals for administrators, teachers, students, 
 ## Public pages
 
 - [Home](https://nisaab360.app/): Product overview and institution management platform.
+- [About Nisaab360](https://nisaab360.app/about-us): Company background, mission, and vision.
+- [Contact](https://nisaab360.app/contact): Public contact information.
+- [Privacy Policy](https://nisaab360.app/privacy-policy): Information about personal data and privacy practices.
+- [Terms of Service](https://nisaab360.app/terms-of-service): Terms governing use of Nisaab360.
+- [Security](https://nisaab360.app/security): Security information and practices.
+- [GDPR](https://nisaab360.app/gdpr): Information about data protection and GDPR-related requests.
 - [Pricing](https://nisaab360.app/pricing): Current plans, prices, setup fees, and institution sizes.
 - [Register](https://nisaab360.app/register): Institution registration and onboarding.
 - [LMS in Pakistan](https://nisaab360.app/lms-pakistan): Information about the platform for educational institutions in Pakistan.

@@ -8,7 +8,19 @@ These are ready-to-host copies for `https://nisaab360.app`:
 | `robots.txt` | `https://nisaab360.app/robots.txt` |
 | `llms.txt` | `https://nisaab360.app/llms.txt` |
 
-The XML snapshot contains the eight built-in public pages. It excludes all login pages, including employee, institution/admin and super-admin logins, and private portal pages. It does not export database-managed pages or blog posts. The application's dynamic sitemap includes eligible managed pages and published posts when deployed against the production database.
+The XML snapshot contains 14 public URLs: the eight built-in public pages plus About Us, Contact, Privacy Policy, Terms of Service, Security, and GDPR. At the user's request, all six named managed pages are included in the application generator and export ahead of content publication. Their inclusion does not depend on database records already existing. Actual database update dates override the default entries when records exist, without duplicating URLs. All 14 public pages are linked from llms.txt and permitted by the main-domain robots rules.
+
+All login pages, including employee, institution/admin and super-admin logins, and private portal pages remain excluded from the sitemap. The dynamic generator also includes other eligible managed pages and published blog posts; the standalone snapshot includes the blog index and no individual posts. No Search Console submission was performed; the available connector supports read-only inspection, not sitemap submission.
+
+After deploying sitemap changes or publishing managed pages/posts, refresh this downloadable snapshot from the running generator instead of exporting with empty database placeholders:
+
+```powershell
+Invoke-WebRequest -Uri 'https://nisaab360.app/sitemap.xml' -OutFile 'deployment/seo/sitemap.xml'
+```
+
+Inspect the XML and confirm it still excludes login/private paths before publishing the standalone copy. A sitemap entry does not create its target page.
+
+The main-domain robots rules allow public pages and their resources, including `/api/version`, and disallow only login and private portal prefixes. FAQ, blog, About, Contact, Privacy, Terms, Security and GDPR paths are allowed; each page still needs published content to be indexed. The broader API/workflow restrictions were removed. Existing application authentication still controls access to private data. Active tenant subdomains retain their separate API/site restrictions and version-check exception.
 
 ## Publish with this application
 
