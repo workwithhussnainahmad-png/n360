@@ -84,10 +84,16 @@ async function runDedupedFetch<T>(key: string, fetcher: () => Promise<T>): Promi
     return existing as Promise<T>;
   }
 
-  const fetchPromise = withTimeout(Promise.resolve().then(fetcher), FETCH_TIMEOUT_MS, `cache fetch ${key}`)
-    .finally(() => {
-      if (inFlightRequests.get(key) === fetchPromise) inFlightRequests.delete(key);
-    });
+  const work = Promise.resolve().then(fetcher);
+  const fetchPromise = withTimeout(work, FETCH_TIMEOUT_MS, `cache fetch ${key}`);
+
+  // A caller deadline does not cancel the database/Redis work. Keep its entry
+  // until that work settles, otherwise repeated timeouts start overlapping fills
+  // for the same key. Explicit invalidation may still replace this entry.
+  const release = () => {
+    if (inFlightRequests.get(key) === fetchPromise) inFlightRequests.delete(key);
+  };
+  void work.then(release, release);
 
   inFlightRequests.set(key, fetchPromise);
   return fetchPromise;
@@ -140,7 +146,8 @@ export async function getCachedOrFetch<T>(key: string, ttlSeconds: number, fetch
 }
 
 function cacheLifetime(ttlSeconds: number) {
-  return ttlSeconds + Math.floor(ttlSeconds * (0.05 + Math.random() * 0.05));
+  // Spread expiry without exceeding the freshness ceiling applied by policy.
+  return Math.max(1, ttlSeconds - Math.floor(ttlSeconds * (0.05 + Math.random() * 0.05)));
 }
 
 async function fillCachedValue<T>(key: string, ttlSeconds: number, fetcher: () => Promise<T>, decode: (json: string) => T, encode: (value: T) => string = JSON.stringify): Promise<T> {
