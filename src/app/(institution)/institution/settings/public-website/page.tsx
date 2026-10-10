@@ -56,18 +56,20 @@ export default async function InstitutionPublicWebsitePage() {
           <ArrowLeft className="h-4 w-4" />
           Back to Settings
         </Link>
-
+        <h1 className="font-display text-2xl font-semibold text-brand-950">Public Website designer</h1>
+        <p className="mt-2 text-sm leading-6 text-stone-500">Customize your homepage without coding: colors, fonts, layouts, section order, galleries, videos and FAQs.</p>
       </div>
 
       <Card className="overflow-hidden">
         <CardHeader className="border-b border-border bg-stone-50/50">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Globe2 className="h-5 w-5 text-brand-600" />
-            Website information
+            Design your public website
           </CardTitle>
         </CardHeader>
         <CardContent className="min-w-0 p-4 sm:p-6">
           <PublicWebsiteEditor
+            key={institutionId}
             publicSlug={institution.publicSlug}
             publicSiteEnabled={institution.publicSiteEnabled}
             publicUrl={publicUrl}

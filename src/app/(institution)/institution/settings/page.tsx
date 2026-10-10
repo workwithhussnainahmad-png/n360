@@ -83,14 +83,14 @@ export default async function InstitutionSettingsPage() {
           <CardHeader className="border-b border-border bg-stone-50/50"><CardTitle className="flex items-center gap-2 text-lg"><Globe2 className="h-5 w-5 text-brand-600" />Public Website</CardTitle></CardHeader>
           <CardContent className="flex-1 flex flex-col justify-between space-y-5 p-5 sm:p-6 pt-6 sm:pt-8">
             <div className="space-y-4">
-              <p className="text-sm leading-6 text-stone-500">Edit the public information shown on your institution website and open the published site.</p>
+              <p className="text-sm leading-6 text-stone-500">Design your public website without coding. Choose the appearance, arrange sections and add your institution&apos;s content.</p>
               <div className="rounded-md bg-stone-50 p-4 border border-border">
                 <p className="text-xs font-medium text-stone-700 mb-2">Features included:</p>
                 <ul className="text-xs text-stone-500 space-y-1.5 list-disc pl-4">
-                  <li>Custom landing page with SEO</li>
-                  <li>Campus gallery & facilities</li>
-                  <li>Public news & upcoming events</li>
-                  <li>Direct admissions portal link</li>
+                  <li>Six themes, brand colors, fonts and hero layouts</li>
+                  <li>Reorder, hide and rename homepage sections</li>
+                  <li>Custom galleries, videos, FAQs and content blocks</li>
+                  <li>Desktop, tablet and phone previews</li>
                 </ul>
               </div>
             </div>

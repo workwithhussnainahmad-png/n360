@@ -14,7 +14,7 @@ import { publicEventContentSchema } from '../src/lib/validators/public-event';
 import { websiteDesignSchema } from '../src/lib/validators/public-site-builder';
 import type { JWTPayload } from '../src/lib/auth-types';
 type GuardedRoute = (request: NextRequest, context: { params: Promise<{ id: string }> }) => Promise<Response>;
-type FixtureExports = { GET: GuardedRoute; POST: GuardedRoute; PATCH: GuardedRoute; DELETE: GuardedRoute; getPublishedPublicEvent: (id: number, slug: string) => Promise<typeof schema.publicEvents.$inferSelect | null> };
+type FixtureExports = { GET: GuardedRoute; POST: GuardedRoute; PATCH: GuardedRoute; DELETE: GuardedRoute; getPublishedPublicEvent: (id: number, slug: string) => Promise<typeof schema.publicEvents.$inferSelect | null>; listPublicEventEditorEntries: (id: number) => Promise<Array<{ id: number; blockCount: number }>> };
 
 // Actual routes, role guards, publication queries and migration in disposable PostgreSQL.
 async function main() {
@@ -80,6 +80,19 @@ async function main() {
     session('INSTITUTION', 3); assert.equal((await request(collection.POST, 'POST', { ...content, action: 'PUBLISH' })).status, 403);
     session(); state.session!.campusReadOnly = true; assert.equal((await request(profile.PATCH, 'PATCH', { design: {} })).status, 403);
     session(); const created = await request(collection.POST, 'POST', { ...content, action: 'SAVE_DRAFT' }); assert.equal(created.status, 201); const event = (await created.json()).event;
+    const editor = await load('src/lib/public-event-editor.ts');
+    const library = await editor.listPublicEventEditorEntries(1);
+    assert.equal(library.length, 1); assert.equal(library[0].blockCount, 2);
+    assert.equal(Object.hasOwn(library[0], 'blocks'), false); assert.equal(Object.hasOwn(library[0], 'design'), false);
+    assert.deepEqual(await editor.listPublicEventEditorEntries(2), []);
+    const opened = await request(detail.GET, 'GET', undefined, event.id);
+    assert.equal(opened.status, 200); assert.deepEqual((await opened.json()).event.blocks, content.blocks);
+    session('INSTITUTION_ADMIN'); assert.equal((await request(detail.GET, 'GET', undefined, event.id)).status, 200);
+    session('INSTITUTION', 2); assert.equal((await request(detail.GET, 'GET', undefined, event.id)).status, 404);
+    session('INSTITUTION', 3); assert.equal((await request(detail.GET, 'GET', undefined, event.id)).status, 403);
+    session('STAFF'); assert.equal((await request(detail.GET, 'GET', undefined, event.id)).status, 403);
+    session();
+    console.log('PASS: event library transfers metadata and block counts only; lazy detail reads enforce owner/admin/tenant/campus boundaries');
     assert.equal(await published.getPublishedPublicEvent(1, content.slug), null);
     session('INSTITUTION_ADMIN'); const live = await request(detail.PATCH, 'PATCH', { ...content, action: 'PUBLISH' }, event.id); assert.equal(live.status, 200);
     assert.deepEqual((await published.getPublishedPublicEvent(1, content.slug))!.design, content.design);

@@ -1,9 +1,8 @@
 'use client';
 
-import { type FormEvent, useCallback, useDeferredValue, useEffect, useRef, useState } from 'react';
+import { type FormEvent, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
-import QRCodeGenerator from 'qrcode';
-import { Download, ExternalLink, Eye, Globe2, LayoutTemplate, Plus, QrCode, Redo2, Trash2, Undo2, X } from 'lucide-react';
+import { Download, ExternalLink, Eye, Globe2, Plus, QrCode, Redo2, Trash2, Undo2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { WebsiteNotices } from '@/lib/public-website-notices';
 import { PublicWebsiteNoticesEditor } from './PublicWebsiteNoticesEditor';
@@ -16,10 +15,9 @@ import { getPublicSiteTheme, type PublicSiteThemeId } from '@/lib/public-site-th
 import type { WebsiteDesign } from '@/lib/public-site-builder';
 import type { PublicInstitutionTenant } from '@/lib/institution-tenant';
 import { api } from '@/lib/api-client';
-import { WebsiteBuilderControls } from './WebsiteBuilderControls';
-import { ResponsivePreview } from '@/components/public-site/ResponsivePreview';
+import { WebsiteBuilderControls, type WebsiteDesignTab } from './WebsiteBuilderControls';
 import { useEditorHistory } from '@/components/public-site/useEditorHistory';
-import { InstitutionHomepage } from '@/app/sites/[slug]/[[...path]]/InstitutionHomepage';
+const WebsitePreview = lazy(() => import('./WebsitePreview').then((module) => ({ default: module.WebsitePreview })));
 
 type ContentCard = { title: string; description: string };
 type Statistic = { value: string; label: string };
@@ -39,7 +37,7 @@ type PublicWebsiteEditorProps = { publicSlug: string | null; publicSiteEnabled: 
 const fieldClass = 'w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15';
 
 export function PublicWebsiteEditor({ publicSlug, publicSiteEnabled, publicUrl, qrUrl, eventLinks, initialProfile, previewIdentity, previewEvents = [] }: PublicWebsiteEditorProps) {
-  const history = useEditorHistory({
+  const history = useEditorHistory(() => ({
     ...initialProfile,
     design: initialProfile.design || {} as WebsiteDesign,
     tagline: initialProfile.tagline || '', description: initialProfile.description || '', heroImageUrl: initialProfile.heroImageUrl || '',
@@ -48,15 +46,18 @@ export function PublicWebsiteEditor({ publicSlug, publicSiteEnabled, publicUrl, 
     principalTitle: initialProfile.principalTitle || '', principalMessage: initialProfile.principalMessage || '', principalImageUrl: initialProfile.principalImageUrl || '',
     publicEmail: initialProfile.publicEmail || '', publicPhone: initialProfile.publicPhone || '', publicAddress: initialProfile.publicAddress || '',
     mapUrl: initialProfile.mapUrl || '', facebookUrl: initialProfile.facebookUrl || '', instagramUrl: initialProfile.instagramUrl || '', youtubeUrl: initialProfile.youtubeUrl || '',
-  });
+  }));
   const { value: profile, setValue: setProfile } = history;
   const [savedContent, setSavedContent] = useState(profile);
   const [savedTheme, setSavedTheme] = useState(initialProfile.theme);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
-  const [showPreview, setShowPreview] = useState(false);
-  const previewProfile = useDeferredValue(profile);
-  const dirty = Object.entries(profile).some(([key, value]) => key !== 'theme' && JSON.stringify(value) !== JSON.stringify(savedContent[key as keyof typeof savedContent]));
+  const [view, setView] = useState<'design' | 'content' | 'preview'>('design');
+  const [designTab, setDesignTab] = useState<WebsiteDesignTab>('appearance');
+  const [generatingQr, setGeneratingQr] = useState(false);
+  const qrBusy = useRef(false);
+  const changes = useMemo(() => Object.fromEntries(Object.entries(profile).filter(([key, value]) => key !== 'theme' && value !== savedContent[key as keyof typeof savedContent] && JSON.stringify(value) !== JSON.stringify(savedContent[key as keyof typeof savedContent]))), [profile, savedContent]);
+  const dirty = Object.keys(changes).length > 0;
   useEffect(() => {
     if (!dirty && profile.theme === savedTheme) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); };
@@ -72,11 +73,14 @@ export function PublicWebsiteEditor({ publicSlug, publicSiteEnabled, publicUrl, 
   const sectionProps = useCallback((sectionKey: string) => ({ sectionKey, open: openSections.includes(sectionKey), onToggle: toggleSection }), [openSections, toggleSection]);
 
   async function generateQrCode() {
-    try { if (qrUrl) setQrDataUrl(await QRCodeGenerator.toDataURL(qrUrl, { width: 320, margin: 2, color: { dark: '#171c1a', light: '#ffffff' } })); }
+    if (!qrUrl || qrBusy.current) return;
+    qrBusy.current = true; setGeneratingQr(true);
+    try { const { default: generator } = await import('qrcode'); setQrDataUrl(await generator.toDataURL(qrUrl, { width: 320, margin: 2, color: { dark: '#171c1a', light: '#ffffff' } })); }
     catch { setMessage({ kind: 'error', text: 'Unable to generate the QR code. Please try again.' }); }
+    finally { qrBusy.current = false; setGeneratingQr(false); }
   }
 
-  const updateField = useCallback((field: keyof typeof profile, value: string) => { setProfile((current) => ({ ...current, [field]: value })); }, [setProfile]);
+  const updateField = useCallback((field: keyof typeof profile, value: string) => { setProfile((current) => current[field] === value ? current : ({ ...current, [field]: value })); }, [setProfile]);
   const updateCard = useCallback((list: 'programs' | 'highlights', index: number, field: keyof ContentCard, value: string) => { setProfile((current) => ({ ...current, [list]: current[list].map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item) })); }, [setProfile]);
   const addCard = useCallback((list: 'programs' | 'highlights') => { setProfile((current) => current[list].length >= 8 ? current : ({ ...current, [list]: [...current[list], { title: '', description: '' }] })); }, [setProfile]);
   const removeItem = useCallback((list: 'programs' | 'highlights' | 'statistics' | 'galleryImages', index: number) => { setProfile((current) => ({ ...current, [list]: current[list].filter((_, itemIndex) => itemIndex !== index) })); }, [setProfile]);
@@ -84,9 +88,8 @@ export function PublicWebsiteEditor({ publicSlug, publicSiteEnabled, publicUrl, 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (savingRef.current) return; savingRef.current = true; setSaving(true); setMessage(null);
     try {
-      const changes = Object.fromEntries(Object.entries(profile).filter(([key, value]) => key !== 'theme' && JSON.stringify(value) !== JSON.stringify(savedContent[key as keyof typeof savedContent])));
       if (!Object.keys(changes).length) {
-        setMessage({ kind: 'success', text: 'Your website content is already saved. Use Apply theme to change the design.' });
+        setMessage({ kind: 'success', text: 'Your website content is already saved. Use Apply theme to change the theme.' });
         return;
       }
       await api.patch('/api/institution/public-site', changes);
@@ -107,15 +110,17 @@ export function PublicWebsiteEditor({ publicSlug, publicSiteEnabled, publicUrl, 
   }
 
   return <form onSubmit={save} className="min-w-0 space-y-5 [overflow-anchor:none]">
-    <div className="mt-2 flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border bg-stone-50 p-4"><div className="flex gap-3"><Globe2 className="mt-0.5 h-5 w-5 shrink-0 text-brand-600" /><div><p className="text-sm font-semibold text-stone-900">{publicHostname || 'Subdomain not assigned'}</p><p className="mt-1 text-xs text-stone-500">{publicSiteEnabled ? 'Your public website is live.' : publicSlug ? 'Your subdomain is reserved but not published.' : 'Nisaab360 staff will assign this after approval and payment verification.'}</p></div></div>{publicSiteEnabled && publicUrl && <div className="flex flex-wrap items-center gap-3"><Button type="button" variant="outline" size="sm" onClick={generateQrCode}><QrCode className="mr-2 h-4 w-4" />Generate QR code</Button><a href={publicUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm font-semibold text-brand-700 hover:text-brand-900">Visit site <ExternalLink className="h-4 w-4" /></a></div>}</div>
+    <div className="mt-2 flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border bg-stone-50 p-4"><div className="flex gap-3"><Globe2 className="mt-0.5 h-5 w-5 shrink-0 text-brand-600" /><div><p className="text-sm font-semibold text-stone-900">{publicHostname || 'Subdomain not assigned'}</p><p className="mt-1 text-xs text-stone-500">{publicSiteEnabled ? 'Your public website is live.' : publicSlug ? 'Your subdomain is reserved but not published.' : 'Nisaab360 staff will assign this after approval and payment verification.'}</p></div></div>{publicSiteEnabled && publicUrl && <div className="flex flex-wrap items-center gap-3"><Button type="button" variant="outline" size="sm" disabled={generatingQr} onClick={generateQrCode}><QrCode className="mr-2 h-4 w-4" />Generate QR code</Button><a href={publicUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm font-semibold text-brand-700 hover:text-brand-900">Visit site <ExternalLink className="h-4 w-4" /></a></div>}</div>
     {qrDataUrl && qrUrl && <div className="relative flex flex-col items-start gap-4 rounded-xl border border-stone-200 bg-white p-5 pr-14 sm:flex-row sm:items-center"><Button type="button" variant="ghost" size="icon" onClick={() => setQrDataUrl(null)} aria-label="Close QR code" className="absolute right-3 top-3"><X className="h-4 w-4" /></Button><Image unoptimized width={144} height={144} src={qrDataUrl} alt={`QR code for ${publicHostname}`} className="h-36 w-36 rounded-lg border border-stone-200 bg-white p-2" /><div><p className="font-semibold text-stone-900">Institution homepage QR code</p><p className="mt-1 break-all text-xs text-stone-500">{qrUrl}</p><a href={qrDataUrl} download={`${publicSlug}-website-qr.png`} className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-brand-700"><Download className="h-4 w-4" />Download PNG</a></div></div>}
-    <div className="rounded-xl border border-brand-100 bg-brand-50/60 p-4 text-sm text-brand-950"><div className="flex gap-3"><LayoutTemplate className="mt-0.5 h-5 w-5 shrink-0" /><p><strong>Your website is modular.</strong> Complete only the sections you want visitors to see. Empty optional sections remain hidden automatically.</p></div></div>
-
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-stone-200 bg-white p-3"><p className="text-xs text-stone-500">{dirty ? 'Unsaved website changes' : 'Website content saved'}</p><div className="flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" aria-label="Undo website change" disabled={saving || !history.canUndo} onClick={history.undo}><Undo2 size={16} /></Button><Button type="button" size="sm" variant="outline" aria-label="Redo website change" disabled={saving || !history.canRedo} onClick={history.redo}><Redo2 size={16} /></Button><Button type="button" size="sm" variant="outline" onClick={() => setShowPreview((current) => !current)}><Eye size={16} className="mr-2" />{showPreview ? 'Close preview' : 'Preview website'}</Button></div></div>
-    {showPreview && previewIdentity && <ResponsivePreview title="Institution website preview"><InstitutionHomepage preview tenant={{ ...previewProfile, ...previewIdentity, id: 0, publicSlug: publicSlug || 'preview', accentColor: getPublicSiteTheme(previewProfile.theme).accent }} publicEvents={previewEvents} baseDomain="nisaab360.app" studentLoginUrl="/student-login" /></ResponsivePreview>}
+    <nav aria-label="Public website editor" className="flex flex-wrap gap-2">{([{ id: 'design', label: 'Design & layout' }, { id: 'content', label: 'Website content' }, { id: 'preview', label: 'Preview website' }] as const).map(({ id, label }) => <button type="button" key={id} onClick={() => setView(id)} aria-pressed={view === id} className={'rounded-lg px-4 py-2.5 text-sm font-semibold ' + (view === id ? 'bg-brand-950 text-white' : 'border border-stone-200 bg-white text-stone-600')}>{id === 'preview' && <Eye size={15} className="mr-2 inline" />}{label}</button>)}</nav>
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-stone-200 bg-white p-3"><p className="text-xs text-stone-500">{dirty || profile.theme !== savedTheme ? 'Unsaved website changes' : 'All website changes saved'}</p><div className="flex gap-2"><Button type="button" size="sm" variant="outline" aria-label="Undo website change" disabled={saving || !history.canUndo} onClick={history.undo}><Undo2 size={16} /></Button><Button type="button" size="sm" variant="outline" aria-label="Redo website change" disabled={saving || !history.canRedo} onClick={history.redo}><Redo2 size={16} /></Button></div></div>
+    {view === 'preview' && previewIdentity && <Suspense fallback={<p role="status" className="p-4 text-sm text-stone-500">Opening website preview…</p>}><WebsitePreview tenant={{ ...profile, ...previewIdentity, id: 0, publicSlug: publicSlug || 'preview', accentColor: getPublicSiteTheme(profile.theme).accent }} events={previewEvents} /></Suspense>}
     <fieldset disabled={!canEdit || saving} className="min-w-0 space-y-4 disabled:opacity-60">
+      {view === 'design' && <>
+      <WebsiteBuilderControls tab={designTab} onTabChange={setDesignTab} themeAccent={getPublicSiteTheme(profile.theme).accent} value={profile.design} onChange={(design) => setProfile((current) => ({ ...current, design }))} />
       <div className="rounded-xl border border-stone-200 bg-white p-4 sm:p-5"><PublicWebsiteThemePicker value={profile.theme} onChange={(theme) => setProfile((current) => ({ ...current, theme }))} /><div className="mt-4 flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-stone-500">Every theme uses the same saved website content.</p><Button type="button" disabled={!canEdit || saving || profile.theme === savedTheme} onClick={saveTheme}>Apply theme</Button></div></div>
-      <WebsiteBuilderControls themeAccent={getPublicSiteTheme(profile.theme).accent} value={profile.design} onChange={(design) => setProfile((current) => ({ ...current, design }))} />
+      </>}
+      {view === 'content' && <>
       <EditorSection {...sectionProps('hero')} title="Brand and homepage hero" description="The first impression: headline, cover photograph, and announcement." guide={<>Use a short promise as the headline, not the institution name. Add one wide, real campus photograph. Use the announcement only for a current notice such as “Admissions open until 20 March”.</>}>
         <div className="mb-4 space-y-2"><span className="block text-sm font-medium text-stone-700">Homepage cover image</span>{profile.heroImageUrl ? <SelectedImage src={profile.heroImageUrl} alt="Homepage cover preview" onReplace={(url) => updateField('heroImageUrl', url)} onRemove={() => updateField('heroImageUrl', '')} /> : <div className="rounded-lg border border-dashed border-stone-300 bg-white p-5"><ImageUploadButton label="Choose cover image from device" onUploaded={(url) => updateField('heroImageUrl', url)} /><p className="mt-2 text-xs leading-5 text-stone-500">JPG, PNG, or WebP. Images are compressed before upload and must be no larger than 5 MB afterward.</p></div>}</div>
         <div className="space-y-4"><label className="block text-sm font-medium text-stone-700">Homepage headline<WebsiteInput value={profile.tagline} onChange={(value) => updateField('tagline', value)} maxLength={160} placeholder="Building confident learners for a changing world" className={`${fieldClass} mt-1`} /></label><div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-medium text-stone-700">Announcement text<WebsiteInput value={profile.announcementText} onChange={(value) => updateField('announcementText', value)} maxLength={240} placeholder="Admissions for 2027 are now open" className={`${fieldClass} mt-1`} /></label><label className="text-sm font-medium text-stone-700">Announcement link<WebsiteInput value={profile.announcementLink} onChange={(value) => updateField('announcementLink', value)} maxLength={500} placeholder="/admissions or https://..." className={`${fieldClass} mt-1`} /></label></div></div>
@@ -154,6 +159,7 @@ export function PublicWebsiteEditor({ publicSlug, publicSiteEnabled, publicUrl, 
       <EditorSection {...sectionProps('contact')} title="Contact, map and social media" description="Make it easy for families to visit, call, email, and follow the institution." guide={<>Enter details that parents may publicly use. The address should be the visitor-facing campus address. Paste the full Google Maps share link and the full URL of each official social-media page.</>}>
         <div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-medium text-stone-700">Public email<WebsiteInput type="email" value={profile.publicEmail} onChange={(value) => updateField('publicEmail', value)} maxLength={255} placeholder="admissions@example.edu.pk" className={`${fieldClass} mt-1`} /></label><label className="text-sm font-medium text-stone-700">Public phone<WebsiteInput type="tel" value={profile.publicPhone} onChange={(value) => updateField('publicPhone', value)} maxLength={50} placeholder="+92 300 1234567" className={`${fieldClass} mt-1`} /></label><label className="text-sm font-medium text-stone-700 sm:col-span-2">Campus address<WebsiteInput value={profile.publicAddress} onChange={(value) => updateField('publicAddress', value)} maxLength={300} className={`${fieldClass} mt-1`} /></label><label className="text-sm font-medium text-stone-700 sm:col-span-2">Google Maps link<WebsiteInput type="url" value={profile.mapUrl} onChange={(value) => updateField('mapUrl', value)} maxLength={500} placeholder="https://maps.google.com/..." className={`${fieldClass} mt-1`} /></label><label className="text-sm font-medium text-stone-700">Facebook<WebsiteInput type="url" value={profile.facebookUrl} onChange={(value) => updateField('facebookUrl', value)} maxLength={500} placeholder="https://facebook.com/..." className={`${fieldClass} mt-1`} /></label><label className="text-sm font-medium text-stone-700">Instagram<WebsiteInput type="url" value={profile.instagramUrl} onChange={(value) => updateField('instagramUrl', value)} maxLength={500} placeholder="https://instagram.com/..." className={`${fieldClass} mt-1`} /></label><label className="text-sm font-medium text-stone-700 sm:col-span-2">YouTube<WebsiteInput type="url" value={profile.youtubeUrl} onChange={(value) => updateField('youtubeUrl', value)} maxLength={500} placeholder="https://youtube.com/..." className={`${fieldClass} mt-1`} /></label></div>
       </EditorSection>
+      </>}
     </fieldset>
 
     {message && <p role={message.kind === 'error' ? 'alert' : 'status'} className={`rounded-lg px-4 py-3 text-sm ${message.kind === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>{message.text}</p>}

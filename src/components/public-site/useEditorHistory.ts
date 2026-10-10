@@ -7,7 +7,7 @@ export function useEditorHistory<T>(initial: T | (() => T)) {
     const now = Date.now();
     setHistory((current) => {
       const next = typeof action === 'function' ? (action as (value: T) => T)(current.value) : action;
-      if (JSON.stringify(next) === JSON.stringify(current.value)) return current;
+      if (Object.is(next, current.value)) return current;
       return { value: next, past: now - current.editedAt < 600 ? current.past : [...current.past.slice(-59), current.value], future: [], editedAt: now };
     });
   }, []);
