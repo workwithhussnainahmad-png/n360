@@ -207,6 +207,9 @@ scripts/reset-parent-password.ts
 /docs/performance-*.json
 
 # Local authentication and credential files
+# Local remote-load launcher and results never belong in Git.
+/run-server-tests.ps1
+/test-results/
 .npmrc
 .netrc
 _netrc

@@ -145,6 +145,8 @@ DEPLOY.md
 /seed*.ts
 
 # Docker admits only six required build/runtime inputs; tests and local/release/
+/run-server-tests.ps1
+/test-results/
 # recovery tools stay outside the build context and production images.
 /scripts/**
 !/scripts/build.mjs
