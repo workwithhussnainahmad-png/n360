@@ -22,6 +22,7 @@ import {
 } from "drizzle-orm/pg-core";
 import type { WebsiteNotices } from "@/lib/public-website-notices";
 import type { PublicEventBlock } from "@/lib/public-events";
+import type { PageDesign, WebsiteDesign } from "@/lib/public-site-builder";
 import { sql } from "drizzle-orm";
 
 // --- ENUMS ---
@@ -349,6 +350,7 @@ export const institutionPublicProfiles = pgTable(
       .default("#233c32")
       .notNull(),
     theme: varchar("theme", { length: 30 }).default("default").notNull(),
+    design: jsonb("design").$type<WebsiteDesign>().default({}).notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
 );
@@ -365,6 +367,7 @@ export const publicEvents = pgTable(
     eventDate: varchar("event_date", { length: 120 }),
     venue: varchar("venue", { length: 200 }),
     blocks: jsonb("blocks").$type<PublicEventBlock[]>().default([]).notNull(),
+    design: jsonb("design").$type<PageDesign>().default({}).notNull(),
     status: publicEventStatusEnum("status").default("DRAFT").notNull(),
     visibilityDuration: publicEventDurationEnum("visibility_duration").default("ONE_WEEK").notNull(),
     publishedAt: timestamp("published_at", { withTimezone: true }),

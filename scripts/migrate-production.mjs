@@ -70,6 +70,7 @@ const SUPPLEMENTAL_MIGRATIONS = [
   "0072_admission_cycle_archive.sql",
   "0073_fee_snapshots_and_archive_write_guards.sql",
   "0074_explicit_fee_billing.sql",
+  "0075_public_site_builder.sql",
 ];
 
 if (!process.argv.includes("--apply"))

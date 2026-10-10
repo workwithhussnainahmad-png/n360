@@ -1,6 +1,7 @@
+'use client';
 import { showError } from "@/lib/show-error";
 import type { ChangeEvent } from 'react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -24,11 +25,15 @@ export async function uploadPublicImage(file: File) {
 
 export function ImageUploader({ value, onChange, label }: { value: string; onChange: (url: string) => void; label: string }) {
   const [uploading, setUploading] = useState(false);
+  const callback = useRef(onChange);
+  const mounted = useRef(true);
+  useEffect(() => { callback.current = onChange; }, [onChange]);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   async function upload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]; event.target.value = '';
     if (!file) return;
     setUploading(true);
-    try { onChange(await uploadPublicImage(file)); } catch (error) { showError(error instanceof Error ? error.message : 'Image upload failed'); } finally { setUploading(false); }
+    try { const url = await uploadPublicImage(file); if (mounted.current) callback.current(url); } catch (error) { showError(error instanceof Error ? error.message : 'Image upload failed'); } finally { if (mounted.current) setUploading(false); }
   }
   
   const blurDataURL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";

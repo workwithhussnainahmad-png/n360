@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { EMPTY_WEBSITE_NOTICES } from '@/lib/public-website-notices';
 import { DEFAULT_PUBLIC_SITE_THEME, PUBLIC_SITE_THEME_IDS } from '@/lib/public-site-themes';
+import { websiteDesignSchema } from './public-site-builder';
 
 const nullableText = (maximum: number) => z.string().trim().max(maximum).transform((value) => value || null);
 const nullableHttpsUrl = (maximum = 500) => z.string().trim().max(maximum).refine((value) => {
@@ -89,6 +90,7 @@ export const institutionPublicProfileSchema = z.object({
   youtubeUrl: nullableHttpsUrl(),
   websiteNotices: websiteNotices.default(EMPTY_WEBSITE_NOTICES),
   theme: z.enum(PUBLIC_SITE_THEME_IDS).default(DEFAULT_PUBLIC_SITE_THEME),
+  design: websiteDesignSchema.optional(),
   // Accepted for older editors; new pages use the selected theme's palette.
   accentColor: z.enum(['#233c32', '#1d4ed8', '#7c2d12', '#5b21b6', '#0f766e']).optional(),
 }).strict();

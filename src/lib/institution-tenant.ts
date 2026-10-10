@@ -1,8 +1,7 @@
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { cache } from 'react';
 import { db } from '@/db';
-import { admissionCycles, institutionPublicProfiles, institutions } from '@/db/schema';
-import { openAdmissionCampusExistsSql } from '@/lib/admission-campus';
+import { institutionPublicProfiles, institutions } from '@/db/schema';
 import {
   institutionTenantCacheKey,
   parseInstitutionHostname,
@@ -13,9 +12,9 @@ import { CACHE_POLICY, publicProfileCacheKey } from '@/lib/cache-policy';
 import { getPublicSiteTheme, type PublicSiteThemeId } from '@/lib/public-site-themes';
 import { getPublicSiteBaseDomain } from '@/lib/public-site-domain';
 import { normalizeWebsiteNotices, type WebsiteNotices } from '@/lib/public-website-notices';
-import { admissionCalendarDateSql } from '@/lib/admission-calendar';
+import { publicAdmissionsEnabledSql } from '@/lib/public-admissions-availability';
+import type { WebsiteDesign } from '@/lib/public-site-builder';
 
-const admissionToday = admissionCalendarDateSql();
 
 export type PublicInstitutionTenant = {
   id: number;
@@ -52,6 +51,7 @@ export type PublicInstitutionTenant = {
   websiteNotices: WebsiteNotices;
   accentColor: string;
   theme: PublicSiteThemeId;
+  design?: WebsiteDesign;
 };
 
 type CachedInstitutionTenant = PublicInstitutionTenant & {
@@ -81,14 +81,7 @@ export const resolveInstitutionTenant = cache(async (slugInput: string): Promise
           logoKey: institutions.logoKey,
           city: institutions.city,
           country: institutions.country,
-          admissionsEnabled: sql<boolean>`${institutions.admissionsEnabled} AND EXISTS (
-            SELECT 1 FROM ${admissionCycles}
-            WHERE ${admissionCycles.institutionId} = ${institutions.id}
-              AND ${admissionCycles.status} = 'OPEN'
-              AND (${admissionCycles.opensOn} IS NULL OR ${admissionCycles.opensOn} <= ${admissionToday})
-              AND (${admissionCycles.closesOn} IS NULL OR ${admissionCycles.closesOn} >= ${admissionToday})
-              AND ${openAdmissionCampusExistsSql(admissionCycles.id, institutions.id)}
-          )`,
+          admissionsEnabled: publicAdmissionsEnabledSql,
           profileRevision: sql<string | null>`${institutionPublicProfiles.updatedAt}::text || ':' || ${institutionPublicProfiles}.xmin::text`,
           status: institutions.status,
           publicSiteEnabled: institutions.publicSiteEnabled,
@@ -142,6 +135,7 @@ export const resolveInstitutionTenant = cache(async (slugInput: string): Promise
         instagramUrl: profile?.instagramUrl ?? null,
         youtubeUrl: profile?.youtubeUrl ?? null,
         theme: getPublicSiteTheme(profile?.theme).id,
+        design: profile?.design || {},
         accentColor: getPublicSiteTheme(profile?.theme).accent,
         statistics: profile?.statistics || [],
         programs: profile?.programs || [],
@@ -191,6 +185,7 @@ export const resolveInstitutionTenant = cache(async (slugInput: string): Promise
       websiteNotices: normalizeWebsiteNotices(tenant.websiteNotices),
       accentColor: tenant.accentColor,
       theme: tenant.theme,
+      design: tenant.design || {},
     },
   };
 });

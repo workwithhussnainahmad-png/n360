@@ -1,0 +1,37 @@
+'use client';
+import { useId } from 'react';
+import type { PublicEventBlock } from '@/lib/public-events';
+import { BLOCK_LABELS } from '@/lib/public-site-builder';
+import { Button } from '@/components/ui/button';
+import { ImageUploader } from './ImageUploader';
+
+const field = 'mt-1 w-full rounded-lg border border-stone-200 bg-white p-2.5 text-sm outline-none focus:border-brand-500';
+function TextField({ label, value, onChange, max = 200, area = false }: { label: string; value: string; onChange: (value: string) => void; max?: number; area?: boolean }) {
+  const id = useId();
+  return <div><label htmlFor={id} className="block text-sm font-medium text-stone-700">{label}</label>{area ? <textarea id={id} value={value} onChange={(e) => onChange(e.target.value)} maxLength={max} rows={5} className={field} /> : <input id={id} value={value} onChange={(e) => onChange(e.target.value)} maxLength={max} className={field} />}</div>;
+}
+export function BlockSettings({ block, update }: { block: PublicEventBlock; update: (block: PublicEventBlock) => void }) {
+  const change = (patch: Partial<PublicEventBlock>) => update({ ...block, ...patch } as PublicEventBlock);
+  const text = (label: string, value: string, key: string, max = 200, area = false) => <TextField label={label} value={value} max={max} area={area} onChange={(value) => change({ [key]: value })} />;
+  return <div className="space-y-4">
+    <h3 className="border-b pb-3 font-semibold">{BLOCK_LABELS[block.type]} settings</h3>
+    {block.type === 'heading' && text('Heading', block.text, 'text')}
+    {block.type === 'paragraph' && text('Text', block.text, 'text', 4000, true)}
+    {block.type === 'image' && <><ImageUploader value={block.url} label="image" onChange={(url) => change({ url })} />{text('Image description (alt text)', block.alt, 'alt', 160)}{text('Caption', block.caption, 'caption', 240)}</>}
+    {block.type === 'callout' && <>{text('Title', block.title, 'title', 160)}{text('Message', block.text, 'text', 1200, true)}</>}
+    {block.type === 'schedule' && <>{text('Time', block.time, 'time', 80)}{text('Activity', block.title, 'title', 160)}{text('Details', block.description, 'description', 600, true)}</>}
+    {block.type === 'button' && <>{text('Button label', block.label, 'label', 80)}{text('Destination', block.url, 'url', 500)}<p className="text-xs text-stone-500">Use a page path, HTTPS URL, mailto: email, or tel: number.</p></>}
+    {block.type === 'split' && <><ImageUploader value={block.url} label="image" onChange={(url) => change({ url })} />{text('Image description (alt text)', block.alt, 'alt', 160)}{text('Title', block.title, 'title', 160)}{text('Text', block.text, 'text', 4000, true)}<label className="block text-sm">Image position<select className={field} value={block.imageSide} onChange={(e) => change({ imageSide: e.target.value as 'left' | 'right' })}><option value="left">Left</option><option value="right">Right</option></select></label></>}
+    {block.type === 'gallery' && <><label className="block text-sm">Columns<select className={field} value={block.columns} onChange={(e) => change({ columns: Number(e.target.value) as 2 | 3 })}><option value={2}>Two</option><option value={3}>Three</option></select></label>{block.images.map((image, index) => <div key={index} className="space-y-3 rounded-lg border p-3"><ImageUploader value={image.url} label={'photo ' + (index + 1)} onChange={(url) => change({ images: block.images.map((item, i) => i === index ? { ...item, url } : item) })} /><TextField label="Alt text" value={image.alt} max={160} onChange={(alt) => change({ images: block.images.map((item, i) => i === index ? { ...item, alt } : item) })} /><TextField label="Caption" value={image.caption} max={240} onChange={(caption) => change({ images: block.images.map((item, i) => i === index ? { ...item, caption } : item) })} /><Button type="button" variant="outline" size="sm" onClick={() => change({ images: block.images.filter((_, i) => i !== index) })}>Remove photo</Button></div>)}<Button type="button" variant="outline" disabled={block.images.length >= 12} onClick={() => change({ images: [...block.images, { url: '', alt: '', caption: '' }] })}>Add photo</Button></>}
+    {block.type === 'faq' && <>{block.items.map((item, index) => <div key={index} className="space-y-3 rounded-lg border p-3"><TextField label={'Question ' + (index + 1)} value={item.question} onChange={(question) => change({ items: block.items.map((row, i) => i === index ? { ...row, question } : row) })} /><TextField label="Answer" value={item.answer} max={2000} area onChange={(answer) => change({ items: block.items.map((row, i) => i === index ? { ...row, answer } : row) })} /><Button type="button" variant="outline" size="sm" onClick={() => change({ items: block.items.filter((_, i) => i !== index) })}>Remove question</Button></div>)}<Button type="button" variant="outline" disabled={block.items.length >= 12} onClick={() => change({ items: [...block.items, { question: '', answer: '' }] })}>Add question</Button></>}
+    {block.type === 'list' && <><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={block.ordered} onChange={(e) => change({ ordered: e.target.checked })} />Numbered list</label><TextField label="One item per line" value={block.items.join('\n')} max={15000} area onChange={(value) => change({ items: value.split('\n').slice(0, 30) })} /><p className="text-xs text-stone-500">Up to 30 items; each item may contain 500 characters.</p></>}
+    {block.type === 'video' && <>{text('YouTube or Vimeo URL', block.url, 'url', 500)}{text('Video title / caption', block.caption, 'caption', 240)}<p className="text-xs text-stone-500">Paste the video page link. Playback appears on the public page.</p></>}
+    {block.type === 'spacer' && <label className="block text-sm">Space height<select className={field} value={block.height} onChange={(e) => change({ height: Number(e.target.value) as 24 | 48 | 80 })}><option value={24}>Small · 24px</option><option value={48}>Medium · 48px</option><option value={80}>Large · 80px</option></select></label>}
+    {block.type === 'divider' && <p className="text-sm text-stone-500">A horizontal line separates the content above and below.</p>}
+    <fieldset className="space-y-3 border-t pt-4"><legend className="text-xs font-semibold uppercase tracking-wider">Appearance</legend>
+      <label className="block text-sm">Alignment<select className={field} value={block.style?.align || 'left'} onChange={(e) => change({ style: { ...block.style, align: e.target.value as 'left' | 'center' | 'right' } })}><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></label>
+      <label className="block text-sm">Background<select className={field} value={block.style?.tone || 'plain'} onChange={(e) => change({ style: { ...block.style, tone: e.target.value as 'plain' | 'soft' | 'accent' } })}><option value="plain">None</option><option value="soft">Soft panel</option><option value="accent">Brand color</option></select></label>
+      <label className="block text-sm">Padding<select className={field} value={block.style?.spacing || 'normal'} onChange={(e) => change({ style: { ...block.style, spacing: e.target.value as 'compact' | 'normal' | 'roomy' } })}><option value="compact">Compact</option><option value="normal">Normal</option><option value="roomy">Roomy</option></select></label>
+    </fieldset>
+  </div>;
+}

@@ -1,13 +1,22 @@
 export const PUBLIC_EVENT_DURATIONS = ['ONE_DAY', 'THREE_DAYS', 'ONE_WEEK', 'ONE_MONTH', 'FOREVER'] as const;
 export type PublicEventDuration = (typeof PUBLIC_EVENT_DURATIONS)[number];
 
-export type PublicEventBlock =
+export type PublicBlockStyle = { align?: 'left' | 'center' | 'right'; tone?: 'plain' | 'soft' | 'accent'; spacing?: 'compact' | 'normal' | 'roomy' };
+export type PublicEventBlock = (
   | { id: string; type: 'heading'; text: string }
   | { id: string; type: 'paragraph'; text: string }
   | { id: string; type: 'image'; url: string; alt: string; caption: string }
   | { id: string; type: 'callout'; title: string; text: string }
   | { id: string; type: 'schedule'; time: string; title: string; description: string }
-  | { id: string; type: 'button'; label: string; url: string };
+  | { id: string; type: 'button'; label: string; url: string }
+  | { id: string; type: 'gallery'; images: Array<{ url: string; alt: string; caption: string }>; columns: 2 | 3 }
+  | { id: string; type: 'split'; title: string; text: string; url: string; alt: string; imageSide: 'left' | 'right' }
+  | { id: string; type: 'faq'; items: Array<{ question: string; answer: string }> }
+  | { id: string; type: 'list'; items: string[]; ordered: boolean }
+  | { id: string; type: 'video'; url: string; caption: string }
+  | { id: string; type: 'divider' }
+  | { id: string; type: 'spacer'; height: 24 | 48 | 80 }
+) & { style?: PublicBlockStyle };
 
 export const PUBLIC_EVENT_DURATION_LABELS: Record<PublicEventDuration, string> = {
   ONE_DAY: '1 day',

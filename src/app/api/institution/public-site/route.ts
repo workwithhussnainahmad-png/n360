@@ -11,6 +11,7 @@ import { institutionPublicUrl } from '@/lib/institution-domain';
 import { getTenantContext, requireRole } from '@/lib/rbac';
 import { institutionPublicContentPatchSchema, institutionPublicThemeSchema } from '@/lib/validators/institution-public-profile';
 import { getPublicSiteTheme } from '@/lib/public-site-themes';
+import { readJsonBody } from '@/lib/http';
 
 export const GET = requireRole(['INSTITUTION', 'INSTITUTION_ADMIN'], async (req: NextRequest, { session }) => {
   const institutionId = getTenantContext(session);
@@ -40,12 +41,9 @@ export const PATCH = requireRole(['INSTITUTION', 'INSTITUTION_ADMIN'], async (re
   const institutionId = getTenantContext(session);
   if (!await isMainCampusWebsite(institutionId)) return NextResponse.json({ error: 'Public website settings are available only for the main campus' }, { status: 403 });
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: 'Request body must be valid JSON' }, { status: 400 });
-  }
+  const input = await readJsonBody(req, 256 * 1024);
+  if (!input.ok) return NextResponse.json({ error: input.error }, { status: input.status });
+  const body: unknown = input.data;
 
   if (!body || typeof body !== 'object' || Array.isArray(body) || !Object.keys(body).length) {
     return NextResponse.json({ error: 'Provide the theme or content fields to update' }, { status: 400 });

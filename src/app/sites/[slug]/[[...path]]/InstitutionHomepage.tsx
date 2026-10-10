@@ -6,15 +6,21 @@ import type { PublicInstitutionTenant } from '@/lib/institution-tenant';
 import { institutionPublicUrl } from '@/lib/institution-domain';
 import { getPublicSiteTheme } from '@/lib/public-site-themes';
 import { PublicWebsiteNotices } from './PublicWebsiteNotices';
+import { EventContentBlocks } from '@/components/public-site/EventContentBlocks';
+import { OrderedWebsiteSections } from '@/components/public-site/OrderedWebsiteSections';
+import { pageDesignStyle, safePublicLink, websiteSections, type WebsiteSectionId } from '@/lib/public-site-builder';
 import { ThemeArtwork } from './ThemeArtwork';
 import styles from './InstitutionHomepage.module.css';
 
 type PublicEventCard = { id: number; title: string; slug: string; summary: string | null; coverImageUrl: string | null; eventDate: string | null; venue: string | null };
-type Props = { tenant: PublicInstitutionTenant; baseDomain: string; studentLoginUrl: string; publicEvents: PublicEventCard[] };
+type Props = { tenant: PublicInstitutionTenant; baseDomain: string; studentLoginUrl: string; publicEvents: PublicEventCard[]; preview?: boolean };
 
-export function InstitutionHomepage({ tenant, baseDomain, studentLoginUrl, publicEvents }: Props) {
+export function InstitutionHomepage({ tenant, baseDomain, studentLoginUrl, publicEvents, preview = false }: Props) {
   const theme = getPublicSiteTheme(tenant.theme);
   const mosaic = theme.id === 'mosaic';
+  const sections = websiteSections(tenant.design);
+  const isVisible = (id: WebsiteSectionId) => sections.find((section) => section.id === id)?.visible !== false;
+  const heading = (id: WebsiteSectionId, fallback: string) => sections.find((section) => section.id === id)?.title || fallback;
   const institutionType = tenant.type.charAt(0) + tenant.type.slice(1).toLowerCase();
   const introduction = tenant.description || `${tenant.name} is a ${institutionType.toLowerCase()} in ${tenant.city}, ${tenant.country}.`;
   const initials = tenant.name.split(/\s+/).filter((word) => !['of', 'the', 'and'].includes(word.toLowerCase())).slice(0, 3).map((word) => word[0]).join('').toUpperCase();
@@ -30,7 +36,10 @@ export function InstitutionHomepage({ tenant, baseDomain, studentLoginUrl, publi
     ...(hasTimetable ? [{ label: 'Timetable', href: '#timetable' }] : []),
     ...(tenant.galleryImages.length ? [{ label: 'Campus', href: '#campus' }] : []),
     ...(hasContact ? [{ label: 'Contact', href: '#contact' }] : []),
-  ];
+    ...(tenant.design?.customBlocks?.length ? [{ label: 'More', href: '#custom' }] : []),
+  ].filter((item) => isVisible(item.href.slice(1) as WebsiteSectionId))
+    .map((item) => ({ ...item, label: heading(item.href.slice(1) as WebsiteSectionId, item.label) }))
+    .sort((a, b) => sections.findIndex((s) => s.id === a.href.slice(1)) - sections.findIndex((s) => s.id === b.href.slice(1)));
   const structuredData = JSON.stringify({
     '@context': 'https://schema.org', '@type': tenant.type === 'UNIVERSITY' ? 'CollegeOrUniversity' : 'EducationalOrganization',
     name: tenant.name, url: publicUrl, logo: hasLogo ? tenant.logoKey : undefined, image: tenant.heroImageUrl || undefined,
@@ -42,16 +51,16 @@ export function InstitutionHomepage({ tenant, baseDomain, studentLoginUrl, publi
     <p className={styles.eyebrow}>{institutionType} / {tenant.city}, {tenant.country}</p>
     <h1>{tenant.tagline || tenant.name}</h1>
     {tenant.tagline && <p className={styles.heroName}>{tenant.name}</p>}
-    <div className={styles.actions}><a href="#about" className={mosaic ? styles.primary : styles.readLink}>Discover our {institutionType.toLowerCase()} {mosaic && <ArrowRight size={16} />}</a>{hasContact && <a href="#contact" className={mosaic ? styles.secondary : styles.readLink}>Get in touch</a>}</div>
+    <div className={styles.actions}>{tenant.design?.heroButtonLabel && safePublicLink(tenant.design.heroButtonUrl || '') ? <a href={tenant.design.heroButtonUrl} className={mosaic ? styles.primary : styles.readLink}>{tenant.design.heroButtonLabel}<ArrowRight size={16} /></a> : isVisible('about') && <a href="#about" className={mosaic ? styles.primary : styles.readLink}>Discover our {institutionType.toLowerCase()} {mosaic && <ArrowRight size={16} />}</a>}{hasContact && isVisible('contact') && <a href="#contact" className={mosaic ? styles.secondary : styles.readLink}>Get in touch</a>}</div>
   </div>;
   const heroVisual = <div className={styles.heroVisual}>
     {tenant.heroImageUrl ? <Image unoptimized src={tenant.heroImageUrl} alt={`${tenant.name} campus`} fill sizes="(max-width: 900px) 100vw, 60vw" priority className={styles.cover} /> : mosaic ? <ThemeArtwork theme={theme.id} /> : <div className={styles.identityCover}><strong>{initials}</strong><span>{tenant.name}</span><small>{tenant.city}, {tenant.country}</small></div>}
     {mosaic && <span className={styles.visualCaption}>{tenant.heroImageUrl ? tenant.name : 'Knowledge opens possibilities'}</span>}
   </div>;
 
-  return <div className={`${styles.site} ${styles[theme.id]}${mosaic ? '' : ` ${styles.edition}`}`} data-theme={theme.id} style={{ '--site-accent': theme.accent, '--paper': theme.paper, '--ink': theme.ink } as CSSProperties}>
+  return <div className={`${styles.site} ${styles[theme.id]}${mosaic ? '' : ` ${styles.edition}`}`} data-theme={theme.id} data-builder-font={tenant.design?.font} data-builder-width={tenant.design?.width} data-builder-spacing={tenant.design?.spacing} data-builder-hero={tenant.design?.hero} style={{ ...pageDesignStyle(tenant.design, theme.accent), '--paper': tenant.design?.background ? (tenant.design.background === 'white' ? '#ffffff' : '#f6f3eb') : theme.paper, '--ink': theme.ink } as CSSProperties}>
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
-    <PublicWebsiteNotices notices={tenant.websiteNotices} />
+    {!preview && <PublicWebsiteNotices notices={tenant.websiteNotices} />}
     {tenant.announcementText && <div className={styles.announcement}>{tenant.announcementLink ? <Link href={tenant.announcementLink}>{tenant.announcementText} {mosaic && <ArrowRight size={14} />}</Link> : tenant.announcementText}</div>}
     {mosaic ? <header className={styles.header}>
       <div className={styles.headerInner}>
@@ -70,8 +79,8 @@ export function InstitutionHomepage({ tenant, baseDomain, studentLoginUrl, publi
       </div>
     </header>}
 
-    <main>
-      <section className={styles.hero} aria-label="Welcome">
+    <main><OrderedWebsiteSections design={tenant.design}>
+      <section id="welcome" className={styles.hero} aria-label="Welcome">
         {theme.id === 'default' ? <div className={styles.defaultHero}>{heroCopy}{heroVisual}</div>
           : theme.id === 'heritage' ? <div className={styles.businessHero}>{heroCopy}{heroVisual}</div>
           : theme.id === 'folio' ? <div className={styles.schoolHero}>{heroVisual}{heroCopy}</div>
@@ -79,59 +88,61 @@ export function InstitutionHomepage({ tenant, baseDomain, studentLoginUrl, publi
           : theme.id === 'orbit' ? <div className={styles.focusHero}>{heroCopy}{heroVisual}</div>
           : <div className={styles.heroGrid}>{heroCopy}{heroVisual}</div>}
       </section>
-      {tenant.statistics.length > 0 && <section className={styles.statistics} aria-label="Institution at a glance">{tenant.statistics.map((stat, index) => <div key={`${stat.label}-${index}`}><strong>{stat.value}</strong><span>{stat.label}</span></div>)}</section>}
+      {tenant.statistics.length > 0 && <section id="statistics" className={styles.statistics} aria-label="Institution at a glance">{tenant.statistics.map((stat, index) => <div key={`${stat.label}-${index}`}><strong>{stat.value}</strong><span>{stat.label}</span></div>)}</section>}
 
       <section id="about" className={`${styles.section} ${styles.about}`}>
-        <div className={styles.sectionHeading}><p className={styles.eyebrow}>01 / Our story</p><h2>{tenant.aboutTitle || `Welcome to ${tenant.name}`}</h2></div>
+        <div className={styles.sectionHeading}><p className={styles.eyebrow}>01 / Our story</p><h2>{heading('about', tenant.aboutTitle || `Welcome to ${tenant.name}`)}</h2></div>
         <div className={styles.aboutBody}><p className={styles.introduction}>{introduction}</p>{(tenant.mission || tenant.vision) && <div className={styles.values}>{tenant.mission && <article><h3>Our mission</h3><p>{tenant.mission}</p></article>}{tenant.vision && <article><h3>Our vision</h3><p>{tenant.vision}</p></article>}</div>}</div>
       </section>
 
       {tenant.programs.length > 0 && <section id="programs" className={`${styles.section} ${styles.programs}`}>
-        <div className={styles.sectionHeading}><p className={styles.eyebrow}>Learning pathways</p><h2>A place for your next chapter.</h2></div>
+        <div className={styles.sectionHeading}><p className={styles.eyebrow}>Learning pathways</p><h2>{heading('programs', 'A place for your next chapter.')}</h2></div>
         <div className={styles.programList}>{tenant.programs.map((program, index) => <article key={`${program.title}-${index}`}><span className={styles.itemNumber}>{String(index + 1).padStart(2, '0')}</span><h3>{program.title}</h3><p>{program.description || 'Contact the institution for program details.'}</p></article>)}</div>
       </section>}
 
       {publicEvents.length > 0 && <section id="events" className={`${styles.section} ${styles.events}`}>
-        <div className={styles.sectionHeading}><p className={styles.eyebrow}>On the calendar</p><h2>Life beyond the classroom.</h2></div>
+        <div className={styles.sectionHeading}><p className={styles.eyebrow}>On the calendar</p><h2>{heading('events', 'Life beyond the classroom.')}</h2></div>
         <div className={styles.eventGrid}>{publicEvents.map((event) => <article key={event.id}><Link href={`/event/${event.slug}`} className={styles.eventImage} aria-label={event.title}>{event.coverImageUrl ? <Image unoptimized fill sizes="(max-width: 700px) 100vw, 450px" src={event.coverImageUrl} alt="" className={styles.cover} /> : <CalendarDays size={48} aria-hidden="true" />}</Link><div className={styles.eventMeta}>{event.eventDate && <span>{event.eventDate}</span>}{event.venue && <span>{event.venue}</span>}</div><h3><Link href={`/event/${event.slug}`}>{event.title}</Link></h3>{event.summary && <p>{event.summary}</p>}<Link className={styles.textLink} href={`/event/${event.slug}`}>Event details <ArrowRight size={15} /></Link></article>)}</div>
       </section>}
 
       {hasTimetable && <section id="timetable" className={`${styles.section} ${styles.timetable}`}>
-        <div className={styles.sectionHeading}><p className={styles.eyebrow}>Academic schedule</p><h2>Class timetable.</h2><a className={styles.textLink} href={tenant.websiteNotices.publishedTimetable.imageUrl} target="_blank" rel="noopener noreferrer">Open full size <ExternalLink size={15} /></a></div>
+        <div className={styles.sectionHeading}><p className={styles.eyebrow}>Academic schedule</p><h2>{heading('timetable', 'Class timetable.')}</h2><a className={styles.textLink} href={tenant.websiteNotices.publishedTimetable.imageUrl} target="_blank" rel="noopener noreferrer">Open full size <ExternalLink size={15} /></a></div>
         <a href={tenant.websiteNotices.publishedTimetable.imageUrl} target="_blank" rel="noopener noreferrer" aria-label="Open class timetable at full size" className={styles.timetableImage}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={tenant.websiteNotices.publishedTimetable.imageUrl} alt={`${tenant.name} class timetable`} loading="lazy" />
         </a>
       </section>}
 
-      {tenant.principalMessage && <section className={`${styles.section} ${styles.leadership}`}>
+      {tenant.principalMessage && <section id="leadership" className={`${styles.section} ${styles.leadership}`}>
         {tenant.principalImageUrl ? <div className={styles.portrait}><Image unoptimized fill sizes="(max-width: 700px) 100vw, 450px" src={tenant.principalImageUrl} alt={tenant.principalName || 'Institution leader'} className={styles.cover} /></div> : <span className={styles.quoteMark} aria-hidden="true">“</span>}
         <div><p className={styles.eyebrow}>From the leadership</p><blockquote>{tenant.principalMessage}</blockquote><strong>{tenant.principalName || 'Institution leadership'}</strong>{tenant.principalTitle && <p>{tenant.principalTitle}</p>}</div>
       </section>}
 
-      {tenant.highlights.length > 0 && <section className={`${styles.section} ${styles.highlights}`}>
-        <div className={styles.sectionHeading}><p className={styles.eyebrow}>Our community</p><h2>More to discover.</h2></div>
+      {tenant.highlights.length > 0 && <section id="highlights" className={`${styles.section} ${styles.highlights}`}>
+        <div className={styles.sectionHeading}><p className={styles.eyebrow}>Our community</p><h2>{heading('highlights', 'More to discover.')}</h2></div>
         <div className={styles.highlightGrid}>{tenant.highlights.map((highlight, index) => <article key={`${highlight.title}-${index}`}><span className={styles.itemNumber}>{String(index + 1).padStart(2, '0')}</span><h3>{highlight.title}</h3><p>{highlight.description || 'Contact us to learn more.'}</p></article>)}</div>
       </section>}
 
       {tenant.galleryImages.length > 0 && <section id="campus" className={`${styles.section} ${styles.gallery}`}>
-        <div className={styles.sectionHeading}><p className={styles.eyebrow}>A closer look</p><h2>Inside {tenant.name}.</h2></div>
+        <div className={styles.sectionHeading}><p className={styles.eyebrow}>A closer look</p><h2>{heading('campus', `Inside ${tenant.name}.`)}</h2></div>
         <div className={styles.galleryGrid}>{tenant.galleryImages.map((image, index) => <figure key={`${image.url}-${index}`}><div><Image unoptimized fill sizes="(max-width: 700px) 100vw, 450px" src={image.url} alt={image.caption || `${tenant.name} campus`} className={styles.cover} /></div>{image.caption && <figcaption>{image.caption}</figcaption>}</figure>)}</div>
       </section>}
 
-      {tenant.admissionsEnabled && <section className={`${styles.section} ${styles.admissions}`}>
-        <div><p className={styles.eyebrow}>Your next step</p><h2>Begin your journey with us.</h2><p>Explore current admission rounds or return to your application.</p></div><div className={styles.actions}><Link href="/admissions" className={styles.primary}>View admissions <ArrowRight size={16} /></Link><Link href="/admissions/login" className={styles.secondary}>Applicant login</Link></div>
+      {Boolean(tenant.design?.customBlocks?.length) && <section id="custom" className={styles.section}><div className={styles.sectionHeading}><p className={styles.eyebrow}>More from our community</p><h2>{heading('custom', 'Discover more.')}</h2></div><div className={styles.customContent}><EventContentBlocks blocks={tenant.design?.customBlocks || []} /></div></section>}
+
+      {tenant.admissionsEnabled && <section id="admissions" className={`${styles.section} ${styles.admissions}`}>
+        <div><p className={styles.eyebrow}>Your next step</p><h2>{heading('admissions', 'Begin your journey with us.')}</h2><p>Explore current admission rounds or return to your application.</p></div><div className={styles.actions}><Link href="/admissions" className={styles.primary}>View admissions <ArrowRight size={16} /></Link><Link href="/admissions/login" className={styles.secondary}>Applicant login</Link></div>
       </section>}
 
       {hasContact && <section id="contact" className={`${styles.section} ${styles.contact}`}>
-        <div className={styles.sectionHeading}><p className={styles.eyebrow}>Let’s connect</p><h2>A conversation starts here.</h2></div>
+        <div className={styles.sectionHeading}><p className={styles.eyebrow}>Let’s connect</p><h2>{heading('contact', 'A conversation starts here.')}</h2></div>
         <div className={styles.contactDetails}>
           {tenant.publicAddress && <div><MapPin size={19} /><div><h3>Visit us</h3><p>{tenant.publicAddress}</p>{tenant.mapUrl && <a className={styles.textLink} href={tenant.mapUrl} target="_blank" rel="noopener noreferrer">View map <ExternalLink size={14} /></a>}</div></div>}
           {tenant.publicPhone && <a href={`tel:${tenant.publicPhone}`}><Phone size={19} /><span><strong>Call our office</strong><span>{tenant.publicPhone}</span></span></a>}
           {tenant.publicEmail && <a href={`mailto:${tenant.publicEmail}`}><Mail size={19} /><span><strong>Email us</strong><span>{tenant.publicEmail}</span></span></a>}
         </div>
       </section>}
-    </main>
+    </OrderedWebsiteSections></main>
 
     {mosaic ? <footer className={styles.footer}>
       <div className={styles.footerTop}><Link href="/" className={styles.brand} aria-label={`${tenant.name} home`}>{brand}</Link><p>{tenant.city}, {tenant.country}</p>{socialLinks.length > 0 && <nav aria-label="Social media">{socialLinks.map(({ label, href }) => <a key={label} href={href} target="_blank" rel="noopener noreferrer">{label} <ExternalLink size={13} /></a>)}</nav>}</div>

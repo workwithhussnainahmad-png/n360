@@ -102,6 +102,8 @@ google_drive_setup_guide.md
 !/scripts/verify-institution-restores.ts
 !/scripts/verify-local.mjs
 !/scripts/verify-qr-key-rotation.ts
+!/scripts/verify-public-site-builder.ts
+!/scripts/verify-public-site-builder-ui.cjs
 !/scripts/verify-request-costs.cjs
 !/scripts/verify-request-costs-ui.cjs
 !/scripts/verify-role-boundaries.ts

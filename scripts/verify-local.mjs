@@ -7,6 +7,7 @@ const checks=[
   ['scripts/audit-tenant-scope.mjs'],
   ['scripts/verify-request-costs.cjs'],
   ['--import','tsx','scripts/verify-form-validation.ts'],
+  ['--import','tsx','scripts/verify-public-site-builder.ts'],
   ['--import','tsx','scripts/verify-role-boundaries.ts'],
   ['--import','tsx','scripts/verify-admission-campus.tsx'],
   ['--import','tsx','scripts/verify-fee-billing.ts'],

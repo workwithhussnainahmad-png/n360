@@ -12,6 +12,7 @@ import { normalizeWebsiteNotices } from '@/lib/public-website-notices';
 import { listPublishedPublicEvents } from '@/lib/public-event-queries';
 import { PublicWebsiteEditor } from '../PublicWebsiteEditor';
 import { getPublicSiteTheme } from '@/lib/public-site-themes';
+import { publicAdmissionsEnabledSql } from '@/lib/public-admissions-availability';
 
 export default async function InstitutionPublicWebsitePage() {
   const session = await getSession();
@@ -21,6 +22,11 @@ export default async function InstitutionPublicWebsitePage() {
   const [[institution], [publicProfile], [platformSettings], requestHeaders, publishedEvents] = await Promise.all([
     db.select({
       name: institutions.name,
+      type: institutions.type,
+      city: institutions.city,
+      country: institutions.country,
+      logoKey: institutions.logoKey,
+      admissionsEnabled: publicAdmissionsEnabledSql,
       parentInstitutionId: institutions.parentInstitutionId,
       publicSlug: institutions.publicSlug,
       publicSiteEnabled: institutions.publicSiteEnabled,
@@ -67,6 +73,8 @@ export default async function InstitutionPublicWebsitePage() {
             publicUrl={publicUrl}
             qrUrl={qrUrl}
             eventLinks={publishedEvents.map((event) => ({ title: event.title, slug: event.slug }))}
+            previewIdentity={{ name: institution.name, type: institution.type, city: institution.city, country: institution.country, logoKey: institution.logoKey, admissionsEnabled: institution.admissionsEnabled }}
+            previewEvents={publishedEvents.slice(0, 6)}
             initialProfile={{
               tagline: publicProfile?.tagline || null,
               description: publicProfile?.description || null,
@@ -93,6 +101,7 @@ export default async function InstitutionPublicWebsitePage() {
               youtubeUrl: publicProfile?.youtubeUrl || null,
               websiteNotices: normalizeWebsiteNotices(publicProfile?.websiteNotices),
               theme: getPublicSiteTheme(publicProfile?.theme).id,
+              design: publicProfile?.design || {},
             }}
           />
         </CardContent>

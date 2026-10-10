@@ -23,7 +23,9 @@
     "verify:forms": "node --import tsx scripts/verify-form-validation.ts",
     "verify:forms-ui": "node scripts/verify-form-validation-ui.cjs",
     "verify:request-costs": "node scripts/verify-request-costs.cjs",
-    "verify:request-costs-ui": "node scripts/verify-request-costs-ui.cjs"
+    "verify:request-costs-ui": "node scripts/verify-request-costs-ui.cjs",
+    "verify:website-builder": "node --import tsx scripts/verify-public-site-builder.ts",
+    "verify:website-builder-ui": "node scripts/verify-public-site-builder-ui.cjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1121.0",

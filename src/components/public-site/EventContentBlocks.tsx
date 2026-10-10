@@ -1,17 +1,38 @@
+import type { CSSProperties, ReactNode } from 'react';
 import Image from 'next/image';
 import { Clock3 } from 'lucide-react';
 import type { PublicEventBlock } from '@/lib/public-events';
+import { safePublicLink, videoEmbedUrl } from '@/lib/public-site-builder';
+import styles from './builder.module.css';
 
+function Photo({ url, alt, caption }: { url: string; alt: string; caption?: string }) {
+  return <figure className={styles.figure}><div className={styles.image}><Image unoptimized fill sizes="(max-width: 640px) 100vw, 600px" src={url} alt={alt} className="object-cover" /></div>{caption && <figcaption>{caption}</figcaption>}</figure>;
+}
+function content(block: PublicEventBlock): ReactNode {
+  switch (block.type) {
+    case 'heading': return block.text ? <h2>{block.text}</h2> : null;
+    case 'paragraph': return block.text ? <p>{block.text}</p> : null;
+    case 'image': return block.url ? <Photo {...block} /> : null;
+    case 'callout': return block.title || block.text ? <aside className={styles.callout}>{block.title && <h3>{block.title}</h3>}{block.text && <p>{block.text}</p>}</aside> : null;
+    case 'schedule': return <div className={styles.schedule}><span className="flex items-center gap-2 text-sm font-semibold"><Clock3 size={16} />{block.time}</span><div><h3>{block.title}</h3><p>{block.description}</p></div></div>;
+    case 'button': return block.label && safePublicLink(block.url) ? <a href={block.url} className={styles.button}>{block.label}</a> : null;
+    case 'gallery': return block.images.length ? <div className={styles.gallery} style={{ '--gallery-columns': block.columns } as CSSProperties}>{block.images.filter((i) => i.url).map((image, index) => <Photo key={image.url + '-' + index} {...image} />)}</div> : null;
+    case 'split': {
+      const photo = block.url ? <Photo url={block.url} alt={block.alt} /> : null;
+      const text = <div><h3>{block.title}</h3><p>{block.text}</p></div>;
+      return <div className={block.url ? styles.split : undefined}>{block.imageSide === 'left' ? <>{photo}{text}</> : <>{text}{photo}</>}</div>;
+    }
+    case 'faq': return <div className={styles.faq}>{block.items.filter((item) => item.question).map((item, index) => <details key={index}><summary>{item.question}</summary><p>{item.answer}</p></details>)}</div>;
+    case 'list': { const Tag = block.ordered ? 'ol' : 'ul'; return <Tag className={styles.list + ' ' + (block.ordered ? styles.ordered : styles.bullets)}>{block.items.filter(Boolean).map((item, index) => <li key={index}>{item}</li>)}</Tag>; }
+    case 'video': { const url = videoEmbedUrl(block.url); return url ? <figure className={styles.figure}><div className={styles.video}><iframe src={url} title={block.caption || 'Institution video'} loading="lazy" allow="fullscreen; picture-in-picture" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen /></div>{block.caption && <figcaption>{block.caption}</figcaption>}</figure> : null; }
+    case 'divider': return <hr className={styles.divider} />;
+    case 'spacer': return <div aria-hidden="true" style={{ height: block.height }} />;
+  }
+}
 export function EventContentBlocks({ blocks }: { blocks: PublicEventBlock[] }) {
-  return <div className="space-y-7">
-    {blocks.map((block) => {
-      if (block.type === 'heading') return block.text ? <h2 key={block.id} className="pt-3 font-display text-2xl font-semibold tracking-[-0.035em] text-[#171c1a] sm:text-3xl">{block.text}</h2> : null;
-      if (block.type === 'paragraph') return block.text ? <p key={block.id} className="whitespace-pre-line text-base leading-8 text-black/65">{block.text}</p> : null;
-      if (block.type === 'image') return block.url ? <figure key={block.id} className="overflow-hidden border border-black/10 bg-[#e9e5dc]"><div className="relative aspect-[16/9]"><Image unoptimized fill sizes="(max-width: 1024px) 100vw, 900px" src={block.url} alt={block.alt || ''} className="object-cover" /></div>{block.caption && <figcaption className="border-t border-black/10 bg-white px-4 py-3 text-xs text-black/50">{block.caption}</figcaption>}</figure> : null;
-      if (block.type === 'callout') return (block.title || block.text) ? <aside key={block.id} className="border-l-4 border-[var(--site-accent)] bg-[#e9e5dc] p-5 sm:p-6">{block.title && <h3 className="font-display text-xl font-semibold">{block.title}</h3>}{block.text && <p className="mt-2 whitespace-pre-line text-sm leading-7 text-black/60">{block.text}</p>}</aside> : null;
-      if (block.type === 'schedule') return (block.time || block.title || block.description) ? <div key={block.id} className="grid gap-3 border-t border-black/10 pt-5 sm:grid-cols-[150px_1fr]"><span className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.1em] text-[var(--site-accent)]"><Clock3 className="h-4 w-4" />{block.time || 'Schedule'}</span><div>{block.title && <h3 className="font-display text-lg font-semibold">{block.title}</h3>}{block.description && <p className="mt-2 whitespace-pre-line text-sm leading-7 text-black/55">{block.description}</p>}</div></div> : null;
-      if (block.type === 'button') return block.label && block.url ? <div key={block.id}><a href={block.url} className="inline-flex min-h-11 items-center justify-center bg-[#171c1a] px-6 py-3 text-xs font-bold text-white transition-colors hover:bg-[var(--site-accent)]">{block.label}</a></div> : null;
-      return null;
-    })}
-  </div>;
+  return <div className={styles.blocks}>{blocks.map((block) => {
+    const body = content(block);
+    if (!body) return null;
+    return <div key={block.id} className={[styles.block, styles[block.style?.tone || 'plain'] || '', styles[block.style?.spacing || 'normal'] || ''].join(' ')} style={{ '--block-align': block.style?.align || 'left' } as CSSProperties}>{body}</div>;
+  })}</div>;
 }
