@@ -20,12 +20,11 @@
 .hero {
   display: grid;
   width: min(100% - 3rem, 1380px);
-  min-height: 640px;
   margin: 0 auto;
   grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
-  align-items: end;
+  align-items: start;
   gap: clamp(3rem, 10vw, 10rem);
-  padding: clamp(5rem, 10vw, 10rem) 0 4rem;
+  padding: clamp(1.5rem, 3vw, 3rem) 0 4rem;
 }
 
 .hero h1 {
@@ -473,10 +472,6 @@
     grid-template-columns: 1fr;
   }
 
-  .hero {
-    min-height: auto;
-  }
-
   .heroSide {
     max-width: 600px;
   }
@@ -497,7 +492,6 @@
 @media (max-width: 640px) {
   .hero {
     width: min(100% - 2rem, 1380px);
-    padding-top: 5rem;
   }
 
   .hero h1 {
