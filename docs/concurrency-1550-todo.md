@@ -2,6 +2,17 @@
 
 Created: 2026-10-11 (Asia/Karachi)
 
+## Follow-up: 2200-VU CPU tuning (2026-10-12)
+
+This is the new three-phase tuning follow-up, separate from the original phases below.
+
+- [x] Phase 1: inspect current proxy/auth/cache/response code and saved 2200-VU measurements. Findings: [fresh inspection report](concurrency-2200-phase1.md). No tests or server changes.
+- [x] Phase 2 preparation: confirmed runtime settings, inspected authorization query plan, and prepared bounded Node/Caddy CPU capture. [Instructions and limitations](concurrency-2200-phase2.md).
+- [ ] Phase 2 evidence: user runs `run-cloud-profile.ps1`; inspect profile success, CPU attribution, and overhead. Detailed request-phase/pool-wait instrumentation remains deferred pending need.
+- [ ] Phase 3: implement measured fixes, review publication scope, and compare the same user-run workload after deployment.
+
+Key correction: dashboard cache hits still perform fresh database authorization. Caddy, Node, and database work all compete for CPU; exact expensive functions remain to be profiled.
+
 Target: reliable operation on the deployed 4-core, 8 GB server. Validate normal browsing, spike, and stress separately; a browsing pass does not prove an aggressive spike pass.
 
 ## Current status
@@ -210,3 +221,11 @@ Publication scope: only the cache implementation and this tracker. Existing edit
 - Fixed absent default hot-path processing timing in `scripts/standalone-server.cjs`; the existing k6 consumer can now record Node processing time without the opt-in observer. Added a closed-response guard to the non-Response error branch.
 - Source/diff review only. No tests, build, remote commands, or deployment performed. This is an observability fix; transport failure remediation and 1550-VU acceptance remain incomplete.
 - Publication includes only the standalone server and the two analysis/tracker documents; diagnostic tooling, credentials, result artifacts, and unrelated user edits are excluded.
+
+### Monitored direct-origin evidence - 2026-10-11
+
+Saved analysis: `test-results/2026-10-11T13-15-18-345Z/analysis.md`. All 2184 recorded failures are transport failures. Node p95 3.323 ms; sampled host CPU below 23%, available RAM above 5 GiB. Caddy namespace gained 10473 retransmissions and 6351 TCP timeout events while app namespaces gained none. Network events rise with k6 failures; exact faulty link/device remains unresolved. Startup-only PC CPU saturation must not be treated as sustained generator saturation. No tests or deployment performed during analysis; capacity target remains incomplete.
+
+### Cloud generator load validation - 2026-10-11
+
+User-run evidence: `test-results/cloud-2026-10-11T18-00-01-765Z`. Direct-origin 1500-VU browsing passed all configured gates: 527402 HTTP requests, zero HTTP/business failures, all checks passed, HTTP p95 4.971 ms and p99 9.925 ms, dashboard p95 4.956 ms. Five-minute peak: 1287.28 successful requests/sec, zero failures, successful p95 upper bound 6 ms and p99 10 ms. Application host sampled CPU peaked at 52.73%, available RAM remained above 5018 MiB. This establishes this browsing workload at 1500 VUs on direct origin, not 1550, spike/stress, Cloudflare-path or cold-cache acceptance. The generator/network change strongly implicates the previous external test paths in prior failures, without identifying an individual faulty device. No code change, deployment or new test was made during this analysis.
