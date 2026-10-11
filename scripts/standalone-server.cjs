@@ -99,6 +99,12 @@ async function requestListener(req, res) {
 }
 
 async function handleLane(req, res, entry) {
+  const started = performance.now();
+  // Include fresh authorization, handler work and body materialization. Keep
+  // this available without the optional profiler so external runs can separate
+  // application time from proxy/network waiting. This excludes socket delivery
+  // and time before Node dispatches the request; it is not end-to-end latency.
+  const timingHeaders = () => ({ 'x-perf-node-ms': (performance.now() - started).toFixed(3) });
   let response;
   try {
     if (NATIVE_WARM_ENABLED && entry.nativeWarm) {
@@ -109,7 +115,7 @@ async function handleLane(req, res, entry) {
         }
         if (res.destroyed) return;
         const headers = { ...entry.headers, ...native.headers.values,
-          'content-length': String(Buffer.byteLength(native.body)) };
+          'content-length': String(Buffer.byteLength(native.body)), ...timingHeaders() };
         res.writeHead(native.status, headers);
         res.end(native.body);
         return;
@@ -122,13 +128,14 @@ async function handleLane(req, res, entry) {
     // construction (malformed URL/header) and anything the wrapper did not catch.
     console.error(`Hot-path lane error for ${req.url}:`, err);
     if (res.destroyed) return;
-    res.writeHead(500, { 'content-type': 'application/json', 'content-length': '33' });
+    res.writeHead(500, { 'content-type': 'application/json', 'content-length': '33', ...timingHeaders() });
     res.end('{"error":"Internal Server Error"}');
     return;
   }
   if (!(response instanceof Response)) {
     console.error(`Hot-path lane handler for ${req.url} returned a non-Response value`);
-    res.writeHead(500, { 'content-type': 'application/json', 'content-length': '33' });
+    if (res.destroyed) return;
+    res.writeHead(500, { 'content-type': 'application/json', 'content-length': '33', ...timingHeaders() });
     res.end('{"error":"Internal Server Error"}');
     return;
   }
@@ -147,6 +154,7 @@ async function handleLane(req, res, entry) {
   });
   if (setCookie.length) headers['set-cookie'] = setCookie;
   headers['content-length'] = String(typeof body === 'string' ? Buffer.byteLength(body) : body?.length || 0);
+  Object.assign(headers, timingHeaders());
   res.writeHead(response.status, headers);
   res.end(body);
 }

@@ -13,7 +13,7 @@ Target: reliable operation on the deployed 4-core, 8 GB server. Validate normal 
 - Phases 4-6: NOT STARTED.
 - User direction (2026-10-11): analyze saved results and current code, fix code, and push only intended files. Do not run tests or deploy.
 - Earlier diagnostic session ran short remote probes and temporarily enabled observers. Both replicas were restored to their original images/configuration and healthy before the user stopped testing. Those runs do not establish 1550-VU capacity.
-- Next action after this commit: user-controlled deployment and validation when explicitly requested.
+- Next action: user deploys the normal-server timing fix, then runs a controlled reproduction; analyze saved application-versus-client timing before choosing a transport or origin fix.
 
 ## Working rules and credit control
 
@@ -201,3 +201,12 @@ Changed application file: src/lib/redis.ts. This tracker accompanies it. Authent
 Validation: source/diff review only in this code-fix session. No tests, build, benchmark, or deployment run, per user direction. These fixes are not proof of 1550-VU capacity, nor a claim that all historical failures are resolved. Phase 3 server verification and Phase 6 acceptance remain incomplete.
 
 Publication scope: only the cache implementation and this tracker. Existing edits to AGENTS.md, README.md, docs/operational-capacity.md, .gitignore, and untracked diagnostic tooling are excluded. Tokens, test-results, local scratch files, binaries, and server captures remain excluded.
+
+### Latest user-run suite analysis - 2026-10-11
+
+- Read all six diagnostic reports and summaries plus failure logs from `test-results/2026-10-11T09-20-44-834Z`.
+- All 12,589 recorded failures are status-0 transport failures; no application HTTP error category was reproduced. Long body-receive and handshake delays are visible. Origin resource exhaustion is not demonstrated.
+- Findings and per-run peak results: [latest results analysis](concurrency-latest-results.md).
+- Fixed absent default hot-path processing timing in `scripts/standalone-server.cjs`; the existing k6 consumer can now record Node processing time without the opt-in observer. Added a closed-response guard to the non-Response error branch.
+- Source/diff review only. No tests, build, remote commands, or deployment performed. This is an observability fix; transport failure remediation and 1550-VU acceptance remain incomplete.
+- Publication includes only the standalone server and the two analysis/tracker documents; diagnostic tooling, credentials, result artifacts, and unrelated user edits are excluded.
