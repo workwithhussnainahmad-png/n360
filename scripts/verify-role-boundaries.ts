@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { build } from 'esbuild';
@@ -380,7 +380,9 @@ try {
   assert.ok(html.includes('CentralDatabaseBackupSettings'));assert.ok(html.includes('InstitutionRestoreRequests'));assert.match(html,/data-download="true"/);
   evidence.push('Actual server-rendered settings remove payment/backup/export/signature/streaming controls from delegated admins; actual employee backup page hides central security, restores and downloads while Root retains them. Client leaves are stubbed to inspect authorization props.');
 
-  await writeFile('docs/role-boundaries-2026-10-06/role-results.json',JSON.stringify({passed:true,groups:evidence,permissionCases,directCases},null,2));
+  const reportPath = 'docs/role-boundaries-2026-10-06/role-results.json';
+  await mkdir(path.dirname(reportPath), { recursive: true });
+  await writeFile(reportPath,JSON.stringify({passed:true,groups:evidence,permissionCases,directCases},null,2));
   console.log('Role boundary verification passed: '+permissionCases+' permission cases, '+directCases+' direct API cases and '+evidence.length+' integration groups.');
 } finally {await memory.close();}
 }
