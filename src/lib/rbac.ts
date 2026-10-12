@@ -29,6 +29,8 @@ type RequireRoleOptions = {
   maxBodyBytes?: number;
   /** Only a synchronous read of already-valid cached data; null means ordinary GET. */
   nativeWarm?: (req: NextRequest, context: { session: JWTPayload }) => NativeJsonResponse | null;
+  /** Standalone-only response optimization AFTER the ordinary fresh auth guards. */
+  nativeAuthenticated?: boolean;
 };
 
 function enforceSessionGuards(
@@ -76,49 +78,63 @@ export function requireRole(
   handler: RouteHandler,
   options?: RequireRoleOptions
 ) {
-  const guarded = withApiPolicy(async (req: NextRequest, context: any) => {
-    try {
-      // Cheapest possible rejection: refuse an oversized body before spending any
-      // work on it. Covers every requireRole-wrapped handler without touching them.
-      if (exceedsDeclaredBodyLimit(req, options?.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES)) {
-        return bodyTooLargeResponse();
-      }
-
-      const session = await measurePerformancePhase('auth', () => options?.light
-        ? getLightSessionFromRequest(req)
-        : getSessionFromRequest(req));
-      if (!session) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-
-      const guard = enforceSessionGuards(req, session, allowedRoles, options);
-      if (guard) return guard;
-      if (options?.permission && !await authorizeSecurityPermission(session, options.permission)) {
-        return NextResponse.json({ error: 'Forbidden: this action is outside your role permissions.' }, { status: 403 });
-      }
-
-      if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
-        const limited = await withRateLimit(req, 'api', `${session.role}:${session.userId}`);
-        if (!limited.success) {
-          return NextResponse.json(
-            { error: 'Too many requests. Please wait and try again.' },
-            { status: 429, headers: { 'Retry-After': String(limited.retryAfterSeconds) } },
-          );
+  function createGuarded(native: false): (req: NextRequest, context: any) => Promise<Response>;
+  function createGuarded(native: true): (req: NextRequest, context: any) => Promise<Response | NativeJsonResponse>;
+  function createGuarded(native: boolean) {
+    return withApiPolicy(async (req: NextRequest, context: any) => {
+      try {
+        // Cheapest possible rejection: refuse an oversized body before spending any
+        // work on it. Covers every requireRole-wrapped handler without touching them.
+        if (exceedsDeclaredBodyLimit(req, options?.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES)) {
+          return bodyTooLargeResponse();
         }
-      }
 
-      const enhancedContext = { ...context, session };
-      return await measurePerformancePhase('handler', async () => handler(req, enhancedContext as any));
-    } catch (err) {
-      const inputError = inputErrorResponse(err);
-      if (inputError) return NextResponse.json(inputError.body, { status: inputError.status });
-      if (err instanceof SyntaxError && /JSON/i.test(err.message)) return NextResponse.json({ error: 'The request could not be read. Please check the entered values and try again.' }, { status: 400 });
-      if (isArchivedAdmissionError(err)) return NextResponse.json({ error: ARCHIVED_ADMISSION_MESSAGE }, { status: 409 });
-      console.error('RBAC Error:', err);
-      return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
-    }
+        const session = await measurePerformancePhase('auth', () => options?.light
+          ? getLightSessionFromRequest(req)
+          : getSessionFromRequest(req));
+        if (!session) {
+          return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const guard = enforceSessionGuards(req, session, allowedRoles, options);
+        if (guard) return guard;
+        if (options?.permission && !await authorizeSecurityPermission(session, options.permission)) {
+          return NextResponse.json({ error: 'Forbidden: this action is outside your role permissions.' }, { status: 403 });
+        }
+
+        if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+          const limited = await withRateLimit(req, 'api', `${session.role}:${session.userId}`);
+          if (!limited.success) {
+            return NextResponse.json(
+              { error: 'Too many requests. Please wait and try again.' },
+              { status: 429, headers: { 'Retry-After': String(limited.retryAfterSeconds) } },
+            );
+          }
+        }
+
+        const enhancedContext = { ...context, session };
+        return await measurePerformancePhase('handler', async () => {
+          if (native && req.method === 'GET' && options?.nativeWarm) {
+            const response = options.nativeWarm(req, { session });
+            if (response?.status === 200) return response;
+          }
+          return handler(req, enhancedContext as any);
+        });
+      } catch (err) {
+        const inputError = inputErrorResponse(err);
+        if (inputError) return NextResponse.json(inputError.body, { status: inputError.status });
+        if (err instanceof SyntaxError && /JSON/i.test(err.message)) return NextResponse.json({ error: 'The request could not be read. Please check the entered values and try again.' }, { status: 400 });
+        if (isArchivedAdmissionError(err)) return NextResponse.json({ error: ARCHIVED_ADMISSION_MESSAGE }, { status: 409 });
+        console.error('RBAC Error:', err);
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+      }
+    });
+  }
+  const guarded = createGuarded(false);
+  if (options?.nativeAuthenticated && options.nativeWarm) Object.defineProperty(guarded, Symbol.for('nisaab360.native-authenticated-get'), {
+    value: createGuarded(true),
   });
-  if (options?.nativeWarm) Object.defineProperty(guarded, Symbol.for('nisaab360.native-warm-get'), {
+  if (options?.nativeWarm && !options.nativeAuthenticated) Object.defineProperty(guarded, Symbol.for('nisaab360.native-warm-get'), {
     value: (req: NextRequest): NativeJsonResponse | null => {
       stripSessionHeaders(req.headers);
       if (req.method !== 'GET' || exceedsDeclaredBodyLimit(req, options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES)) return null;

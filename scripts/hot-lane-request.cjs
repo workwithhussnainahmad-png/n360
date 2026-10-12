@@ -1,6 +1,6 @@
 'use strict';
 /** Defer Next's URL/cookie adaptation on the six audited bearer-only GET paths. */
-function createHotLaneRequest(req, NextRequest, light = false) {
+function createHotLaneRequest(req, NextRequest, light = false, RequestCookies) {
   const host = req.headers.host || 'localhost';
   const url = `http://${host}${req.url}`;
   const headers = new Headers(req.headers);
@@ -11,10 +11,14 @@ function createHotLaneRequest(req, NextRequest, light = false) {
   // for these bearer-authenticated handlers; standard URL supplies used fields.
   const parsed = new URL(url);
   let fallback;
+  let cookies;
   const base = { method: 'GET', headers, url, nextUrl: parsed };
   return new Proxy(base, {
     get(target, key) {
       if (Reflect.has(target, key)) return Reflect.get(target, key);
+      // Use the same cookie implementation as NextRequest without constructing
+      // a Fetch Request merely to read the campus-view cookie during fresh auth.
+      if (key === 'cookies' && RequestCookies) return cookies ??= new RequestCookies(headers);
       // Preserve the rest of the Request API if a handler later needs it.
       fallback ??= new NextRequest(url, { method: 'GET', headers });
       const value = Reflect.get(fallback, key, fallback);

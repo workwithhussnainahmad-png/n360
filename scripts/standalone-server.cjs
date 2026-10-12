@@ -70,6 +70,7 @@ const laneRoutePaths = (process.env.HOT_PATH_LANE_ROUTES
 /** pathname -> { handler, headers } once loaded; entries are added only after a successful load. */
 const lane = new Map();
 let NextRequest;
+let RequestCookies;
 
 let handlersReady;
 const handlersPromise = new Promise((resolve) => { handlersReady = resolve; });
@@ -121,8 +122,19 @@ async function handleLane(req, res, entry) {
         return;
       }
     }
-    const request = createHotLaneRequest(req, NextRequest, LIGHT_REQUEST_ENABLED && entry.lightRequest);
-    response = await entry.handler(request, { params: Promise.resolve({}) });
+    const authenticatedNative = NATIVE_WARM_ENABLED && entry.nativeAuthenticated;
+    const request = createHotLaneRequest(req, NextRequest, Boolean(authenticatedNative) || (LIGHT_REQUEST_ENABLED && entry.lightRequest), authenticatedNative ? RequestCookies : undefined);
+    response = await (authenticatedNative || entry.handler)(request, { params: Promise.resolve({}) });
+    if (authenticatedNative && !(response instanceof Response)) {
+      if (response?.status !== 200 || typeof response.body !== 'string' || !response.headers?.values) {
+        throw new Error('Invalid authenticated native response');
+      }
+      if (res.destroyed) return;
+      res.writeHead(200, { ...entry.headers, ...response.headers.values,
+        'content-length': String(Buffer.byteLength(response.body)), ...timingHeaders() });
+      res.end(response.body);
+      return;
+    }
   } catch (err) {
     // requireRole converts handler failures into JSON 500s; this covers request
     // construction (malformed URL/header) and anything the wrapper did not catch.
@@ -168,6 +180,7 @@ async function loadLane() {
   const routesManifest = JSON.parse(fs.readFileSync(path.join(dir, '.next', 'routes-manifest.json'), 'utf8'));
   const routeFiles = new Map(Object.entries(manifest).map(([page, pathname]) => [pathname, page]));
   ({ NextRequest } = standaloneRequire('next/dist/server/web/spec-extension/request'));
+  ({ RequestCookies } = standaloneRequire('next/dist/server/web/spec-extension/cookies'));
   const loaded = [];
   for (const pathname of laneRoutePaths) {
     const page = routeFiles.get(pathname);
@@ -181,8 +194,10 @@ async function loadLane() {
       const handler = routeModule.userland.GET;
       if (typeof handler !== 'function') throw new Error('route exports no GET handler');
       const nativeWarm = LIGHT_REQUEST_ROUTES.has(pathname) && handler[Symbol.for('nisaab360.native-warm-get')];
+      const nativeAuthenticated = pathname === '/api/student/dashboard' && handler[Symbol.for('nisaab360.native-authenticated-get')];
       lane.set(pathname, { handler, headers: staticHeadersFor(routesManifest, pathname), lightRequest: LIGHT_REQUEST_ROUTES.has(pathname),
-        nativeWarm: typeof nativeWarm === 'function' ? nativeWarm : null });
+        nativeWarm: typeof nativeWarm === 'function' ? nativeWarm : null,
+        nativeAuthenticated: typeof nativeAuthenticated === 'function' ? nativeAuthenticated : null });
       loaded.push(pathname);
     } catch (err) {
       console.warn(`Hot-path lane skipped ${pathname}: ${err && err.message ? err.message : err}`);

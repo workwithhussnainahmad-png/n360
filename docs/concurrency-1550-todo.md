@@ -8,8 +8,10 @@ This is the new three-phase tuning follow-up, separate from the original phases 
 
 - [x] Phase 1: inspect current proxy/auth/cache/response code and saved 2200-VU measurements. Findings: [fresh inspection report](concurrency-2200-phase1.md). No tests or server changes.
 - [x] Phase 2 preparation: confirmed runtime settings, inspected authorization query plan, and prepared bounded Node/Caddy CPU capture. [Instructions and limitations](concurrency-2200-phase2.md).
-- [ ] Phase 2 evidence: user runs `run-cloud-profile.ps1`; inspect profile success, CPU attribution, and overhead. Detailed request-phase/pool-wait instrumentation remains deferred pending need.
+- [x] Phase 2 initial evidence: user-run CPU profiles captured successfully; analyzed both Node profiles and Caddy. [Findings](concurrency-2200-profile-findings.md). Compared with the unprofiled baseline; exact overhead and detailed request-phase/pool-wait timing remain unresolved.
 - [ ] Phase 3: implement measured fixes, review publication scope, and compare the same user-run workload after deployment.
+  - [x] Prepared the student dashboard authenticated native response candidate; static checks and source review complete. [Change and rollback notes](concurrency-2200-native-response.md).
+  - [ ] Deploy candidate, verify runtime correctness, and compare unchanged 2200-VU workloads before accepting the optimization.
 
 Key correction: dashboard cache hits still perform fresh database authorization. Caddy, Node, and database work all compete for CPU; exact expensive functions remain to be profiled.
 

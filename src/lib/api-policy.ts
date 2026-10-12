@@ -3,9 +3,10 @@ import { applyCorsHeaders } from './cors';
 import { stripSessionHeaders } from './session-header';
 import { ARCHIVED_ADMISSION_MESSAGE, isArchivedAdmissionError } from './admission-archive-error';
 import { inputErrorResponse } from './input-error-response';
+import type { NativeJsonResponse } from './native-json-response';
 
 /** Keep API transport policy in guarded routes so hot endpoints can skip Proxy. */
-export function withApiPolicy<TContext>(handler: (req: NextRequest, context: TContext) => Promise<Response>) {
+export function withApiPolicy<TContext, TResult extends Response | NativeJsonResponse = Response>(handler: (req: NextRequest, context: TContext) => Promise<TResult>) {
   return async (req: NextRequest, context: TContext) => {
     stripSessionHeaders(req.headers);
     try {

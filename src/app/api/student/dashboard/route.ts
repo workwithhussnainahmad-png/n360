@@ -153,6 +153,7 @@ export const GET = requireRole(["STUDENT"], async (req: NextRequest, { session }
 
   return dashboardResponse(payload, coursesEnabled, headers);
 }, {
+  nativeAuthenticated: true,
   nativeWarm: (req, { session }) => {
     const started = performance.now();
     const tenantId = getTenantContext(session);
