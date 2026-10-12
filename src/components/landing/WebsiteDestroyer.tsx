@@ -39,12 +39,27 @@ export function WebsiteDestroyer() {
 function SupportedDestroyer() {
   const [active, setActive] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
+  const inviteRef = useRef<HTMLDialogElement>(null);
   const offeredRef = useRef(false);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const closeGame = useCallback(() => {
     setActive(false);
     if (returnFocusRef.current?.isConnected) returnFocusRef.current.focus({ preventScroll: true });
   }, []);
+
+  useEffect(() => {
+    if (!showInvite || active) return;
+    const dialog = inviteRef.current;
+    if (!dialog) return;
+    dialog.showModal();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      dialog.close();
+      document.body.style.overflow = previousOverflow;
+      if (returnFocusRef.current?.isConnected) returnFocusRef.current.focus({ preventScroll: true });
+    };
+  }, [showInvite, active]);
 
   useEffect(() => {
     if (active || offeredRef.current) return;
@@ -110,20 +125,28 @@ function SupportedDestroyer() {
   }, [active]);
 
   return <>
-    {showInvite && !active && createPortal(<aside className={styles.invite} role="region" aria-label="Take a break" data-destroyer-ui>
+    {showInvite && !active && createPortal(<dialog ref={inviteRef} className={`${styles.invite} ${styles.inviteDialog}`} aria-labelledby="destroyer-invite-title" aria-describedby="destroyer-invite-description" onCancel={() => setShowInvite(false)} data-destroyer-ui>
       <button type="button" className={styles.inviteClose} aria-label="Dismiss break invitation" onClick={() => setShowInvite(false)}><X size={16} /></button>
-      <div className={styles.inviteBadge}><Gamepad2 size={14} /> BONUS ROUND <span>OPTIONAL</span></div>
+      <div className={styles.inviteBadge}><Gamepad2 size={15} /> SECRET BONUS ROUND</div>
       <div className={styles.inviteArena} aria-hidden="true">
+        <span className={styles.inviteOrbit} />
+        <div className={styles.inviteWebsite}>
+          <div className={styles.inviteBrowser}><i /><i /><i /><span>nisaab360.app</span></div>
+          <div className={styles.inviteMockContent}><span /><span /><div><i /><i /><i /></div></div>
+        </div>
         <div className={styles.inviteBricks}><i /><i /><i /><i /><i /><i /></div>
-        <Hammer className={styles.inviteHammer} size={62} strokeWidth={1.7} />
         <span className={styles.inviteSpark}>✦</span>
-        <span className={styles.inviteArenaLabel}>DEMOLITION MODE</span>
+        <Hammer className={styles.inviteHammer} size={112} strokeWidth={1.6} />
+        <span className={styles.inviteImpact}>SMASH!</span>
+        <span className={styles.inviteArenaLabel}>THIS PAGE IS YOUR PLAYGROUND</span>
       </div>
-      <strong>Ready to smash something?</strong>
-      <p>Grab a hammer, break this page, then rebuild it. Your next little break starts here.</p>
-      <button type="button" className={styles.inviteStart} onClick={() => { setShowInvite(false); setActive(true); }}><Gamepad2 size={18} /> Start bonus round</button>
-      <button type="button" className={styles.inviteSkip} onClick={() => setShowInvite(false)}>Keep browsing</button>
-    </aside>, document.body)}
+      <h2 id="destroyer-invite-title">Nice website.<br /><span>Shame if you smashed it.</span></h2>
+      <p id="destroyer-invite-description">Grab a hammer. Send pixels flying.<br />Then rebuild it all like nothing happened.</p>
+      <div className={styles.inviteSteps} aria-hidden="true"><span>01 / SMASH</span><b>→</b><span>02 / REBUILD</span><b>→</b><span>03 / REPEAT</span></div>
+      <button type="button" className={styles.inviteStart} onClick={() => { setShowInvite(false); setActive(true); }}><Hammer size={20} /> Let&apos;s wreck it <span aria-hidden="true">↗</span></button>
+      <button type="button" className={styles.inviteSkip} onClick={() => setShowInvite(false)}>Spare this website. Keep browsing.</button>
+      <span className={styles.inviteFootnote}>Just a game. Your data stays safe.</span>
+    </dialog>, document.body)}
     {active && <GameLoadBoundary onExit={closeGame}><Suspense fallback={createPortal(
       <aside className={styles.invite} data-destroyer-ui role="status"><strong>Loading demolition mode...</strong>
         <button type="button" className={styles.inviteClose} aria-label="Cancel loading demolition mode" onClick={closeGame}><X size={16} /></button>
