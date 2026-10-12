@@ -66,6 +66,14 @@ deployment/release.env
 deployment/releases/
 
 # Local tools and captured evidence are not production build inputs.
+docs
+**/*.md
+.github
+/run-cloud-test.ps1
+/run-cloud-profile.ps1
+/run-monitored-test.ps1
+/deployment/compose.diagnostics.yml
+.phase2-diagnostics
 .agents
 .vscode
 .idea

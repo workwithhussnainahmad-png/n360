@@ -149,6 +149,11 @@ instituion_settings.png
 
 # local backups and scratchpads
 /k6/
+/run-cloud-test.ps1
+/run-cloud-profile.ps1
+/run-monitored-test.ps1
+/deployment/compose.diagnostics.yml
+/.phase2-diagnostics/
 /Caddyfile.k6
 /docker-compose.k6.yml
 /fix-log.md
