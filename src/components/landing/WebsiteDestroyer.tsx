@@ -2,7 +2,7 @@
 
 import { Component, lazy, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Gamepad2, Hammer, X } from "lucide-react";
+import { X } from "lucide-react";
 import styles from "./WebsiteDestroyer.module.css";
 
 // The physics, canvas snapshotter, weapon art and game CSS load only after Start.
@@ -127,25 +127,33 @@ function SupportedDestroyer() {
   return <>
     {showInvite && !active && createPortal(<dialog ref={inviteRef} className={`${styles.invite} ${styles.inviteDialog}`} aria-labelledby="destroyer-invite-title" aria-describedby="destroyer-invite-description" onCancel={() => setShowInvite(false)} data-destroyer-ui>
       <button type="button" className={styles.inviteClose} aria-label="Dismiss break invitation" onClick={() => setShowInvite(false)}><X size={16} /></button>
-      <div className={styles.inviteBadge}><Gamepad2 size={15} /> SECRET BONUS ROUND</div>
+      <div className={styles.inviteBadge}>NISAAB360 / OFF THE CLOCK</div>
+      <h2 id="destroyer-invite-title" className={styles.inviteTitle}>DESTROY<br /><span>THIS WEBSITE.</span></h2>
       <div className={styles.inviteArena} aria-hidden="true">
-        <span className={styles.inviteOrbit} />
         <div className={styles.inviteWebsite}>
           <div className={styles.inviteBrowser}><i /><i /><i /><span>nisaab360.app</span></div>
-          <div className={styles.inviteMockContent}><span /><span /><div><i /><i /><i /></div></div>
+          <div className={styles.inviteMockContent}><b>A very nice website.</b><span>Please handle with care.</span><div><i /><i /><i /></div></div>
         </div>
-        <div className={styles.inviteBricks}><i /><i /><i /><i /><i /><i /></div>
-        <span className={styles.inviteSpark}>✦</span>
-        <Hammer className={styles.inviteHammer} size={112} strokeWidth={1.6} />
-        <span className={styles.inviteImpact}>SMASH!</span>
-        <span className={styles.inviteArenaLabel}>THIS PAGE IS YOUR PLAYGROUND</span>
+        <svg className={styles.inviteDamage} viewBox="0 0 540 220" fill="none">
+          <path d="m294 77 18-34 5 34 36-10-19 26 34 18-39 6 15 34-34-19-17 32-7-36-34 12 19-29-26-16 38-2Z" fill="#23231f" />
+          <path d="m295 92-53-30-21-31m68 78-76 18-30 34m127-48 50 35 35 4m-92-39 29-64" stroke="#23231f" strokeWidth="2" />
+          <path d="m354 47 20-13 5 21Z M373 106l25-8-7 24Z M325 175l19-11 9 25Z M217 72l-17-12 1 20Z M259 171l-16 9 19 9Z" fill="#e4432e" />
+          <path d="m398 57 17-9m-22 87 19 9m-76 45 5 15m-116-61-17 7" stroke="#23231f" strokeWidth="3" />
+        </svg>
+        <svg className={styles.inviteHammer} viewBox="0 0 180 220" fill="none">
+          <path d="m80 80 23 9-38 120-16 6-9-15Z" fill="#ba6e36" stroke="#23231f" strokeWidth="4" />
+          <path d="m56 172 15 6m-20 6 15 6m-19 5 15 6" stroke="#633c25" strokeWidth="3" />
+          <path d="m38 33 84 22-9 51-83-23-9-21Z" fill="#343832" stroke="#171914" strokeWidth="4" />
+          <path d="m38 33 9-16 86 23-11 15Z" fill="#92968b" stroke="#171914" strokeWidth="4" />
+          <path d="m122 55 11-15 5 47-25 19Z" fill="#666c60" stroke="#171914" strokeWidth="4" />
+          <path d="m43 44 66 18" stroke="#c9cdbf" strokeWidth="3" />
+        </svg>
+        <span className={styles.inviteScribble}>Go on. It can take it.</span>
+        <span className={styles.inviteTape}>APPROVED FOR DEMOLITION</span>
       </div>
-      <h2 id="destroyer-invite-title">Nice website.<br /><span>Shame if you smashed it.</span></h2>
-      <p id="destroyer-invite-description">Grab a hammer. Send pixels flying.<br />Then rebuild it all like nothing happened.</p>
-      <div className={styles.inviteSteps} aria-hidden="true"><span>01 / SMASH</span><b>→</b><span>02 / REBUILD</span><b>→</b><span>03 / REPEAT</span></div>
-      <button type="button" className={styles.inviteStart} onClick={() => { setShowInvite(false); setActive(true); }}><Hammer size={20} /> Let&apos;s wreck it <span aria-hidden="true">↗</span></button>
-      <button type="button" className={styles.inviteSkip} onClick={() => setShowInvite(false)}>Spare this website. Keep browsing.</button>
-      <span className={styles.inviteFootnote}>Just a game. Your data stays safe.</span>
+      <p id="destroyer-invite-description">We spent ages building this.<br /><b>You could undo it in seconds.</b></p>
+      <button type="button" className={styles.inviteStart} onClick={() => { setShowInvite(false); setActive(true); }}>HAND ME THE HAMMER <span aria-hidden="true">↗</span></button>
+      <div className={styles.inviteFooter}><span>Break it. Rebuild it.<br />No real damage. Just a game.</span><button type="button" className={styles.inviteSkip} onClick={() => setShowInvite(false)}>I&apos;ll be nice.</button></div>
     </dialog>, document.body)}
     {active && <GameLoadBoundary onExit={closeGame}><Suspense fallback={createPortal(
       <aside className={styles.invite} data-destroyer-ui role="status"><strong>Loading demolition mode...</strong>

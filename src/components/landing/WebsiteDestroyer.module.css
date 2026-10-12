@@ -4,60 +4,58 @@
   margin: auto;
   z-index: 2147483000;
   box-sizing: border-box;
-  width: 490px;
+  width: 570px;
   height: fit-content;
-  max-width: calc(100vw - 40px);
-  max-height: calc(100dvh - 40px);
+  max-width: calc(100vw - 48px);
+  max-height: calc(100dvh - 36px);
   overflow: auto;
-  border: 1px solid #ffffff26;
-  border-radius: 22px;
-  background: #181b20;
-  padding: 28px;
-  color: #fff8ed;
-  text-align: center;
-  box-shadow: 0 32px 100px #0008, inset 0 1px 0 #ffffff12;
+  border: 0;
+  border-radius: 0;
+  padding: 32px 38px 30px;
+  background: #eee9db;
+  color: #23231f;
+  text-align: left;
+  box-shadow: 12px 14px 0 #0003, 0 35px 100px #0006;
 }
-.invite::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 7px; background: repeating-linear-gradient(125deg, #ffc05b 0 14px, #28251e 14px 28px); }
-.inviteDialog::backdrop { background: #10151cc2; backdrop-filter: blur(7px); }
-.inviteDialog[open] { animation: inviteEntrance 260ms ease-out both; }
-.inviteBadge { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0 24px 12px; color: #ffc05b; font-size: 10px; font-weight: 800; letter-spacing: .16em; }
-.inviteArena { position: relative; height: 198px; overflow: hidden; background: radial-gradient(ellipse at center, #ffad4220, transparent 68%); }
-.inviteOrbit { position: absolute; width: 178px; height: 178px; top: 0; left: calc(50% - 89px); border: 1px dashed #ffc05b30; border-radius: 50%; }
-.inviteWebsite { position: absolute; top: 39px; left: calc(50% - 125px); width: 194px; height: 119px; border: 2px solid #a0b4b2; border-radius: 8px; background: #293b3b; transform: rotate(-10deg); box-shadow: 5px 7px 0 #080b0b66; clip-path: polygon(0 0, 100% 0, 100% 31%, 76% 45%, 89% 57%, 65% 62%, 83% 100%, 0 100%); }
-.inviteBrowser { display: flex; align-items: center; gap: 4px; height: 25px; padding: 0 8px; border-bottom: 1px solid #a0b4b244; }
-.inviteBrowser i { width: 4px; height: 4px; border-radius: 50%; background: #ffc05b; }
-.inviteBrowser span { margin-left: 7px; font: 8px monospace; color: #b8ccca; }
-.inviteMockContent { padding: 13px; }
-.inviteMockContent > span { display: block; width: 88px; height: 7px; margin-bottom: 7px; border-radius: 2px; background: #c7de5d; }
-.inviteMockContent > span:nth-child(2) { width: 62px; height: 4px; background: #728d89; }
-.inviteMockContent > div { display: flex; gap: 6px; margin-top: 10px; }
-.inviteMockContent i { width: 39px; height: 21px; border-radius: 3px; background: #728d8955; }
-.inviteBricks { position: absolute; top: 95px; left: calc(50% + 25px); }
-.inviteBricks i { position: absolute; width: 16px; height: 13px; background: #c7de5d; border: 1px solid #e1ecb4; clip-path: polygon(0 0, 100% 15%, 78% 100%, 12% 78%); transform: translate(24px, -8px) rotate(25deg); }
-.inviteBricks i:nth-child(2) { transform: translate(53px, 15px) rotate(60deg); width: 11px; }
-.inviteBricks i:nth-child(3) { transform: translate(33px, 42px) rotate(-30deg); background: #728d89; }
-.inviteBricks i:nth-child(4) { transform: translate(-2px, 53px) rotate(15deg); width: 9px; }
-.inviteBricks i:nth-child(5) { transform: translate(85px, 40px) rotate(110deg); width: 7px; background: #ff9462; }
-.inviteBricks i:nth-child(6) { transform: translate(-149px, -47px) rotate(-25deg); width: 9px; background: #ff9462; }
-.inviteHammer { position: absolute; top: 14px; left: calc(50% + 5px); color: #ffc05b; fill: #ffc05b20; transform: rotate(16deg); filter: drop-shadow(5px 8px 0 #0006); }
-.inviteSpark { position: absolute; top: 55px; left: calc(50% - 12px); color: #ff8157; font-size: 70px; line-height: 1; transform: rotate(12deg); }
-.inviteImpact { position: absolute; top: 18px; left: calc(50% - 147px); padding: 4px 9px; background: #ffc05b; color: #24201a; font: italic 900 16px var(--font-bricolage), sans-serif; transform: rotate(-14deg); box-shadow: 3px 3px 0 #0006; }
-.inviteArenaLabel { position: absolute; bottom: 5px; left: 0; right: 0; color: #b4a795; font: 8px monospace; letter-spacing: .18em; }
-.invite h2, .invite strong { display: block; margin: 14px 0 0; font-family: var(--font-bricolage), sans-serif; font-size: clamp(26px, 4vw, 34px); font-weight: 800; line-height: 1.13; letter-spacing: -.045em; }
-.invite h2 span { color: #ffc05b; }
-.invite p { margin: 14px 0 18px; font-size: 14px; line-height: 1.65; color: #bfc1c5; }
-.inviteSteps { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 21px; font: 9px monospace; letter-spacing: .04em; color: #c4bdb1; }
-.inviteSteps b { color: #ff9462; }
-.inviteStart { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 52px; width: 100%; border: 1px solid #ffb797; border-radius: 10px; padding: 12px 18px; background: #ff895b; color: #231b16; font-size: 16px; font-weight: 800; box-shadow: 0 4px 0 #a64b2c; cursor: pointer; transition: background 150ms, transform 150ms; }
-.inviteStart > span { margin-left: auto; }
-.inviteStart:hover { background: #ffa375; transform: translateY(-1px); }
-.inviteStart:active { transform: translateY(3px); box-shadow: 0 1px 0 #a64b2c; }
-.inviteClose { position: absolute; z-index: 1; top: 16px; right: 12px; display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 50%; background: #ffffff08; color: #bfc1c5; cursor: pointer; }
-.inviteClose:hover { background: #ffffff18; color: #fff; }
-.inviteSkip { display: block; min-height: 40px; margin: 12px auto 0; border: 0; background: transparent; color: #c4c6cb; font-size: 12px; cursor: pointer; }
-.inviteSkip:hover { color: #fff; text-decoration: underline; text-underline-offset: 4px; }
-.inviteFootnote { display: block; margin-top: 2px; font-size: 10px; color: #92969f; }
-.invite button:focus-visible { outline: 2px solid #ffc05b; outline-offset: 4px; }
-@keyframes inviteEntrance { from { opacity: 0; transform: translateY(12px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
-@media (max-height: 700px) { .invite { padding: 22px; } .inviteArena { height: 170px; } .invite h2 { font-size: 28px; } .invite p { margin: 10px 0; } .inviteSteps { margin-bottom: 14px; } }
-@media (prefers-reduced-motion: reduce) { .inviteDialog[open] { animation: none; } .inviteStart { transition: none; } }
+.inviteDialog {
+  background-image: repeating-linear-gradient(0deg, #62563d06 0 1px, transparent 1px 4px);
+  clip-path: polygon(0 0, 100% 0, 100% 98.7%, 96% 99.6%, 91% 98.8%, 87% 100%, 81% 99%, 76% 99.7%, 69% 98.8%, 64% 100%, 57% 99%, 51% 99.8%, 46% 98.8%, 40% 100%, 34% 99.1%, 28% 99.8%, 22% 98.9%, 17% 100%, 11% 99%, 5% 99.7%, 0 98.8%);
+}
+.inviteDialog::backdrop { background: #161713bc; backdrop-filter: grayscale(1) blur(3px); }
+.inviteDialog[open] { animation: posterEntry 220ms ease-out both; }
+.inviteBadge { margin: 0 36px 24px 0; padding-bottom: 12px; border-bottom: 1px solid #23231f; font: 700 10px/1.3 monospace; letter-spacing: .13em; }
+.inviteTitle { position: relative; z-index: 1; margin: 0; font-family: Impact, 'Arial Narrow', var(--font-bricolage), sans-serif; font-size: clamp(66px, 10vw, 98px); font-weight: 900; line-height: .85; letter-spacing: -.055em; }
+.inviteTitle span { display: block; margin-top: 9px; color: #cc3928; font-size: .64em; letter-spacing: -.045em; transform: rotate(-2deg); transform-origin: left; }
+.inviteArena { position: relative; height: 220px; margin: 5px -20px 0; isolation: isolate; }
+.inviteWebsite { position: absolute; top: 39px; left: 44px; width: 295px; height: 142px; border: 2px solid #45483f; background: #fcfaf2; transform: rotate(-7deg); box-shadow: 5px 7px 0 #23231f20; clip-path: polygon(0 0, 100% 0, 100% 26%, 90% 39%, 97% 48%, 89% 56%, 100% 66%, 100% 100%, 0 100%); }
+.inviteBrowser { display: flex; align-items: center; gap: 4px; height: 24px; padding: 0 9px; border-bottom: 1px solid #45483f; background: #dfdfd1; }
+.inviteBrowser i { width: 5px; height: 5px; border: 1px solid #45483f; border-radius: 50%; }
+.inviteBrowser span { margin-left: 12px; font: 9px monospace; }
+.inviteMockContent { padding: 15px; }
+.inviteMockContent > b { display: block; font: 800 18px var(--font-bricolage), sans-serif; letter-spacing: -.04em; }
+.inviteMockContent > span { display: block; margin-top: 3px; font: 9px monospace; color: #686b5d; }
+.inviteMockContent > div { display: flex; gap: 9px; margin-top: 13px; }
+.inviteMockContent i { width: 65px; height: 23px; border: 1px solid #8b917a; background: #d1d7bf; }
+.inviteDamage { position: absolute; inset: 0; width: 100%; height: 100%; }
+.inviteHammer { position: absolute; top: -17px; right: 16px; width: 174px; height: 211px; transform: rotate(21deg); filter: drop-shadow(6px 8px 0 #23231f20); transform-origin: 40% 85%; }
+.inviteDialog[open] .inviteHammer { animation: hammerHit 480ms cubic-bezier(.2,.7,.3,1) both; }
+.inviteScribble { position: absolute; bottom: 9px; right: 4px; font: italic 16px Georgia, serif; transform: rotate(-7deg); }
+.inviteTape { position: absolute; bottom: 28px; left: 1px; padding: 8px 15px; border-block: 1px dashed #23231f88; background: #ead148; color: #23231f; font: 900 12px/1 monospace; letter-spacing: .035em; transform: rotate(5deg); box-shadow: 0 2px 0 #23231f22; }
+.invite p { margin: 9px 0 20px; font-size: 15px; line-height: 1.45; color: #53534a; }
+.invite p b { color: #23231f; font-weight: 600; }
+.inviteStart { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 59px; width: 100%; padding: 13px 20px; border: 2px solid #23231f; border-radius: 0; background: #23231f; color: #f7f1e3; font: 900 17px/1.2 var(--font-bricolage), sans-serif; letter-spacing: -.015em; cursor: pointer; box-shadow: 4px 4px 0 #cc3928; transition: transform 120ms, box-shadow 120ms, background 120ms; }
+.inviteStart > span { font-size: 28px; line-height: 1; }
+.inviteStart:hover { background: #b83023; transform: translate(-1px, -1px); box-shadow: 5px 5px 0 #23231f; }
+.inviteStart:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 #23231f; }
+.inviteClose { position: absolute; z-index: 3; top: 17px; right: 19px; display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid transparent; border-radius: 0; background: transparent; color: #23231f; cursor: pointer; }
+.inviteClose:hover { border-color: #23231f; transform: rotate(5deg); }
+.inviteFooter { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 20px; }
+.inviteFooter > span { font: 10px/1.5 monospace; color: #626257; }
+.inviteSkip { min-height: 40px; padding: 5px 0 5px 12px; border: 0; background: transparent; color: #23231f; font: italic 16px Georgia, serif; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
+.inviteSkip:hover { color: #b83023; }
+.invite strong { display: block; margin: 12px 30px 14px 0; font: 800 26px/1.1 var(--font-bricolage), sans-serif; }
+.invite button:focus-visible { outline: 2px solid #b83023; outline-offset: 5px; }
+@keyframes posterEntry { from { opacity: 0; transform: translateY(14px) rotate(-1deg); } to { opacity: 1; transform: translateY(0) rotate(0); } }
+@keyframes hammerHit { from { transform: rotate(48deg) translate(8px, -10px); } 70% { transform: rotate(14deg); } to { transform: rotate(21deg); } }
+@media (max-height: 740px) { .invite { padding: 24px 34px; } .inviteBadge { margin-bottom: 17px; } .inviteTitle { font-size: 78px; } .inviteArena { height: 185px; } .inviteWebsite { top: 25px; height: 127px; } .inviteHammer { top: -25px; height: 185px; } .inviteTape { bottom: 20px; } .inviteScribble { bottom: 1px; } .invite p { margin: 8px 0 15px; } .inviteFooter { margin-top: 13px; } }
+@media (prefers-reduced-motion: reduce) { .inviteDialog[open], .inviteDialog[open] .inviteHammer { animation: none; } .inviteStart { transition: none; } }
