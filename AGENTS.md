@@ -8,6 +8,4 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-Read .codex/CONTEXT.md at the start of every session. It is the single maintained project context; update its relevant sections in place instead of creating another handoff or appending superseded checkpoints.
-
-Only re-analyze files changed since the recorded commit. When Git history is unavailable, compare against .codex/performance-source-baseline.json as described in the context. Fingerprints identify changes; they do not imply a full code review. Keep dated reports, raw test evidence, and operational runbooks separate from current project state.
+When asked to analyze this project from top to bottom, inspect the current files directly. Do not reuse old AI project context, handoffs, reviews, or recorded conclusions as a substitute for examining the current implementation. Create new project context only after the fresh analysis, and distinguish current findings from historical test evidence.

@@ -2,7 +2,7 @@
 
 A full-stack, multi-tenant school and learning-management application built with Next.js, React, TypeScript, PostgreSQL/Drizzle and Valkey. It includes institution, staff, student, parent and platform portals, public institution websites and admissions.
 
-Contributors and coding agents should read [AGENTS.md](AGENTS.md). The maintained local project context is `.codex/CONTEXT.md`; it stays outside Git along with private test evidence.
+Contributors and coding agents should read [AGENTS.md](AGENTS.md).
 
 Use [.env.example](.env.example) for configuration names and [deployment/README.md](deployment/README.md) for release instructions. `npm run verify:local` runs the maintained checks. `npm run build` creates a production build; `npm start` starts local dependencies, runs migrations and launches the application and email worker. Never copy private environment values or access tokens into documentation.
 
